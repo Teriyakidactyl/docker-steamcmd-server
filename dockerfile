@@ -1,9 +1,33 @@
-# Stage 1: SteamCMD Install
-FROM --platform=linux/amd64 debian:trixie-slim AS opt
+# Docker debian:bookworm-slim that provides steamcmd, wine and box64/86 as needed.
+# creates user called container with UID 1000
+
+# Stage 1: SteamCMD Install ---------------------------------------------------------------------------------------------------
+FROM --platform=linux/amd64 debian:bookworm-slim AS opt-steamcmd
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 ENV STEAMCMD_PATH="/opt/steamcmd"
+
+RUN apt-get update; \
+    apt-get install -y curl lib32gcc-s1; \
+    mkdir -p $STEAMCMD_PATH; \
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
+    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; 
+
+# Stage 2: Wine Install -------------------------------------------------------------------------------------------------------
+FROM --platform=linux/amd64 debian:bookworm-slim AS opt-wine
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# TODO Summarize all variables by role in comment block here. (wine, steamcmd, os, build_packages)
+
+# WINE
+
+# SteamCMD
+
+# OS
+
+# Build
 
 # Manual amd64 wine for Box64, https://dl.winehq.org/wine-builds > https://dl.winehq.org/wine-builds/debian/dists/trixie/main/binary-amd64/
 ## WINE_PATH from winehq debs
@@ -11,7 +35,7 @@ ENV WINE_BRANCH="staging" \
     WINE_PATH="/opt/wine-staging/bin" \
     WINE_VERSION="9.13" \
     WINE_ID="debian" \
-    WINE_DIST="trixie" \
+    WINE_DIST="bookworm" \
     WINE_TAG="-1" 
 
 # Set Wine download links for amd64
@@ -24,12 +48,7 @@ ENV WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE
     # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) 
     WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"    
 
-RUN apt-get update; \
-    apt-get install -y curl lib32gcc-s1; \
-    mkdir -p $STEAMCMD_PATH; \
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
-    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
-    \
+RUN \   
     # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/
     # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
     ## Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
@@ -37,22 +56,23 @@ RUN apt-get update; \
     mkdir -p "$TEMP_DIR"; \
     curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_64_MAIN_BIN}"; \
     curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}"; \
-    # NOTE Skipping wine32 i386 
-    #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
-    #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
+        # NOTE Skipping wine32 i386 
+        #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
+        #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
     dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" /; \
     dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /; \
-    #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
-    #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
+        #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
+        #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
     chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver;
-    ## $WINE_PATH/wine
+        ## $WINE_PATH/wine
 
-# Stage 2: Final
+# Stage 3: Final ---------------------------------------------------------------------------------------------------------------
 # Refference: https://conanexiles.fandom.com/wiki/Dedicated_Server_Setup:_Linux_and_Wine
-FROM debian:trixie-slim
+FROM debian:bookworm-slim
 
 ARG DEBIAN_FRONTEND=noninteractive \
     TARGETARCH \
+    WINE \
     PACKAGES_AMD64_ONLY=" \
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
         lib32gcc-s1" \ 
@@ -65,14 +85,15 @@ ARG DEBIAN_FRONTEND=noninteractive \
         # repo keyring add, https://packages.debian.org/bookworm/gnupg
         gnupg" \
         \
-    PACKAGES_BASE_BUILD=" \
-        curl" \
+    PACKAGES_BASE_BUILD="" \
         \
     PACKAGES_BASE=" \
         # Fake X-Server desktop for Wine https://packages.debian.org/bookworm/xvfb
         ## xauth needed with --no-install-recommends with wine
         xvfb \
         xauth \
+        # curl needed for api calls
+        curl \
         # curl, steamcmd, https://packages.debian.org/bookworm/ca-certificates
         ca-certificates \
         # timezones, https://packages.debian.org/bookworm/tzdata
@@ -86,9 +107,10 @@ ARG DEBIAN_FRONTEND=noninteractive \
     
 ENV \
     # Primary Variables
-    APP_NAME="conan" \
+    APP_NAME \
+    APP_EXE \
+    STEAM_ALLOW_LIST_PATH \
     APP_FILES="/app" \
-    APP_EXE="ConanSandboxServer.exe" \
     WORLD_FILES="/world" \
     STEAMCMD_PATH="/opt/steamcmd" \
     WINE_PATH="/opt/wine-staging/bin" \
@@ -96,24 +118,8 @@ ENV \
     LOGS="/var/log" \
     TERM="xterm-256color" \
     DISPLAY=":0" \
+    CONTAINER_USER="container" \
     PUID="1000" \
-    \
-    # App Variables
-    SERVER_PLAYER_PASS="MySecretPassword" \
-    SERVER_ADMIN_PASS="MySecretPasswordAdmin" \
-    SERVER_NAME="Teriyakolypse" \
-    SERVER_NUDITY_POLICY="0" \
-        # 0: No nudity (characters are fully clothed).
-        # 1: Partial nudity (minimal clothing or loincloths).
-        # 2: Full nudity (characters are fully nude).
-    SERVER_REGION_ID="1" \
-        # Explanation of numeric regions:
-        # 0 - Europe
-        # 1 - North America
-        # 2 - Asia
-        # 3 - Australia
-        # 4 - South America
-        # 5 - Japan
     \
     # Log settings
     # TODO move to file, get more comprehensive.  
@@ -123,28 +129,17 @@ ENV \
     # Derivative Variables
     \
     # Steamcmd
-    STEAM_ALLOW_LIST_PATH="$WORLD_FILES/Saved/whitelist.txt" \
-    STEAMCMD_PROFILE="/home/$APP_NAME/Steam" \
+    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \
     STEAM_LIBRARY="$APP_FILES/Steam" \
     \
     APP_LOGS="$LOGS/$APP_NAME" \
-    WINEPREFIX="/app/Wine" \
-    \
-    # Volume Prep Directories
-    WORLD_DIRECTORIES="\
-    $WORLD_FILES/Saved/Logs \
-    $WORLD_FILES/Config \
-    $WORLD_FILES/Mods \
-    $WORLD_FILES/Engine/Config \
-    $APP_FILES/Engine \
-    $APP_FILES/ConanSandbox"
-    	
+    WINEPREFIX="/app/Wine"
+        	
 ENV \   
     STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs" \ 
     DIRECTORIES="\
     $WINE_PATH \
     $WORLD_FILES \
-    $WORLD_DIRECTORIES \
     $APP_FILES \
     $APP_LOGS \
     $LOGS \
@@ -153,8 +148,26 @@ ENV \
     $STEAMCMD_LOGS \
     $SCRIPTS"
 
-# Copy steamcmd and wine
-COPY --from=opt /opt /opt
+    # STEAM_SERVER_APPID
+    # STEAM_CLIENT_APPID
+    # STEAM_ALLOW_LIST_PATH
+
+    # WINEARCH="win64"
+    # WINEDEBUG=fixme-all                  # https://wiki.winehq.org/Debug_Channels
+    # WINEPREFIX
+
+# Copy SteamCMD
+COPY --from=opt-steamcmd $STEAMCMD_PATH $STEAMCMD_PATH
+
+# TODO if WINE copy Wine
+COPY --from=opt-wine $STEAMCMD_PATH $STEAMCMD_PATH
+
+# Copy scripts after changing to CONTAINER_USER
+COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
+
+# Copy steamcmd user profile (8mb)
+COPY --from=opt-steamcmd --chown=$CONTAINER_USER:$CONTAINER_USER /root/Steam $STEAMCMD_PROFILE 
+
 
 # Update package lists and install required packages
 RUN set -eux; \
@@ -166,25 +179,21 @@ RUN set -eux; \
     \
     # Create and set up $DIRECTORIES permissions
     # links to seperate save game files 'stateful' data from application.
-    useradd -m -u $PUID -d "/home/$APP_NAME" -s /bin/bash $APP_NAME; \
+    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \
-    ln -s "/home/$APP_NAME/Steam/logs" "$LOGS/steamcmd"; \
-    ln -sf "$WORLD_FILES/Engine/Config" "$APP_FILES/Engine"; \
-    ln -sf "$WORLD_FILES/Saved" "$APP_FILES/ConanSandbox"; \
-    ln -sf "$WORLD_FILES/Config" "$APP_FILES/ConanSandbox"; \
-    ln -sf "$WORLD_FILES/Mods" "$APP_FILES/ConanSandbox"; \
-    touch "$APP_LOGS/ConanSandbox.log"; \
-    ln -sf "$APP_LOGS/ConanSandbox.log" "$WORLD_FILES/Saved/Logs/ConanSandbox.log"; \
     \
-    # Create symlinks for wine
-    # NOTE Skipping wine32 i386
-    # ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
-    ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
-    ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
-    ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
-    ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \    
+    if echo "$WINE" | grep -q "true"; then \
+        # Create symlinks for wine
+        # NOTE Skipping wine32 i386
+            # ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
+        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
+        ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
+        ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
+        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \   
+    fi; \ 
     \
-    chown -R $APP_NAME:$APP_NAME $DIRECTORIES; \    
+    # TODO touch and link steamcmd log to /var/log
+    chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
     chmod 755 $DIRECTORIES; \  
     \
     # Architecture-specific setup for ARM
@@ -210,6 +219,7 @@ RUN set -eux; \
         apt-get install -y --no-install-recommends \
             box64 box86; \ 
         \
+        # TODO touch and link box64, box86 logs to /var/log
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
     else \ 
@@ -222,35 +232,14 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
-# Change to non-root APP_NAME
-USER $APP_NAME
-
-# Copy scripts after changing to APP_NAME(user)
-COPY --chown=$APP_NAME:$APP_NAME scripts $SCRIPTS
-
-# Copy steamcmd user profile (8mb)
-COPY --from=opt --chown=$APP_NAME:$APP_NAME /root/Steam $STEAMCMD_PROFILE 
+# Change to non-root CONTAINER_USER
+USER $CONTAINER_USER
 
 # https://docs.docker.com/reference/dockerfile/#volume
 VOLUME ["$APP_FILES"]
 VOLUME ["$WORLD_FILES"]
 
-# Expose necessary ports: (https://www.conanexiles.com/dedicated-servers/)
-EXPOSE \
-    # Game port (UDP): Default 7777, configurable in Engine.ini or via command line
-    7777/udp \
-    # Pinger port (UDP): Always game port + 1 (7778), not configurable
-    7778/udp \
-    # Server query port (UDP): Default 27015, configurable in Engine.ini or via command line
-    27015/udp \
-    # Mod download port (TCP): Default game port + offset (7777), configurable in Engine.ini
-    7777/tcp \
-    # RCON port (TCP): Default 25575, configurable in Game.ini or via command line
-    25575/tcp
-
-
-# TODO Find PID
-#HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1
+HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1
 
 ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["conan_up.sh"]
+CMD ["up.sh"]

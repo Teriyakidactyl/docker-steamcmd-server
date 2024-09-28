@@ -2,6 +2,8 @@
 
 ![Repo Image](/images/repo.png)
 
+**_Teriyakidactyl Delivers!™_**
+
 ## Table of Contents
 - [Steam-based Dedicated Server Base Image](#steam-based-dedicated-server-base-image)
   - [Table of Contents](#table-of-contents)

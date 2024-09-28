@@ -109,8 +109,8 @@ ENV \
     # Primary Variables
     APP_NAME \
     APP_EXE \
-    STEAM_ALLOW_LIST_PATH \
     APP_FILES="/app" \
+    STEAM_ALLOW_LIST_PATH \
     WORLD_FILES="/world" \
     STEAMCMD_PATH="/opt/steamcmd" \
     WINE_PATH="/opt/wine-staging/bin" \
@@ -136,17 +136,7 @@ ENV \
     WINEPREFIX="/app/Wine"
         	
 ENV \   
-    STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs" \ 
-    DIRECTORIES="\
-    $WINE_PATH \
-    $WORLD_FILES \
-    $APP_FILES \
-    $APP_LOGS \
-    $LOGS \
-    $STEAM_LIBRARY \
-    $STEAMCMD_PATH \
-    $STEAMCMD_LOGS \
-    $SCRIPTS"
+    STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
 
     # STEAM_SERVER_APPID
     # STEAM_CLIENT_APPID

@@ -29,6 +29,8 @@
 ## Introduction
 This Docker image serves as a base for creating Steam-based dedicated game servers. It provides a common foundation for managing SteamCMD, emulation layers (Wine, Proton, Box86, Box64), and server operations, simplifying the process of setting up and maintaining game servers across different architectures.
 
+![Repo Image](/images/repo.png)
+
 ## Features
 - SteamCMD integration for server updates
 - Cross-architecture support (x86_64, ARM)

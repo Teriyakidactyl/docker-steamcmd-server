@@ -14,20 +14,12 @@ RUN apt-get update; \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
     $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; 
 
+# TODO Stage 2: Proton...
+
 # Stage 2: Wine Install -------------------------------------------------------------------------------------------------------
 FROM --platform=linux/amd64 debian:bookworm-slim AS opt-wine
 
 ARG DEBIAN_FRONTEND=noninteractive
-
-# TODO Summarize all variables by role in comment block here. (wine, steamcmd, os, build_packages)
-
-# WINE
-
-# SteamCMD
-
-# OS
-
-# Build
 
 # Manual amd64 wine for Box64, https://dl.winehq.org/wine-builds > https://dl.winehq.org/wine-builds/debian/dists/trixie/main/binary-amd64/
 ## WINE_PATH from winehq debs
@@ -136,7 +128,18 @@ ENV \
     WINEPREFIX="/app/Wine"
         	
 ENV \   
-    STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
+    STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs" \
+    DIRECTORIES=" \ 
+        $WINE_PATH \
+        $WORLD_FILES \
+        $WORLD_DIRECTORIES \
+        $APP_FILES \
+        $APP_LOGS \
+        $LOGS \
+        $STEAM_LIBRARY \
+        $STEAMCMD_PATH \
+        $STEAMCMD_LOGS \
+        $SCRIPTS"
 
     # STEAM_SERVER_APPID
     # STEAM_CLIENT_APPID
@@ -149,6 +152,7 @@ ENV \
 # Copy SteamCMD
 COPY --from=opt-steamcmd $STEAMCMD_PATH $STEAMCMD_PATH
 
+# TODO if Proton copy Proton ...
 # TODO if WINE copy Wine
 COPY --from=opt-wine $STEAMCMD_PATH $STEAMCMD_PATH
 
@@ -158,7 +162,6 @@ COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
 # Copy steamcmd user profile (8mb)
 COPY --from=opt-steamcmd --chown=$CONTAINER_USER:$CONTAINER_USER /root/Steam $STEAMCMD_PROFILE 
 
-
 # Update package lists and install required packages
 RUN set -eux; \
     \
@@ -167,8 +170,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         $PACKAGES_BASE $PACKAGES_BASE_BUILD $PACKAGES_DEV; \
     \
-    # Create and set up $DIRECTORIES permissions # TODO
-    DIRECTORIES="$WORLD_FILES $APP_FILES $LOGS $STEAMCMD_PATH $STEAMCMD_PROFILE $APP_LOGS $SCRIPTS" \
+    # Create and set up $DIRECTORIES permissions
     # links to seperate save game files 'stateful' data from application.
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \

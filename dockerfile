@@ -16,7 +16,7 @@ RUN apt-get update; \
 
 # TODO Stage 2: Proton...
 
-# Stage 2: Wine Install -------------------------------------------------------------------------------------------------------
+# Stage 3: Wine Install -------------------------------------------------------------------------------------------------------
 FROM --platform=linux/amd64 debian:bookworm-slim AS opt-wine
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -58,7 +58,7 @@ RUN \
     chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver;
         ## $WINE_PATH/wine
 
-# Stage 3: Final ---------------------------------------------------------------------------------------------------------------
+# Stage 4: Final ---------------------------------------------------------------------------------------------------------------
 # Refference: https://conanexiles.fandom.com/wiki/Dedicated_Server_Setup:_Linux_and_Wine
 FROM debian:bookworm-slim
 
@@ -152,15 +152,12 @@ ENV \
 # Copy SteamCMD
 COPY --from=opt-steamcmd $STEAMCMD_PATH $STEAMCMD_PATH
 
+# Copy steamcmd user profile (8mb)
+COPY --from=opt-steamcmd --chown=$CONTAINER_USER:$CONTAINER_USER /root/Steam $STEAMCMD_PROFILE 
+
 # TODO if Proton copy Proton ...
 # TODO if WINE copy Wine
 COPY --from=opt-wine $STEAMCMD_PATH $STEAMCMD_PATH
-
-# Copy scripts after changing to CONTAINER_USER
-COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
-
-# Copy steamcmd user profile (8mb)
-COPY --from=opt-steamcmd --chown=$CONTAINER_USER:$CONTAINER_USER /root/Steam $STEAMCMD_PROFILE 
 
 # Update package lists and install required packages
 RUN set -eux; \
@@ -224,6 +221,9 @@ RUN set -eux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
+
+# Copy scripts after changing to CONTAINER_USER
+COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
 
 # Change to non-root CONTAINER_USER
 USER $CONTAINER_USER

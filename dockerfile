@@ -167,7 +167,8 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         $PACKAGES_BASE $PACKAGES_BASE_BUILD $PACKAGES_DEV; \
     \
-    # Create and set up $DIRECTORIES permissions
+    # Create and set up $DIRECTORIES permissions # TODO
+    DIRECTORIES="$WORLD_FILES $APP_FILES $LOGS $STEAMCMD_PATH $STEAMCMD_PROFILE $APP_LOGS $SCRIPTS" \
     # links to seperate save game files 'stateful' data from application.
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \

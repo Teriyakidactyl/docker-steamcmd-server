@@ -179,6 +179,7 @@ RUN set -eux; \
     # ARCH Specific Packages ----------------------------------------------------------------------------------------------------------------------------------------------------------
     if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
+        # FIXME armhf might swell things, seperate build stage?
         dpkg --add-architecture armhf; \
         apt-get update; \
         \

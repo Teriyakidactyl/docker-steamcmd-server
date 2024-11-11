@@ -177,7 +177,7 @@ RUN set -eux; \
     fi; \
     \
     # ARCH Specific Packages ----------------------------------------------------------------------------------------------------------------------------------------------------------
-        if echo "$TARGETARCH" | grep -q "arm"; then \
+    if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
         dpkg --add-architecture armhf; \
         apt-get update; \

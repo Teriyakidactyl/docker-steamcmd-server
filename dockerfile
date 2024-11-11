@@ -221,14 +221,8 @@ RUN set -eux; \
     # TODO test steam download
     \
     # Create the container user
-    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
     chmod 755 $DIRECTORIES; \ 
-    \
-    # Create necessary directories and set permissions
-    mkdir -p $APP_FILES $WORLD_FILES /var/log/steamcmd /opt/steamcmd; \
-    chown -R $CONTAINER_USER:$CONTAINER_USER $APP_FILES $WORLD_FILES /var/log/steamcmd /opt/steamcmd; \
-    chmod -R 755 $APP_FILES $WORLD_FILES /var/log/steamcmd /opt/steamcmd; \
     \
     # Final cleanup
     apt-get clean; \

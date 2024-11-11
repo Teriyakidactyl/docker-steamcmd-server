@@ -132,11 +132,6 @@ RUN set -eux; \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \
     \
-    # Install SteamCMD ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
-    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
-    # TODO test steam download
-    \
     # Conditional Wine setup if COMPAT_LAYER is "wine"
     if [ "$COMPAT_LAYER" = "wine" ]; then \
         \
@@ -203,7 +198,7 @@ RUN set -eux; \
         \
         # Variables for ARM64 Support
         APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX"; \
-        DEBUGGER="box86"; \
+        export DEBUGGER="box86"; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
@@ -219,6 +214,11 @@ RUN set -eux; \
         echo "Proton installation is not yet implemented in this Dockerfile."; \
         APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"; \
     fi; \
+    \
+    # Install SteamCMD ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
+    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
+    # TODO test steam download
     \
     # Create the container user
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \

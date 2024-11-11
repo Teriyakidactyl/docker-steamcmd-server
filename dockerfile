@@ -123,9 +123,10 @@ ENV \
 RUN set -eux; \
     \
     # Update and install common BASE_DEPENDENCIES
+    # NOTE || 'true' due to btop not always being present in repos
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        $PACKAGES_BASE $PACKAGES_BASE_BUILD $PACKAGES_DEV; \
+        $PACKAGES_BASE $PACKAGES_BASE_BUILD $PACKAGES_DEV || true; \
     \
     # Create and set up $DIRECTORIES permissions
     # links to seperate save game files 'stateful' data from application.

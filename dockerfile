@@ -27,7 +27,6 @@ ARG PROTON_VERSION=""
 ARG  \
     PACKAGES_AMD64_ONLY="\
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
-        # FIXME Unable to locate package lib32gcc-s1 bookworm / arm64
         lib32gcc-s1" \ 
          \
     PACKAGES_ARM_ONLY="\
@@ -67,7 +66,6 @@ ENV CONTAINER_USER="container"
 ENV PUID="1000"
 ENV TERM="xterm-256color"
 ENV DISPLAY=":0"
-ENV DEBUGGER=""
 ENV LOGS="/var/log"
 ENV SCRIPTS="/usr/local/bin"
 
@@ -98,6 +96,7 @@ ENV WINEDEBUG="fixme-all"
 
 # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
 ENV BOX86_LOG=1
+ENV BOX68_DBG=""
 ENV BOX86_TRACE_FILE="$LOGS/box86.log"
 
 # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
@@ -203,7 +202,7 @@ RUN set -eux; \
         \
         # Variables for ARM64 Support
         APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX"; \
-        export DEBUGGER="box86"; \
+        BOX68_DBG="box86"; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
@@ -242,7 +241,7 @@ RUN set -eux; \
 # CMD ["up.sh"]
 
 ENV \
-    DEBUGGER=${DEBUGGER} \
+    DEBUGGER=${BOX68_DBG} \
     APP_COMMAND_PREFIX=${APP_COMMAND_PREFIX}}
     # NOTE Example:
     # Linux amd64

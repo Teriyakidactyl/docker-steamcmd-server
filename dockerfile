@@ -7,10 +7,10 @@ ARG DEBIAN_TAG="trixie-slim"
 FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG TARGETPLATFORM
 
 # Set the base platform argument for multi-architecture support
 ARG TARGETPLATFORM
+ARG TARGETARCH
 ARG COMPAT_LAYER
 
 # Wine -------------------------------------------------------------------------------------------------------
@@ -177,7 +177,6 @@ RUN set -eux; \
     fi; \
     \
     # ARCH Specific Packages ----------------------------------------------------------------------------------------------------------------------------------------------------------
-    TARGETARCH=$(dpkg --print-architecture) \    
     if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
         # FIXME armhf might swell things, seperate build stage?

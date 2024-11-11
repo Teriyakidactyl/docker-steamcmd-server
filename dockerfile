@@ -82,6 +82,9 @@ ENV APP_COMMAND_PREFIX=""
 ENV STEAMCMD_PATH="/opt/steamcmd"
 ENV STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam"
 ENV STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
+ENV HOME=$STEAMCMD_PATH
+    # NOTE: https://github.com/ValveSoftware/steam-for-linux/issues/10979
+    ## ^ Bugfix RE: ERROR! Failed to install app (Missing file permissions)
 
 ENV STEAM_LIBRARY="$APP_FILES/Steam"
     # NOTE Examples:
@@ -237,7 +240,9 @@ RUN set -eux; \
     apt-get autoremove --purge -y $PACKAGES_BASE_BUILD;
 
 # NOTE EXAMPLE Copy scripts after changing to CONTAINER_USER
-# COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
+COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
+
+USER ${CONTAINER_USER}
 
 # Set the entrypoint to start the server
 # ENTRYPOINT ["/bin/bash", "-c"]

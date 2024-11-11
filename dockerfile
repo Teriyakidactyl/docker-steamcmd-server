@@ -12,6 +12,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Set the base platform argument for multi-architecture support
 ARG TARGETARCH
 ARG COMPAT_LAYER
+ARG DEBUGGER=""
+ARG APP_COMMAND_PREFIX=""
 
 # Wine -------------------------------------------------------------------------------------------------------
 ARG WINE_BRANCH="staging" \
@@ -172,8 +174,6 @@ RUN set -eux; \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
-        # Add wine command prefix
-        APP_COMMAND_PREFIX="wine64 $APP_COMMAND_PREFIX"; \
         # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf
         # NOTE $WINEPREFIX can be large.  
     fi; \
@@ -203,10 +203,6 @@ RUN set -eux; \
         apt-get install -y --no-install-recommends \
             box64 box86; \ 
         \
-        # Variables for ARM64 Support
-        APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX"; \
-        BOX86_DBG="box86"; \
-        \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
     else \ 
@@ -219,7 +215,6 @@ RUN set -eux; \
     if [ "$COMPAT_LAYER" = "proton" ]; then \
         # Proton installation (Placeholder for actual Proton installation logic)
         echo "Proton installation is not yet implemented in this Dockerfile."; \
-        APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"; \
     fi; \
     \
     # Install SteamCMD ----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -247,19 +242,6 @@ USER ${CONTAINER_USER}
 # Set the entrypoint to start the server
 # ENTRYPOINT ["/bin/bash", "-c"]
 # CMD ["up.sh"]
-
-ENV \
-    DEBUGGER=$BOX86_DBG \
-    APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX
-    # NOTE Example:
-    # Linux amd64
-    # APP_COMMAND="$APP_FILES/$APP_EXE"
-    # Linux arm64
-    # APP_COMMAND="box64 $APP_FILES/$APP_EXE"
-    # Windows amd64
-    # APP_COMMAND="wine64 $APP_FILES/$APP_EXE"
-    # Windows arm64
-    # APP_COMMAND="box64 wine64 $APP_FILES/$APP_EXE"
 
 # Expose application volumes
 VOLUME ["$APP_FILES"]

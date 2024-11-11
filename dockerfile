@@ -8,7 +8,6 @@ FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGETPLATFORM
-ARG TARGETARCH=$(dpkg --print-architecture)
 
 # Set the base platform argument for multi-architecture support
 ARG TARGETPLATFORM
@@ -28,7 +27,7 @@ ARG PROTON_VERSION=""
 ARG  \
     PACKAGES_AMD64_ONLY="\
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
-        # FIXME not in bullseye
+        # FIXME Unable to locate package lib32gcc-s1 bookworm / arm64
         lib32gcc-s1" \ 
          \
     PACKAGES_ARM_ONLY="\
@@ -41,11 +40,13 @@ ARG  \
         \
     PACKAGES_BASE_BUILD="" \
         \
-    PACKAGES_BASE="\
+    PACKAGES_WINE="\
         # Fake X-Server desktop for Wine https://packages.debian.org/bookworm/xvfb
         ## xauth needed with --no-install-recommends with wine
         xvfb \
-        xauth \
+        xauth" \
+        \
+    PACKAGES_BASE="\
         # curl needed for api calls
         curl \
         # curl, steamcmd, https://packages.debian.org/bookworm/ca-certificates
@@ -135,6 +136,8 @@ RUN set -eux; \
     \
     # Conditional Wine setup if COMPAT_LAYER is "wine"
     if [ "$COMPAT_LAYER" = "wine" ]; then \
+        apt-get install -y --no-install-recommends \
+            $PACKAGES_WINE; \
         \
         WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/"; \
         WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
@@ -174,6 +177,7 @@ RUN set -eux; \
     fi; \
     \
     # ARCH Specific Packages ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    TARGETARCH=$(dpkg --print-architecture) \    
     if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
         # FIXME armhf might swell things, seperate build stage?
@@ -193,6 +197,7 @@ RUN set -eux; \
         curl -fsSL https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg; \
         \
         # Update and install Box86/Box64
+        # TODO implement BOX64_VERSION, BOX86_VERSION from build args
         apt-get update; \
         apt-get install -y --no-install-recommends \
             box64 box86; \ 

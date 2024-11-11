@@ -122,11 +122,10 @@ ENV DIRECTORIES="\
 # Begin installation and setup process in a single RUN statement
 RUN set -eux; \
     \
-    # Update and install common BASE_DEPENDENCIES
-    # NOTE || 'true' due to btop not always being present in repos
+    # Update and install common BASE_DEPENDENCIES    
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        $PACKAGES_BASE $PACKAGES_BASE_BUILD $PACKAGES_DEV || true; \
+        $PACKAGES_BASE $PACKAGES_BASE_BUILD; \
     \
     # Create and set up $DIRECTORIES permissions
     # links to seperate save game files 'stateful' data from application.

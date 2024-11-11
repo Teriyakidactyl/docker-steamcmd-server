@@ -1,7 +1,5 @@
 name: Build Docker Images
 
-# TODO 6 passes (tags), trixie, trixie-wine, trixie-proton, bookworm, bookworm-wine, bookworm-proton
-
 on:
   push:
     branches:
@@ -43,9 +41,9 @@ jobs:
       BOX64_VERSION: "0.3.0+20240710.62695ce-1"
       BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
 
-      # Debian Tags for different versions
-      DEBIAN_TRIXIE_TAG: "trixie-20141016-slim"
-      DEBIAN_BOOKWORM_TAG: "bookworm-20141016-slim"
+      # Debian Tags: https://hub.docker.com/_/debian
+      DEBIAN_TRIXIE_TAG: "trixie-20241016-slim"
+      DEBIAN_BOOKWORM_TAG: "bookworm-20241016-slim"
 
     steps:
       # Check out the repository code

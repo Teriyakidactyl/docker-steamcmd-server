@@ -99,7 +99,7 @@ ENV WINEDEBUG="fixme-all"
 
 # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
 ENV BOX86_LOG=1
-ENV BOX68_DBG=""
+ENV BOX86_DBG=""
 ENV BOX86_TRACE_FILE="$LOGS/box86.log"
 
 # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
@@ -205,7 +205,7 @@ RUN set -eux; \
         \
         # Variables for ARM64 Support
         APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX"; \
-        BOX68_DBG="box86"; \
+        BOX86_DBG="box86"; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
@@ -249,8 +249,8 @@ USER ${CONTAINER_USER}
 # CMD ["up.sh"]
 
 ENV \
-    DEBUGGER=${BOX68_DBG} \
-    APP_COMMAND_PREFIX=${APP_COMMAND_PREFIX}}
+    DEBUGGER=$BOX86_DBG \
+    APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX
     # NOTE Example:
     # Linux amd64
     # APP_COMMAND="$APP_FILES/$APP_EXE"

@@ -28,6 +28,7 @@ ARG PROTON_VERSION=""
 ARG  \
     PACKAGES_AMD64_ONLY="\
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
+        # FIXME not in bullseye
         lib32gcc-s1" \ 
          \
     PACKAGES_ARM_ONLY="\

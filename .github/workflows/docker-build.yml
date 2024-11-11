@@ -22,9 +22,9 @@ jobs:
           - trixie
           - trixie-wine
           - trixie-proton
-          - bullseye
-          - bullseye-wine
-          - bullseye-proton
+          - bookworm
+          - bookworm-wine
+          - bookworm-proton
         platform: [linux/amd64, linux/arm64]
 
     env:
@@ -32,7 +32,7 @@ jobs:
       WINE_VERSION: "9.21"
       WINE_BRANCH: "staging"
       WINE_ID: "debian"
-      WINE_DIST: "bullseye"
+      WINE_DIST: "bookworm"
       WINE_TAG: "-1"
 
       PROTON_VERSION:
@@ -43,7 +43,7 @@ jobs:
 
       # Debian Tags: https://hub.docker.com/_/debian
       DEBIAN_TRIXIE_TAG: "trixie-20241016-slim"
-      DEBIAN_BULLSEYE_TAG: "bullseye-20241016-slim"
+      DEBIAN_BOOKWORM_TAG: "bookworm-20241016-slim"
 
     steps:
       # Check out the repository code
@@ -81,9 +81,9 @@ jobs:
           if [[ "${{ matrix.image }}" == "trixie"* ]]; then
             echo "DEBIAN_TAG=${{ env.DEBIAN_TRIXIE_TAG }}" >> $GITHUB_ENV
             echo "DEBIAN_BASE=trixie" >> $GITHUB_ENV
-          elif [[ "${{ matrix.image }}" == "bullseye"* ]]; then
-            echo "DEBIAN_TAG=${{ env.DEBIAN_BULLSEYE_TAG }}" >> $GITHUB_ENV
-            echo "DEBIAN_BASE=bullseye" >> $GITHUB_ENV
+          elif [[ "${{ matrix.image }}" == "bookworm"* ]]; then
+            echo "DEBIAN_TAG=${{ env.DEBIAN_BOOKWORM_TAG }}" >> $GITHUB_ENV
+            echo "DEBIAN_BASE=bookworm" >> $GITHUB_ENV
           fi
 
           # Set Compatibility Layer suffix (Wine/Proton)

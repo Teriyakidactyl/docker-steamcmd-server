@@ -1,70 +1,27 @@
-# Docker debian:bookworm-slim that provides steamcmd, wine and box64/86 as needed.
-# creates user called container with UID 1000
+# Dockerfile for SteamCMD, Wine, Proton, Box86/Box64 depending on platform and compatibility layer
+# Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
-# Stage 1: SteamCMD Install ---------------------------------------------------------------------------------------------------
-FROM --platform=linux/amd64 debian:bookworm-slim AS opt-steamcmd
-
+ARG DEBIAN_TAG="trixie-slim"
 ARG DEBIAN_FRONTEND=noninteractive
+ARG TARGETPLATFORM
+ARG TARGETARCH=$(dpkg --print-architecture)
 
-ENV STEAMCMD_PATH="/opt/steamcmd"
+# Set the base platform argument for multi-architecture support
+ARG TARGETPLATFORM
+ARG COMPAT_LAYER
 
-RUN apt-get update; \
-    apt-get install -y curl lib32gcc-s1; \
-    mkdir -p $STEAMCMD_PATH; \
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
-    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; 
-
-# TODO Stage 2: Proton...
-
-# Stage 3: Wine Install -------------------------------------------------------------------------------------------------------
-FROM --platform=linux/amd64 debian:bookworm-slim AS opt-wine
-
-ARG DEBIAN_FRONTEND=noninteractive
-
-# Manual amd64 wine for Box64, https://dl.winehq.org/wine-builds > https://dl.winehq.org/wine-builds/debian/dists/trixie/main/binary-amd64/
-## WINE_PATH from winehq debs
-ENV WINE_BRANCH="staging" \
-    WINE_PATH="/opt/wine-staging/bin" \
-    WINE_VERSION="9.13" \
+# Wine -------------------------------------------------------------------------------------------------------
+ARG WINE_BRANCH="staging" \
+    # Unused WINE_ARCH="win64" \
     WINE_ID="debian" \
-    WINE_DIST="bookworm" \
+    WINE_DIST="$DEBIAN_TAG" \
     WINE_TAG="-1" 
 
-# Set Wine download links for amd64
-ENV WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/" \
-    WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" \
-    # (required for wine64 / can work alongside wine_i386 main bin) 
-    WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" \
-    WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/" \
-    WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" \
-    # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) 
-    WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"    
+    # Proton -----------------------------------------------------------------------------------------------------
+ARG PROTON_VERSION=""
 
-RUN \   
-    # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/
-    # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
-    ## Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
-    TEMP_DIR="/tmp/wine_debs"; \
-    mkdir -p "$TEMP_DIR"; \
-    curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_64_MAIN_BIN}"; \
-    curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}"; \
-        # NOTE Skipping wine32 i386 
-        #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
-        #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
-    dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" /; \
-    dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /; \
-        #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
-        #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
-    chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver;
-        ## $WINE_PATH/wine
-
-# Stage 4: Final ---------------------------------------------------------------------------------------------------------------
-# Refference: https://conanexiles.fandom.com/wiki/Dedicated_Server_Setup:_Linux_and_Wine
-FROM debian:bookworm-slim
-
-ARG DEBIAN_FRONTEND=noninteractive \
-    TARGETARCH \
-    WINE \
+# Packages ---------------------------------------------------------------------------------------------------
+ARG  \
     PACKAGES_AMD64_ONLY=" \
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
         lib32gcc-s1" \ 
@@ -96,70 +53,72 @@ ARG DEBIAN_FRONTEND=noninteractive \
         ncdu \
         # top replacement: https://packages.debian.org/trixie/btop
         btop"
-    
+
+# Final image setup
+FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
+
+# Define environment variables
 ENV \
-    # Primary Variables
-    APP_NAME \
-    APP_EXE \
-    APP_FILES="/app" \
-    STEAM_ALLOW_LIST_PATH \
-    WORLD_FILES="/world" \
-    STEAMCMD_PATH="/opt/steamcmd" \
-    WINE_PATH="/opt/wine-staging/bin" \
-    SCRIPTS="/usr/local/bin" \
-    LOGS="/var/log" \
-    TERM="xterm-256color" \
-    DISPLAY=":0" \
     CONTAINER_USER="container" \
     PUID="1000" \
+    TERM="xterm-256color" \
+    DISPLAY=":0" \
+    DEBUGGER="" \
+    LOGS="/var/log" \
+    SCRIPTS="/usr/local/bin" \
     \
-    # Log settings
-    # TODO move to file, get more comprehensive.  
-    LOG_FILTER_SKIP=""
-
-ENV \
-    # Derivative Variables
+    WORLD_FILES="/world" \
+    WORLD_DIRECTORIES="$WORLD_FILES/States" \
     \
-    # Steamcmd
+    APP_FILES="/app" \
+    APP_COMMAND_PREFIX="" \
+    # NOTE Examples:
+    # APP_NAME="game_server" \
+    # APP_EXE="$APP_FILES/game_server_executable" \
+    # APP_LOGS="/var/log/$APP_NAME" \
+    \
+    STEAMCMD_PATH="/opt/steamcmd" \
     STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \
-    STEAM_LIBRARY="$APP_FILES/Steam" \
-    \
-    APP_LOGS="$LOGS/$APP_NAME" \
-    WINEPREFIX="/app/Wine"
-        	
-ENV \   
     STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs" \
-    DIRECTORIES=" \ 
+    \
+    STEAM_LIBRARY="$APP_FILES/Steam" \
+    # NOTE Examples:
+    # STEAM_ALLOW_LIST_PATH="" \
+    # STEAM_SERVER_APPID="" \
+    # STEAM_CLIENT_APPID="" \
+    \
+    WINE_PATH="/opt/wine-$WINE_BRANCH/bin" \
+    WINEPREFIX="/app/Wine" \
+    WINEARCH="win64" \
+    WINEDEBUG="fixme-all" \
+    \
+    # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
+    BOX86_LOG=1 \
+    BOX86_TRACE_FILE="$LOGS/box86.log" \
+    \
+    # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
+    ## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
+    # https://community.fydeos.io/t/topic/26128
+    # Box64 Config, Refference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md ,errors: https://github.com/ptitSeb/box64/issues/1182
+    BOX64_LOG=1 \
+    BOX64_DYNAREC_BLEEDING_EDGE=0 \
+    BOX64_DYNAREC_BIGBLOCK=0 \
+    BOX64_DYNAREC_STRONGMEM=2 \
+    BOX64_TRACE_FILE="$LOGS/box64.log" \
+    \
+    DIRECTORIES=" \
         $WINE_PATH \
         $WORLD_FILES \
         $WORLD_DIRECTORIES \
         $APP_FILES \
         $APP_LOGS \
-        $LOGS \
         $STEAM_LIBRARY \
         $STEAMCMD_PATH \
         $STEAMCMD_LOGS \
+        $LOGS \
         $SCRIPTS"
 
-    # STEAM_SERVER_APPID
-    # STEAM_CLIENT_APPID
-    # STEAM_ALLOW_LIST_PATH
-
-    # WINEARCH="win64"
-    # WINEDEBUG=fixme-all                  # https://wiki.winehq.org/Debug_Channels
-    # WINEPREFIX
-
-# Copy SteamCMD
-COPY --from=opt-steamcmd $STEAMCMD_PATH $STEAMCMD_PATH
-
-# Copy steamcmd user profile (8mb)
-COPY --from=opt-steamcmd --chown=$CONTAINER_USER:$CONTAINER_USER /root/Steam $STEAMCMD_PROFILE 
-
-# TODO if Proton copy Proton ...
-# TODO if WINE copy Wine
-COPY --from=opt-wine $STEAMCMD_PATH $STEAMCMD_PATH
-
-# Update package lists and install required packages
+# Begin installation and setup process in a single RUN statement
 RUN set -eux; \
     \
     # Update and install common BASE_DEPENDENCIES
@@ -172,22 +131,53 @@ RUN set -eux; \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \
     \
-    if echo "$WINE" | grep -q "true"; then \
-        # Create symlinks for wine
-        # NOTE Skipping wine32 i386
-            # ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
+    # Install SteamCMD ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
+    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
+    # TODO test steam download
+    \
+    # Conditional Wine setup if COMPAT_LAYER is "wine"
+    if [ "$COMPAT_LAYER" = "wine" ]; then \
+        \
+        WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/" \
+        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" \
+        # (required for wine64 / can work alongside wine_i386 main bin) 
+        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" \
+        WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/" \
+        WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" \
+        # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) 
+        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" \    
+        \
+        # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/
+        # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
+        ## Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
+        TEMP_DIR="/tmp/wine_debs"; \
+        mkdir -p "$TEMP_DIR"; \
+        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_64_MAIN_BIN}"; \
+        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}"; \
+            # NOTE Skipping wine32 i386 
+            #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
+            #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
+        dpkg-deb -x "${WINE_PATH}/${WINE_64_MAIN_BIN}" /; \
+        dpkg-deb -x "${WINE_PATH}/${WINE_64_SUPPORT_BIN}" /; \
+            #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
+            #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
+        # TODO Cleanup $TEMP_DIR
+        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
+            ## $WINE_PATH/wine
+        # Create symlinks for Wine binaries
         ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
-        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \   
-    fi; \ 
+        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
+        # Add wine command prefix
+        APP_COMMAND_PREFIX="wine64 $APP_COMMAND_PREFIX" \
+        # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf
+        # NOTE $WINEPREFIX can be large.  
+    fi; \
     \
-    # TODO touch and link steamcmd log to /var/log
-    chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
-    chmod 755 $DIRECTORIES; \  
-    \
-    # Architecture-specific setup for ARM
-    if echo "$TARGETARCH" | grep -q "arm"; then \
+    # ARCH Specific Packages ----------------------------------------------------------------------------------------------------------------------------------------------------------
+        if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
         dpkg --add-architecture armhf; \
         apt-get update; \
@@ -209,30 +199,60 @@ RUN set -eux; \
         apt-get install -y --no-install-recommends \
             box64 box86; \ 
         \
-        # TODO touch and link box64, box86 logs to /var/log
+        # Variables for ARM64 Support
+        APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX" \
+        DEBUGGER="box86" \
+        \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
     else \ 
         # AMD64 specific packages
         apt-get install -y --no-install-recommends \
-            $PACKAGES_AMD64_ONLY; \
+            $PACKAGES_AMD64_ONLY; \        
     fi; \
+    \
+    # Conditional Proton setup if COMPAT_LAYER is "proton"
+    if [ "$COMPAT_LAYER" = "proton" ]; then \
+        # Proton installation (Placeholder for actual Proton installation logic)
+        echo "Proton installation is not yet implemented in this Dockerfile."; \
+        APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX" \
+    fi; \
+    \
+    # Create the container user
+    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
+    chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
+    chmod 755 $DIRECTORIES; \ 
+    \
+    # Create necessary directories and set permissions
+    mkdir -p $APP_FILES $WORLD_FILES /var/log/steamcmd /opt/steamcmd; \
+    chown -R $CONTAINER_USER:$CONTAINER_USER $APP_FILES $WORLD_FILES /var/log/steamcmd /opt/steamcmd; \
+    chmod -R 755 $APP_FILES $WORLD_FILES /var/log/steamcmd /opt/steamcmd; \
+    \
     # Final cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
-# Copy scripts after changing to CONTAINER_USER
-COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
+# NOTE EXAMPLE Copy scripts after changing to CONTAINER_USER
+# COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
 
-# Change to non-root CONTAINER_USER
-USER $CONTAINER_USER
+# Set the entrypoint to start the server
+# ENTRYPOINT ["/bin/bash", "-c"]
+# CMD ["up.sh"]
 
-# https://docs.docker.com/reference/dockerfile/#volume
+ENV \
+    DEBUGGER=${DEBUGGER} \
+    APP_COMMAND_PREFIX=${APP_COMMAND_PREFIX}}
+    # NOTE Example:
+    # Linux amd64
+    # APP_COMMAND="$APP_FILES/$APP_EXE"
+    # Linux arm64
+    # APP_COMMAND="box64 $APP_FILES/$APP_EXE"
+    # Windows amd64
+    # APP_COMMAND="wine64 $APP_FILES/$APP_EXE"
+    # Windows arm64
+    # APP_COMMAND="box64 wine64 $APP_FILES/$APP_EXE"
+
+# Expose application volumes
 VOLUME ["$APP_FILES"]
 VOLUME ["$WORLD_FILES"]
-
-HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1
-
-ENTRYPOINT ["/bin/bash", "-c"]
-CMD ["up.sh"]

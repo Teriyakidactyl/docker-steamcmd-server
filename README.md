@@ -12,6 +12,7 @@
   - [Usage](#usage)
   - [Environment Variables and Arguments](#environment-variables-and-arguments)
     - [Base Variables and Arguments](#base-variables-and-arguments)
+- [FIXME CONTAINER\_USER needs to be documented. It may not be able to be variable either.](#fixme-container_user-needs-to-be-documented-it-may-not-be-able-to-be-variable-either)
       - [Environment Variables](#environment-variables)
       - [Build Arguments](#build-arguments)
     - [SteamCMD Variables and Arguments](#steamcmd-variables-and-arguments)
@@ -57,6 +58,8 @@ ENV
 Case notes: any ENV variables that will be visible in a running container should be `SCREAMING_SNAKE_CASE` and variables or args used only in the build process should be `snake_case`
 
 ### Base Variables and Arguments
+
+# FIXME CONTAINER_USER needs to be documented. It may not be able to be variable either.
 
 #### Environment Variables
 | Variable | Description | Default |

@@ -1,6 +1,7 @@
 name: Build Docker Images
 
-# Defines when the workflow should run
+# TODO 6 passes (tags), trixie, trixie-wine, trixie-proton, bookworm, bookworm-wine, bookworm-proton
+
 on:
   push:
     branches:
@@ -16,22 +17,53 @@ jobs:
   build:
     name: Build Docker Images
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image: 
+          - trixie
+          - trixie-wine
+          - trixie-proton
+          - bookworm
+          - bookworm-wine
+          - bookworm-proton
+        platform: [linux/amd64, linux/arm64]
+
+    env:
+      # Shared build args
+      WINE_VERSION: "9.21"
+      WINE_BRANCH: "staging"
+      WINE_ID: "debian"
+      WINE_DIST: "bookworm"
+      WINE_TAG: "-1"
+
+      PROTON_VERSION:
+
+      # Box64 and Box86 Versions
+      BOX64_VERSION: "0.3.0+20240710.62695ce-1"
+      BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
+
+      # Debian Tags for different versions
+      DEBIAN_TRIXIE_TAG: "trixie-20141016-slim"
+      DEBIAN_BOOKWORM_TAG: "bookworm-20141016-slim"
+
     steps:
       # Check out the repository code
       - name: Check out repository
         uses: actions/checkout@v2
 
-      # Set up Docker Buildx for multi-architecture builds
+      # Set up Docker Buildx
       - name: Set up Docker Buildx
-        id: buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
       # Cache Docker layers to speed up subsequent builds
       - name: Cache Docker layers
         uses: actions/cache@v2.1.4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ github.sha }}-${{ env.FOUNDRY_POINT_VERSION }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -44,27 +76,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
+      # Set the correct Debian tag based on the image type and Compatibility Layer (Wine/Proton)
+      - name: Set Debian and Compatibility Layer Tag
+        run: |
+          # Set Debian base tag
+          if [[ "${{ matrix.image }}" == "trixie"* ]]; then
+            echo "DEBIAN_TAG=${{ env.DEBIAN_TRIXIE_TAG }}" >> $GITHUB_ENV
+            echo "DEBIAN_BASE=trixie" >> $GITHUB_ENV
+          elif [[ "${{ matrix.image }}" == "bookworm"* ]]; then
+            echo "DEBIAN_TAG=${{ env.DEBIAN_BOOKWORM_TAG }}" >> $GITHUB_ENV
+            echo "DEBIAN_BASE=bookworm" >> $GITHUB_ENV
+          fi
+
+          # Set Compatibility Layer suffix (Wine/Proton)
+          if [[ "${{ matrix.image }}" == *"wine" ]]; then
+            echo "COMPAT_LAYER=-wine" >> $GITHUB_ENV
+          elif [[ "${{ matrix.image }}" == *"proton" ]]; then
+            echo "COMPAT_LAYER=-proton" >> $GITHUB_ENV
+          else
+            echo "COMPAT_LAYER=" >> $GITHUB_ENV
+          fi
+        env:
+          DEBIAN_TRIXIE_TAG: "trixie-20141016-slim"
+          DEBIAN_BOOKWORM_TAG: "bookworm-20141016-slim"
+
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ghcr.io/teriyakidactyl/docker-steamcmd-server
+          images: ghcr.io/teriyakidactyl/docker-foundryvtt-server
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=long
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', env.NODE_IMAGE_VERSION) || env.NODE_IMAGE_VERSION }}
+            ${{ github.ref == 'refs/heads/dev' && 'latest_dev' || 'latest' }} 
           labels: |
-            org.opencontainers.image.title=Steamcmd Base
-            org.opencontainers.image.description=Multi-arch base image for steamcmd / wine.
+            org.opencontainers.image.title=SteamCMD Server Base Images
+            org.opencontainers.image.description=A base image with common elements
             org.opencontainers.image.vendor=TeriyakiDactyl
-            org.opencontainers.image.version={{version}}
-            org.opencontainers.image.created={{date 'yyyy-MM-dd'}}
-            org.opencontainers.image.revision={{sha}}
-            com.example.git.branch={{branch}}
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.build_date }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            com.example.git.branch=${{ github.ref_name }}
 
       # Prepare additional build arguments
       - name: Prepare build arguments
@@ -78,20 +130,18 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64  # Multi-architecture build
-          push: ${{ github.event_name != 'pull_request' }}  # Only push on non-PR events
-          tags: ${{ steps.meta.outputs.tags }}  # Use generated tags
-          labels: ${{ steps.meta.outputs.labels }}  # Use generated labels
-          build-args: |  # Pass build arguments to Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ghcr.io/teriyakidactyl/docker-foundryvtt-server:${{ env.DEVIAN_BASE }}${{ env.COMPAT_LAYER }}-${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.prep.outputs.build_date }}
             BRANCH_NAME=${{ github.ref_name }}
-          cache-from: type=local,src=/tmp/.buildx-cache  # Use cached layers
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max  # Update cache
-
-      # Move cache (Temporary fix for cache handling)
-      - name: Move cache (Temporary fix)
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-          
+            NODE_IMAGE_VERSION=${{ env.NODE_IMAGE_VERSION }}
+            IMAGE_NAME=${{ matrix.image }}
+            PLATFORM=${{ matrix.platform }}
+            DEBIAN_TAG=${{ env.DEBIAN_TAG }}
+            COMPAT_LAYER=${{ env.COMPAT_LAYER }}  # This will either be empty, '-wine', or '-proton'
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform }}

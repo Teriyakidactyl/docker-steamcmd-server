@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v2.1.4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}-${{ env.FOUNDRY_POINT_VERSION }}
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -96,18 +96,15 @@ jobs:
           else
             echo "COMPAT_LAYER=" >> $GITHUB_ENV
           fi
-        env:
-          DEBIAN_TRIXIE_TAG: "trixie-20141016-slim"
-          DEBIAN_BOOKWORM_TAG: "bookworm-20141016-slim"
 
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ghcr.io/teriyakidactyl/docker-foundryvtt-server
+          images: ghcr.io/teriyakidactyl/docker-steamcmd-server
           tags: |
-            ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', env.NODE_IMAGE_VERSION) || env.NODE_IMAGE_VERSION }}
+            ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', matrix.image) || matrix.image }}
             ${{ github.ref == 'refs/heads/dev' && 'latest_dev' || 'latest' }} 
           labels: |
             org.opencontainers.image.title=SteamCMD Server Base Images
@@ -131,7 +128,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/teriyakidactyl/docker-foundryvtt-server:${{ env.DEVIAN_BASE }}${{ env.COMPAT_LAYER }}-${{ matrix.platform }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOURCE_COMMIT=${{ github.sha }}

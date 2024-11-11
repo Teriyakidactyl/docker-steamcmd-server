@@ -2,14 +2,14 @@
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
 ARG DEBIAN_TAG="trixie-slim"
+ARG TARGETPLATFORM
 
 # Final image setup
-FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
+FROM --platform=$BUILDPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Set the base platform argument for multi-architecture support
-ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG COMPAT_LAYER
 

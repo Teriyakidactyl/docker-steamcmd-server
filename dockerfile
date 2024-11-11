@@ -5,7 +5,7 @@ ARG DEBIAN_TAG="trixie-slim"
 ARG TARGETPLATFORM
 
 # Final image setup
-FROM --platform=$BUILDPLATFORM debian:$DEBIAN_TAG AS final
+FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 

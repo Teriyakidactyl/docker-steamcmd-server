@@ -139,14 +139,14 @@ RUN set -eux; \
     # Conditional Wine setup if COMPAT_LAYER is "wine"
     if [ "$COMPAT_LAYER" = "wine" ]; then \
         \
-        WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/" \
-        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" \
+        WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/"; \
+        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
         # (required for wine64 / can work alongside wine_i386 main bin) 
-        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" \
-        WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/" \
-        WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" \
+        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
+        WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/"; \
+        WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \
         # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) 
-        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" \    
+        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \    
         \
         # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/
         # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
@@ -171,7 +171,7 @@ RUN set -eux; \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
         # Add wine command prefix
-        APP_COMMAND_PREFIX="wine64 $APP_COMMAND_PREFIX" \
+        APP_COMMAND_PREFIX="wine64 $APP_COMMAND_PREFIX"; \
         # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf
         # NOTE $WINEPREFIX can be large.  
     fi; \
@@ -200,8 +200,8 @@ RUN set -eux; \
             box64 box86; \ 
         \
         # Variables for ARM64 Support
-        APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX" \
-        DEBUGGER="box86" \
+        APP_COMMAND_PREFIX="box64 $APP_COMMAND_PREFIX"; \
+        DEBUGGER="box86"; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
@@ -215,7 +215,7 @@ RUN set -eux; \
     if [ "$COMPAT_LAYER" = "proton" ]; then \
         # Proton installation (Placeholder for actual Proton installation logic)
         echo "Proton installation is not yet implemented in this Dockerfile."; \
-        APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX" \
+        APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"; \
     fi; \
     \
     # Create the container user
@@ -231,7 +231,7 @@ RUN set -eux; \
     # Final cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
+    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD;
 
 # NOTE EXAMPLE Copy scripts after changing to CONTAINER_USER
 # COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS

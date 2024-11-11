@@ -22,21 +22,21 @@ ARG PROTON_VERSION=""
 
 # Packages ---------------------------------------------------------------------------------------------------
 ARG  \
-    PACKAGES_AMD64_ONLY=" \
+    PACKAGES_AMD64_ONLY="\
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
         lib32gcc-s1" \ 
          \
-    PACKAGES_ARM_ONLY=" \
+    PACKAGES_ARM_ONLY="\
         # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
         libc6:armhf" \
         \
-    PACKAGES_ARM_BUILD=" \
+    PACKAGES_ARM_BUILD="\
         # repo keyring add, https://packages.debian.org/bookworm/gnupg
         gnupg" \
         \
     PACKAGES_BASE_BUILD="" \
         \
-    PACKAGES_BASE=" \
+    PACKAGES_BASE="\
         # Fake X-Server desktop for Wine https://packages.debian.org/bookworm/xvfb
         ## xauth needed with --no-install-recommends with wine
         xvfb \
@@ -48,7 +48,7 @@ ARG  \
         # timezones, https://packages.debian.org/bookworm/tzdata
         tzdata" \
         \
-    PACKAGES_DEV=" \
+    PACKAGES_DEV="\
         # disk space analyzer: https://packages.debian.org/trixie/ncdu
         ncdu \
         # top replacement: https://packages.debian.org/trixie/btop

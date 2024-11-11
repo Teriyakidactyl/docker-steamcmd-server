@@ -59,65 +59,65 @@ ARG  \
         btop"
 
 # Define environment variables
-ENV \
-    CONTAINER_USER="container" \
-    PUID="1000" \
-    TERM="xterm-256color" \
-    DISPLAY=":0" \
-    DEBUGGER="" \
-    LOGS="/var/log" \
-    SCRIPTS="/usr/local/bin" \
-    \
-    WORLD_FILES="/world" \
-    WORLD_DIRECTORIES="$WORLD_FILES/States" \
-    \
-    APP_FILES="/app" \
-    APP_COMMAND_PREFIX="" \
+    # NOTE: In Docker 1.10 and higher, only RUN, COPY, and ADD instructions create layers.
+
+ENV CONTAINER_USER="container"
+ENV PUID="1000"
+ENV TERM="xterm-256color"
+ENV DISPLAY=":0"
+ENV DEBUGGER=""
+ENV LOGS="/var/log"
+ENV SCRIPTS="/usr/local/bin"
+
+ENV WORLD_FILES="/world"
+ENV WORLD_DIRECTORIES="$WORLD_FILES/States"
+
+ENV APP_FILES="/app"
+ENV APP_COMMAND_PREFIX=""
     # NOTE Examples:
     # APP_NAME="game_server" \
     # APP_EXE="$APP_FILES/game_server_executable" \
     # APP_LOGS="/var/log/$APP_NAME" \
-    \
-    STEAMCMD_PATH="/opt/steamcmd" \
-    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \
-    STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs" \
-    \
-    STEAM_LIBRARY="$APP_FILES/Steam" \
+    
+ENV STEAMCMD_PATH="/opt/steamcmd"
+ENV STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam"
+ENV STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
+
+ENV STEAM_LIBRARY="$APP_FILES/Steam"
     # NOTE Examples:
     # STEAM_ALLOW_LIST_PATH="" \
     # STEAM_SERVER_APPID="" \
     # STEAM_CLIENT_APPID="" \
-    \
-    WINE_PATH="/opt/wine-$WINE_BRANCH/bin" \
-    WINEPREFIX="/app/Wine" \
-    WINEARCH="win64" \
-    WINEDEBUG="fixme-all" \
-    \
-    # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
-    BOX86_LOG=1 \
-    BOX86_TRACE_FILE="$LOGS/box86.log" \
-    \
-    # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
-    ## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
-    # https://community.fydeos.io/t/topic/26128
-    # Box64 Config, Refference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md ,errors: https://github.com/ptitSeb/box64/issues/1182
-    BOX64_LOG=1 \
-    BOX64_DYNAREC_BLEEDING_EDGE=0 \
-    BOX64_DYNAREC_BIGBLOCK=0 \
-    BOX64_DYNAREC_STRONGMEM=2 \
-    BOX64_TRACE_FILE="$LOGS/box64.log" \
-    \
-    DIRECTORIES=" \
-        $WINE_PATH \
-        $WORLD_FILES \
-        $WORLD_DIRECTORIES \
-        $APP_FILES \
-        $APP_LOGS \
-        $STEAM_LIBRARY \
-        $STEAMCMD_PATH \
-        $STEAMCMD_LOGS \
-        $LOGS \
-        $SCRIPTS"
+
+ENV WINE_PATH="/opt/wine-$WINE_BRANCH/bin"
+ENV WINEPREFIX="/app/Wine"
+ENV WINEARCH="win64"
+ENV WINEDEBUG="fixme-all"
+
+# https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
+ENV BOX86_LOG=1
+ENV BOX86_TRACE_FILE="$LOGS/box86.log"
+
+# Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
+## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
+# https://community.fydeos.io/t/topic/26128
+# Box64 Config, Refference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md ,errors: https://github.com/ptitSeb/box64/issues/1182
+ENV BOX64_LOG=1
+ENV BOX64_DYNAREC_BLEEDING_EDGE=0
+ENV BOX64_DYNAREC_BIGBLOCK=0
+ENV BOX64_DYNAREC_STRONGMEM=2
+ENV BOX64_TRACE_FILE="$LOGS/box64.log"
+
+ENV DIRECTORIES="\
+    $WINE_PATH \
+    $WORLD_FILES \
+    $WORLD_DIRECTORIES \
+    $APP_FILES \
+    $STEAM_LIBRARY \
+    $STEAMCMD_PATH \
+    $STEAMCMD_LOGS \
+    $LOGS \
+    $SCRIPTS"
 
 # Begin installation and setup process in a single RUN statement
 RUN set -eux; \

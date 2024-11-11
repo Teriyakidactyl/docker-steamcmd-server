@@ -2,6 +2,10 @@
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
 ARG DEBIAN_TAG="trixie-slim"
+
+# Final image setup
+FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
+
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGETPLATFORM
 ARG TARGETARCH=$(dpkg --print-architecture)
@@ -53,9 +57,6 @@ ARG  \
         ncdu \
         # top replacement: https://packages.debian.org/trixie/btop
         btop"
-
-# Final image setup
-FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 # Define environment variables
 ENV \

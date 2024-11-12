@@ -1,6 +1,8 @@
 # Dockerfile for SteamCMD, Wine, Proton, Box86/Box64 depending on platform and compatibility layer
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
+# TODO set DEBUGGER=box86 and APP_COMMAND_PREFIX
+
 ARG DEBIAN_TAG="trixie-slim"
 ARG TARGETPLATFORM
 
@@ -9,15 +11,13 @@ FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Set the base platform argument for multi-architecture support
 ARG TARGETARCH
 ARG COMPAT_LAYER
 ARG DEBUGGER=""
 ARG APP_COMMAND_PREFIX=""
 
-# Wine -------------------------------------------------------------------------------------------------------
+# Wine -----------------------------------------------------------------------------------------------------------
 ARG WINE_BRANCH="staging" \
-    # Unused WINE_ARCH="win64" \
     WINE_ID="debian" \
     WINE_DIST="$DEBIAN_TAG" \
     WINE_TAG="-1" 
@@ -25,7 +25,7 @@ ARG WINE_BRANCH="staging" \
     # Proton -----------------------------------------------------------------------------------------------------
 ARG PROTON_VERSION=""
 
-# Packages ---------------------------------------------------------------------------------------------------
+# Packages -------------------------------------------------------------------------------------------------------
 ARG  \
     PACKAGES_AMD64_ONLY="\
         # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
@@ -64,6 +64,7 @@ ARG  \
 # Define environment variables
     # NOTE: In Docker 1.10 and higher, only RUN, COPY, and ADD instructions create layers.
 
+# Base -----------------------------------------------------------------------------------------------------------
 ENV CONTAINER_USER="container"
 ENV PUID="1000"
 ENV TERM="xterm-256color"
@@ -72,39 +73,43 @@ ENV DEBUGGER="$DEBUGGER"
 ENV LOGS="/var/log"
 ENV SCRIPTS="/usr/local/bin"
 
+# World ----------------------------------------------------------------------------------------------------------
 ENV WORLD_FILES="/world"
 ENV WORLD_DIRECTORIES="$WORLD_FILES/States"
 
+# App ------------------------------------------------------------------------------------------------------------
 ENV APP_FILES="/app"
 ENV APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX"
     # NOTE Examples:
     # APP_NAME="game_server" \
     # APP_EXE="$APP_FILES/game_server_executable" \
     # APP_LOGS="/var/log/$APP_NAME" \
-    
+
+# Steam ----------------------------------------------------------------------------------------------------------
 ENV STEAMCMD_PATH="/opt/steamcmd"
 ENV STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam"
 ENV STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
 ENV HOME=$STEAMCMD_PATH
     # NOTE: https://github.com/ValveSoftware/steam-for-linux/issues/10979
     ## ^ Bugfix RE: ERROR! Failed to install app (Missing file permissions)
-
 ENV STEAM_LIBRARY="$APP_FILES/Steam"
     # NOTE Examples:
     # STEAM_ALLOW_LIST_PATH="" \
     # STEAM_SERVER_APPID="" \
     # STEAM_CLIENT_APPID="" \
 
+# Wine -----------------------------------------------------------------------------------------------------------
 ENV WINE_PATH="/opt/wine-$WINE_BRANCH/bin"
 ENV WINEPREFIX="/app/Wine"
 ENV WINEARCH="win64"
 ENV WINEDEBUG="fixme-all"
 
+# Box86 ----------------------------------------------------------------------------------------------------------
 # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
 ENV BOX86_LOG=1
-ENV BOX86_DBG=""
 ENV BOX86_TRACE_FILE="$LOGS/box86.log"
 
+# Box64 ----------------------------------------------------------------------------------------------------------
 # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
 ## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
 # https://community.fydeos.io/t/topic/26128
@@ -116,15 +121,15 @@ ENV BOX64_DYNAREC_STRONGMEM=2
 ENV BOX64_TRACE_FILE="$LOGS/box64.log"
 
 ENV DIRECTORIES="\
-    $WINE_PATH \
-    $WORLD_FILES \
-    $WORLD_DIRECTORIES \
-    $APP_FILES \
-    $STEAM_LIBRARY \
-    $STEAMCMD_PATH \
-    $STEAMCMD_LOGS \
-    $LOGS \
-    $SCRIPTS"
+        $WINE_PATH \
+        $WORLD_FILES \
+        $WORLD_DIRECTORIES \
+        $APP_FILES \
+        $STEAM_LIBRARY \
+        $STEAMCMD_PATH \
+        $STEAMCMD_LOGS \
+        $LOGS \
+        $SCRIPTS"
 
 # Begin installation and setup process in a single RUN statement
 RUN set -eux; \
@@ -179,7 +184,7 @@ RUN set -eux; \
         # NOTE $WINEPREFIX can be large.  
     fi; \
     \
-    # ARCH Specific Packages ----------------------------------------------------------------------------------------------------------------------------------------------------------
+    # ARCH Specific Packages -------------------------------------------------------------------------------------
     if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
         # FIXME armhf might swell things, seperate build stage?
@@ -218,7 +223,7 @@ RUN set -eux; \
         echo "Proton installation is not yet implemented in this Dockerfile."; \
     fi; \
     \
-    # Install SteamCMD ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Install SteamCMD -------------------------------------------------------------------------------------------
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
     # FIXME requires multistage run in amd64 to work due to qemu issues. 
     # FIXME .buildkit_qemu_emulator: /usr/local/bin/box86: Invalid ELF image for this architecture
@@ -235,10 +240,9 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get autoremove --purge -y $PACKAGES_BASE_BUILD;
 
-# NOTE EXAMPLE Copy scripts after changing to CONTAINER_USER
 COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
 
-USER ${CONTAINER_USER}
+USER $CONTAINER_USER
 
 # Set the entrypoint to start the server
 # ENTRYPOINT ["/bin/bash", "-c"]

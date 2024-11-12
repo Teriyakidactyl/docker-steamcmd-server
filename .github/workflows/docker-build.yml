@@ -1,3 +1,5 @@
+# Github Actions > Docker BuildKit > Docker Buildx
+
 name: Build Docker Images
 
 on:
@@ -19,12 +21,16 @@ jobs:
     strategy:
       matrix:
         image: 
-          - trixie
-          - trixie-wine
-          - trixie-proton
-          - bookworm
-          - bookworm-wine
-          - bookworm-proton
+          # Debian Tags: https://hub.docker.com/_/debian
+          - trixie-20241016-slim
+          - bookworm-20241016-slim
+        compat_layer:
+          - ""
+          - "wine"
+          - "proton"
+        platform:
+          - "linux/amd64"
+          - "linux/arm64"
 
     env:
       # Shared build args
@@ -39,10 +45,6 @@ jobs:
       # Box64 and Box86 Versions
       BOX64_VERSION: "0.3.0+20240710.62695ce-1"
       BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
-
-      # Debian Tags: https://hub.docker.com/_/debian
-      DEBIAN_TRIXIE_TAG: "trixie-20241016-slim"
-      DEBIAN_BOOKWORM_TAG: "bookworm-20241016-slim"
 
     steps:
       # Check out the repository code
@@ -73,32 +75,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
-      # Set the correct Debian tag based on the image type and Compatibility Layer (Wine/Proton)
-      - name: Set Debian and Compatibility Layer Tag
-        run: |
-          # Set Debian base tag
-          if [[ "${{ matrix.image }}" == "trixie"* ]]; then
-            echo "DEBIAN_TAG=${{ env.DEBIAN_TRIXIE_TAG }}" >> $GITHUB_ENV
-            echo "DEBIAN_BASE=trixie" >> $GITHUB_ENV
-          elif [[ "${{ matrix.image }}" == "bookworm"* ]]; then
-            echo "DEBIAN_TAG=${{ env.DEBIAN_BOOKWORM_TAG }}" >> $GITHUB_ENV
-            echo "DEBIAN_BASE=bookworm" >> $GITHUB_ENV
-          fi
-      
-          if [[ "${{ runner.arch }}" == *"arm"* ]]; then
-            echo "DEBUGGER=box86" >> $GITHUB_ENV
-            echo "APP_COMMAND_PREFIX=box64 " >> $GITHUB_ENV
-          fi
-      
-          # Set Compatibility Layer suffix (Wine/Proton)
-          if [[ "${{ matrix.image }}" == *"wine" ]]; then
-            echo "COMPAT_LAYER=-wine" >> $GITHUB_ENV
-            echo "APP_COMMAND_PREFIX=wine64 $APP_COMMAND_PREFIX" >> $GITHUB_ENV
-          elif [[ "${{ matrix.image }}" == *"proton" ]]; then
-            echo "COMPAT_LAYER=-proton" >> $GITHUB_ENV
-            echo "APP_COMMAND_PREFIX=proton $APP_COMMAND_PREFIX" >> $GITHUB_ENV
-          fi
-
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
         id: meta
@@ -108,6 +84,7 @@ jobs:
           tags: |
             ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', matrix.image) || matrix.image }}
             ${{ github.ref == 'refs/heads/dev' && 'latest_dev' || 'latest' }} 
+            ${{ matrix.image.split('-')[0] }}
           labels: |
             org.opencontainers.image.title=SteamCMD Server Base Images
             org.opencontainers.image.description=A base image with common elements
@@ -137,10 +114,10 @@ jobs:
             BUILD_DATE=${{ steps.prep.outputs.build_date }}
             BRANCH_NAME=${{ github.ref_name }}
             IMAGE_NAME=${{ matrix.image }}
-            DEBIAN_TAG=${{ env.DEBIAN_TAG }}
-            COMPAT_LAYER=${{ env.COMPAT_LAYER }}
+            COMPAT_LAYER=${{ matrix.compat_layer }}
             DEBUGGER=${{ env.DEBUGGER }}
-            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
+            APP_COMMAND_PREFIX=${{ matrix.compat_layer == 'wine' && 'wine64 ' || matrix.compat_layer == 'proton' && 'proton ' || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64  # Multi-architecture build
+          platforms: ${{ matrix.platform }}  # Use platforms from the matrix dynamically
+          # platforms: linux/amd64,linux/arm64  # Multi-architecture build

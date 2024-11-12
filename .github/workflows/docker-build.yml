@@ -26,8 +26,8 @@ jobs:
           - "wine"
           - "proton"
         platform:
-          - "linux/amd64"
-          - "linux/arm64"
+          - linux/amd64
+          - linux/arm64
 
     env:
       REGISTRY: ghcr.io
@@ -45,6 +45,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -80,6 +83,11 @@ jobs:
 
           # Set build date in UTC
           echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+
+          # Create platform-specific cache key
+          CACHE_KEY="${{ matrix.image }}-${{ matrix.compat_layer }}-${{ matrix.platform }}"
+          CACHE_KEY=${CACHE_KEY//'/'/-}  # Replace / with - for platform
+          echo "CACHE_KEY=$CACHE_KEY" >> $GITHUB_ENV
 
       - name: Generate Docker metadata
         id: meta
@@ -137,6 +145,6 @@ jobs:
             COMPAT_LAYER=${{ matrix.compat_layer }}
             DEBUGGER=${{ env.DEBUGGER }}
             APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ env.CACHE_KEY }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ env.CACHE_KEY }},mode=max
           platforms: ${{ matrix.platform }}

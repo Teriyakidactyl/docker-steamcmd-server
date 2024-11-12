@@ -90,8 +90,6 @@ jobs:
             # Tag based on the 'image' and 'compat_layer' matrix values
             ${{ matrix.compat_layer == '' && matrix.image || format('{0}-{1}', matrix.image, matrix.compat_layer) }}
             # Add 'dev' suffix for the 'dev' branch
-            ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', tags[0]) || tags[0] }}
-            # Add 'latest' and 'latest-dev' tags
             ${{ github.ref == 'refs/heads/dev' && 'latest-dev' || 'latest' }}
             # Include the base image name (without the version)
             ${{ matrix.image }}

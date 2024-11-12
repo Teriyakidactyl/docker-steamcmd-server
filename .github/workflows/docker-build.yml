@@ -88,7 +88,7 @@ jobs:
             echo "DEBIAN_BASE=bookworm" >> $GITHUB_ENV
           fi
       
-          if [[ "${{ matrix.platform }}" == "linux/arm64" ]]; then
+          if [[ "${{ runner.arch }}" == "arm64" ]]; then
             echo "DEBUGGER=box86" >> $GITHUB_ENV
             echo "APP_COMMAND_PREFIX=box64 " >> $GITHUB_ENV
           fi
@@ -99,9 +99,6 @@ jobs:
             echo "APP_COMMAND_PREFIX=wine64 $APP_COMMAND_PREFIX" >> $GITHUB_ENV
           elif [[ "${{ matrix.image }}" == *"proton" ]]; then
             echo "COMPAT_LAYER=-proton" >> $GITHUB_ENV
-            echo "APP_COMMAND_PREFIX=proton $APP_COMMAND_PREFIX" >> $GITHUB_ENV
-          else
-            echo "COMPAT_LAYER=" >> $GITHUB_ENV
             echo "APP_COMMAND_PREFIX=proton $APP_COMMAND_PREFIX" >> $GITHUB_ENV
           fi
 

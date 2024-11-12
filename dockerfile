@@ -21,7 +21,7 @@ ARG APP_COMMAND_PREFIX=""
 ARG WINE_BRANCH="staging" \
     WINE_ID="debian" \
     WINE_VERSION="9.21" \
-    WINE_DIST="$DEBIAN_VERSION_CODENAME" \
+    WINE_DIST="" \
     WINE_TAG="-1" 
 
     # Proton -----------------------------------------------------------------------------------------------------
@@ -170,8 +170,8 @@ RUN set -eux; \
             # NOTE Skipping wine32 i386 
             #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
             #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
-        dpkg-deb -x "${WINE_PATH}/${WINE_64_MAIN_BIN}" /; \
-        dpkg-deb -x "${WINE_PATH}/${WINE_64_SUPPORT_BIN}" /; \
+        dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" /; \
+        dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /; \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
         # TODO Cleanup $TEMP_DIR

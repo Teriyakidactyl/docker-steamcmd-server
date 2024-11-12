@@ -9,7 +9,7 @@ on:
     branches:
       - dev
       - main
-  workflow_dispatch:
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   build:
@@ -19,6 +19,7 @@ jobs:
     strategy:
       matrix:
         image: 
+          # Debian Tags: https://hub.docker.com/_/debian
           - trixie-20241016-slim
           - bookworm-20241016-slim
         compat_layer:
@@ -26,50 +27,88 @@ jobs:
           - "wine"
           - "proton"
         platform:
-          - linux/amd64
-          - linux/arm64
+          - "linux/amd64"
+          - "linux/arm64"
 
     env:
-      REGISTRY: ghcr.io
-      IMAGE_NAME: teriyakidactyl/docker-steamcmd-server
-      # Compatibility versions
+      # Shared build args
       WINE_VERSION: "9.21"
       WINE_BRANCH: "staging"
       WINE_ID: "debian"
-      WINE_DIST: "bookworm"
       WINE_TAG: "-1"
-      PROTON_VERSION: ""
-      BOX64_VERSION: "0.3.0+20240710.62695ce-1"
-      BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
+
+      PROTON_VERSION:
+
+      # Box64 and Box86 Versions
+      # BOX64_VERSION: "0.3.0+20240710.62695ce-1"
+      # BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
 
     steps:
+      # Check out the repository code
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          driver-opts: |
-            image=moby/buildkit:v0.12.0
-
-      - name: Prepare build metadata
-        id: prep
+      - name: Prepare Docker metadata, tags, labels, and build arguments
+        id: prep_meta
         run: |
-          # Extract Debian version codename
+        
+          # ===== Extract Debian Version =====
+          # Get codename from image tag (e.g., "bookworm" from "bookworm-20241016-slim")
           DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
           echo "DEBIAN_VERSION_CODENAME=$DEBIAN_VERSION_CODENAME" >> $GITHUB_ENV
-
-          # Set debugger based on platform
+      
+          # ===== Build Version Tags =====
+          # Format: <image>[-compat_layer][-version][_branch]
+          
+          # Initialize base version tag using matrix image
+          TAG_VERSIONED="${{ matrix.image }}"
+          
+          # Add compatibility layer and version if present
+          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
+            if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
+              TAG_VERSIONED="${TAG_VERSIONED}_wine-${{ env.WINE_VERSION }}"
+            elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
+              TAG_VERSIONED="${TAG_VERSIONED}_proton-${{ env.PROTON_VERSION }}"
+            fi
+          fi
+          
+          # Add dev suffix if not on main branch
+          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+            TAG_VERSIONED="${TAG_VERSIONED}_dev"
+          fi
+          echo "TAG_VERSIONED=$TAG_VERSIONED" >> $GITHUB_ENV
+      
+          # ===== Build Codename Tags =====
+          # Format: <debian_codename>[-compat_layer][_branch]
+          
+          # Initialize with Debian codename
+          TAG_CODENAME="$DEBIAN_VERSION_CODENAME"
+          
+          # Add compatibility layer if present
+          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
+            TAG_CODENAME="${TAG_CODENAME}-${{ matrix.compat_layer }}"
+          fi
+          
+          # Add dev suffix if not on main branch
+          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+            TAG_CODENAME="${TAG_CODENAME}_dev"
+          fi
+          echo "TAG_CODENAME=$TAG_CODENAME" >> $GITHUB_ENV
+      
+          # ===== Build Latest Tags =====
+          # Format: latest[_branch]
+          TAG_LATEST=$([ "${{ github.ref }}" == "refs/heads/main" ] && echo "latest" || echo "latest_${{ github.ref_name }}")
+          echo "TAG_LATEST=$TAG_LATEST" >> $GITHUB_ENV
+      
+          # ===== Configure Platform-Specific Settings =====
+          # Set up debugger for ARM platforms
           DEBUGGER=""
           if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
             DEBUGGER="box86"
           fi
           echo "DEBUGGER=$DEBUGGER" >> $GITHUB_ENV
-
-          # Configure command prefix
+      
+          # Configure command prefix based on platform and compatibility layer
           APP_COMMAND_PREFIX=""
           if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
             APP_COMMAND_PREFIX="box64 "
@@ -80,54 +119,55 @@ jobs:
             APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"
           fi
           echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX" >> $GITHUB_ENV
+      
+          # ===== Set Build Metadata =====
+          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
+      
+          # ===== Debug Output =====
+          echo "Generated tags:"
+          echo "  Version tag: $TAG_VERSIONED"
+          echo "  Codename tag: $TAG_CODENAME"
+          echo "  Latest tag: $TAG_LATEST"
+          echo "Platform configuration:"
+          echo "  Debugger: $DEBUGGER"
+          echo "  Command prefix: $APP_COMMAND_PREFIX"
+          echo "Build metadata:"
+          echo "  Date: $BUILD_DATE"
+          echo "  Debian codename: $DEBIAN_VERSION_CODENAME"
 
-          # Set build date in UTC
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
-
-          # Create platform-specific cache key
-          CACHE_KEY="${{ matrix.image }}-${{ matrix.compat_layer }}-${{ matrix.platform }}"
-          CACHE_KEY=${CACHE_KEY//'/'/-}  # Replace / with - for platform
-          echo "CACHE_KEY=$CACHE_KEY" >> $GITHUB_ENV
-
+      # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ghcr.io/teriyakidactyl/docker-steamcmd-server          
           tags: |
-            # Base image tag (e.g., bookworm-20241016-slim)
-            type=raw,value=${{ matrix.image }}
-            # Base image with dev suffix if not main branch
-            type=raw,value=${{ matrix.image }}_dev,enable=${{ github.ref != 'refs/heads/main' }}
-            
-            # Compatibility layer tags (if specified)
-            type=raw,value=${{ matrix.image }}-${{ matrix.compat_layer }},enable=${{ matrix.compat_layer != '' }}
-            type=raw,value=${{ matrix.image }}-${{ matrix.compat_layer }}_dev,enable=${{ matrix.compat_layer != '' && github.ref != 'refs/heads/main' }}
-            
-            # Debian codename with compatibility layer
-            type=raw,value=${{ env.DEBIAN_VERSION_CODENAME }}-${{ matrix.compat_layer }},enable=${{ matrix.compat_layer != '' }}
-            type=raw,value=${{ env.DEBIAN_VERSION_CODENAME }}-${{ matrix.compat_layer }}_dev,enable=${{ matrix.compat_layer != '' && github.ref != 'refs/heads/main' }}
-            
-            # Latest tags
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=latest_dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            # Version Tag: Combines the image name and compatibility layer (if present) with a version or compat version.
+            # Pseudo-code: `${{ matrix.image }}_${{ matrix.compat_layer }}-${{ matrix.compat_version }}`
+            # Example: 'trixie-20241016-slim_wine-9.21' or 'trixie-20241016-slim' (if no compat layer or version).
+            ${{ env.TAG_VERSIONED }}
+
+            # Codename Tag: Combines the Debian version codename with the compatibility layer (if present).
+            # Pseudo-code: `${{ env.DEBIAN_VERSION_CODENAME }}-${{ matrix.compat_layer }}`
+            # Example: 'bookworm-wine' or just 'bookworm' (if no compat layer).
+            ${{ env.TAG_CODENAME }}      
+
+            # Latest Tag: 'latest' for the main branch, 'latest_<branch_name>' for all other branches.
+            # Pseudo-code: `latest_${{ github.ref_name }}`
+            # Example: 'latest', 'latest_dev', or 'latest_special' based on the branch.
+            ${{ env.TAG_LATEST }}
+          
           labels: |
             org.opencontainers.image.title=SteamCMD Server Base Images
             org.opencontainers.image.description=A base image with common elements
             org.opencontainers.image.vendor=TeriyakiDactyl
             org.opencontainers.image.version=${{ github.ref_name }}
-            org.opencontainers.image.created=${{ env.BUILD_DATE }}
+            org.opencontainers.image.created=${{ steps.prep.outputs.build_date }}
             org.opencontainers.image.revision=${{ github.sha }}
             com.example.git.branch=${{ github.ref_name }}
-
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
+          
+      # Build and push Docker image
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -136,15 +176,33 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+            
           build-args: |
+
+            # Build
             SOURCE_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
-            BRANCH_NAME=${{ github.ref_name }}
-            IMAGE_NAME=${{ matrix.image }}
-            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}
+            BUILD_DATE=${{ env.BUILD_DATE }}  # Defined in prep_meta
+
+            # Debian 
+            DEBIAN_TAG=${{ matrix.image }}
+            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}  # Defined in prep_meta
+            
+            # Compatiblity Layer (wine, proton, empty)
             COMPAT_LAYER=${{ matrix.compat_layer }}
-            DEBUGGER=${{ env.DEBUGGER }}
-            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ env.CACHE_KEY }}
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ env.CACHE_KEY }},mode=max
-          platforms: ${{ matrix.platform }}
+
+            # Wine
+            WINE_VERSION=${{ env.WINE_VERSION }}
+            WINE_DIST=${{ env.DEBIAN_VERSION_CODENAME }}
+            WINE_BRANCH=${{ env.WINE_BRANCH }}
+            WINE_TAG=${{ env.WINE_TAG }}
+
+            # Proton
+            PROTON_VERSION=${{ env.PROTON_VERSION }}
+
+            # Box86 / Box64
+            DEBUGGER=${{ env.DEBUGGER }}  # Defined in prep_meta
+            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}  # Defined in prep_meta
+
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64  # Multi-architecture build

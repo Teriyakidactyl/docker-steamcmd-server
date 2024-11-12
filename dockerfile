@@ -19,6 +19,7 @@ ARG APP_COMMAND_PREFIX=""
 # Wine -----------------------------------------------------------------------------------------------------------
 ARG WINE_BRANCH="staging" \
     WINE_ID="debian" \
+    WINE_VERSION="9.21" \
     WINE_DIST="$DEBIAN_TAG" \
     WINE_TAG="-1" 
 

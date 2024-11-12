@@ -9,7 +9,7 @@ on:
     branches:
       - dev
       - main
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,67 +29,38 @@ jobs:
           - "linux/amd64"
           - "linux/arm64"
 
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: teriyakidactyl/docker-steamcmd-server
+      # Compatibility versions
+      WINE_VERSION: "9.21"
+      WINE_BRANCH: "staging"
+      WINE_ID: "debian"
+      WINE_DIST: "bookworm"
+      WINE_TAG: "-1"
+      PROTON_VERSION: ""
+      BOX64_VERSION: "0.3.0+20240710.62695ce-1"
+      BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
+
     steps:
-      # Check out the repository code
       - name: Check out repository
         uses: actions/checkout@v2
 
-      # Prepare tags, labels, and build arguments in a single step
-      - name: Prepare Docker metadata, tags, labels, and build arguments
-        id: prep_meta
+      - name: Prepare build metadata
+        id: prep
         run: |
-          # Extract DEBIAN_VERSION_CODENAME from the image (before the first hyphen)
+          # Extract Debian version codename
           DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
+          echo "DEBIAN_VERSION_CODENAME=$DEBIAN_VERSION_CODENAME" >> $GITHUB_ENV
 
-          # Start generating tags
-          TAGS="latest"  # Always include 'latest'
-
-          # Add the image tag with '_dev' if the branch is not 'main'
-          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-            TAGS="${TAGS},${{ matrix.image }}_dev"
-          else
-            TAGS="${TAGS},${{ matrix.image }}"
-          fi
-
-          # Add image-compat_layer tag if compat_layer is not empty
-          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
-            if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-              TAGS="${TAGS},${{ matrix.image }}-${{ matrix.compat_layer }}_dev"  # image-compat_layer_dev
-            else
-              TAGS="${TAGS},${{ matrix.image }}-${{ matrix.compat_layer }}"  # image-compat_layer
-            fi
-
-            # Add debian_codename-compat_layer tag if compat_layer is not empty
-            if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-              TAGS="${TAGS},${DEBIAN_VERSION_CODENAME}-${{ matrix.compat_layer }}_dev"  # debian_codename-compat_layer_dev
-            else
-              TAGS="${TAGS},${DEBIAN_VERSION_CODENAME}-${{ matrix.compat_layer }}"  # debian_codename-compat_layer
-            fi
-          fi
-
-          # Output the tags for debugging purposes
-          echo "Generated Docker tags: $TAGS"
-          echo "tags=$TAGS" >> $GITHUB_ENV  # Save tags to environment
-
-          # Prepare labels for the Docker image
-          LABELS="org.opencontainers.image.title=SteamCMD Server Base Images"
-          LABELS="$LABELS,org.opencontainers.image.description=A base image with common elements"
-          LABELS="$LABELS,org.opencontainers.image.vendor=TeriyakiDactyl"
-          LABELS="$LABELS,org.opencontainers.image.version=${{ github.ref_name }}"
-          LABELS="$LABELS,org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          LABELS="$LABELS,org.opencontainers.image.revision=${{ github.sha }}"
-          LABELS="$LABELS,com.example.git.branch=${{ github.ref_name }}"
-
-          echo "Generated Docker labels: $LABELS"
-          echo "labels=$LABELS" >> $GITHUB_ENV  # Save labels to environment
-
-          # Define build arguments
+          # Set debugger based on platform
           DEBUGGER=""
           if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
             DEBUGGER="box86"
           fi
-          echo "DEBUGGER=$DEBUGGER" >> $GITHUB_ENV  # Save DEBUGGER to environment
+          echo "DEBUGGER=$DEBUGGER" >> $GITHUB_ENV
 
+          # Configure command prefix
           APP_COMMAND_PREFIX=""
           if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
             APP_COMMAND_PREFIX="box64 "
@@ -99,37 +70,59 @@ jobs:
           elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
             APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"
           fi
-          echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX" >> $GITHUB_ENV  # Save APP_COMMAND_PREFIX to environment
+          echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX" >> $GITHUB_ENV
 
-          # Define BRANCH_NAME and BUILD_DATE
-          BRANCH_NAME=${{ github.ref_name }}
-          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')  # Get the UTC date for the build
+          # Set build date in UTC
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
 
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV  # Save branch name to environment
-          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV  # Save build date to environment
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # Base image tag (e.g., bookworm-20241016-slim)
+            type=raw,value=${{ matrix.image }}
+            # Base image with dev suffix if not main branch
+            type=raw,value=${{ matrix.image }}_dev,enable=${{ github.ref != 'refs/heads/main' }}
+            
+            # Compatibility layer tags (if specified)
+            type=raw,value=${{ matrix.image }}-${{ matrix.compat_layer }},enable=${{ matrix.compat_layer != '' }}
+            type=raw,value=${{ matrix.image }}-${{ matrix.compat_layer }}_dev,enable=${{ matrix.compat_layer != '' && github.ref != 'refs/heads/main' }}
+            
+            # Debian codename with compatibility layer
+            type=raw,value=${{ env.DEBIAN_VERSION_CODENAME }}-${{ matrix.compat_layer }},enable=${{ matrix.compat_layer != '' }}
+            type=raw,value=${{ env.DEBIAN_VERSION_CODENAME }}-${{ matrix.compat_layer }}_dev,enable=${{ matrix.compat_layer != '' && github.ref != 'refs/heads/main' }}
+            
+            # Latest tags
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest_dev,enable=${{ github.ref == 'refs/heads/dev' }}
+          labels: |
+            org.opencontainers.image.title=SteamCMD Server Base Images
+            org.opencontainers.image.description=A base image with common elements
+            org.opencontainers.image.vendor=TeriyakiDactyl
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.created=${{ env.BUILD_DATE }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            com.example.git.branch=${{ github.ref_name }}
 
-          # Output the build arguments for debugging
-          echo "BRANCH_NAME=$BRANCH_NAME"
-          echo "BUILD_DATE=$BUILD_DATE"
-          
-      # Build and push Docker image
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ env.tags }}  # Use the generated tags
-          labels: ${{ env.labels }}  # Use the generated labels
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOURCE_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}  # Defined in prep_meta
-            BRANCH_NAME=${{ env.BRANCH_NAME }}  # Defined in prep_meta
+            BUILD_DATE=${{ env.BUILD_DATE }}
+            BRANCH_NAME=${{ github.ref_name }}
             IMAGE_NAME=${{ matrix.image }}
-            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}  # Defined in prep_meta
+            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}
             COMPAT_LAYER=${{ matrix.compat_layer }}
-            DEBUGGER=${{ env.DEBUGGER }}  # Defined in prep_meta
-            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}  # Defined in prep_meta
+            DEBUGGER=${{ env.DEBUGGER }}
+            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64  # Multi-architecture build
+          platforms: ${{ matrix.platform }}

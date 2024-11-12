@@ -85,7 +85,7 @@ jobs:
             echo "DEBIAN_BASE=bookworm" >> $GITHUB_ENV
           fi
       
-          if [[ "${{ runner.arch }}" == "arm64" ]]; then
+          if [[ "${{ runner.arch }}" == *"arm"* ]]; then
             echo "DEBUGGER=box86" >> $GITHUB_ENV
             echo "APP_COMMAND_PREFIX=box64 " >> $GITHUB_ENV
           fi

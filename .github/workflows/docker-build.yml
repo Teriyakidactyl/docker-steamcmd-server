@@ -45,6 +45,11 @@ jobs:
       # Box64 and Box86 Versions
       BOX64_VERSION: "0.3.0+20240710.62695ce-1"
       BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
+      DEBUGGER: ${{ contains(matrix.platform, 'arm') && 'box86' || '' }}
+      COMPAT_LAYER: "${{ matrix.compat_layer }}"  # Dynamically use the compat_layer from matrix
+      PLATFORM: "${{ matrix.platform }}"  # Dynamically set platform from matrix
+      APP_COMMAND_PREFIX: ${{ contains(matrix.platform, 'arm') && (matrix.compat_layer == 'wine' && 'box64 wine ' || matrix.compat_layer == 'proton' && 'box64 proton ' || 'box64 ') || (matrix.compat_layer == 'wine' && 'wine ' || matrix.compat_layer == 'proton' && 'proton ' || '') }}
+
 
     steps:
       # Check out the repository code
@@ -82,9 +87,14 @@ jobs:
         with:
           images: ghcr.io/teriyakidactyl/docker-steamcmd-server
           tags: |
-            ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', matrix.image) || matrix.image }}
-            ${{ github.ref == 'refs/heads/dev' && 'latest_dev' || 'latest' }} 
-            ${{ matrix.image.split('-')[0] }}
+            # Tag based on the 'image' and 'compat_layer' matrix values
+            ${{ matrix.compat_layer == '' && matrix.image || format('{0}-{1}', matrix.image, matrix.compat_layer) }}
+            # Add 'dev' suffix for the 'dev' branch
+            ${{ github.ref == 'refs/heads/dev' && format('{0}_dev', tags[0]) || tags[0] }}
+            # Add 'latest' and 'latest-dev' tags
+            ${{ github.ref == 'refs/heads/dev' && 'latest-dev' || 'latest' }}
+            # Include the base image name (without the version)
+            ${{ matrix.image }}
           labels: |
             org.opencontainers.image.title=SteamCMD Server Base Images
             org.opencontainers.image.description=A base image with common elements

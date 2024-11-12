@@ -29,6 +29,7 @@ jobs:
           - "wine"
           - "proton"
         platform:
+          # Matrix + Multiarch? https://github.com/docker/docs/issues/16593
           - "linux/amd64"
           - "linux/arm64"
 
@@ -124,7 +125,8 @@ jobs:
             IMAGE_NAME=${{ matrix.image }}
             COMPAT_LAYER=${{ matrix.compat_layer }}
             DEBUGGER=${{ env.DEBUGGER }}
-            APP_COMMAND_PREFIX=${{ matrix.compat_layer == 'wine' && 'wine64 ' || matrix.compat_layer == 'proton' && 'proton ' || '' }}
+            WINE_VERSION=${{ env.WINE_VERSION }}
+            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX}}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: ${{ matrix.platform }}  # Use platforms from the matrix dynamically

@@ -48,10 +48,34 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v2
 
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+
+      # Cache Docker layers to speed up subsequent builds
+      - name: Cache Docker layers
+        uses: actions/cache@v2.1.4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # Log in to GitHub Container Registry (only for pushes, not PRs)
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
       - name: Prepare Docker metadata, tags, labels, and build arguments
         id: prep_meta
         run: |
-        
+
           # ===== Extract Debian Version =====
           # Get codename from image tag (e.g., "bookworm" from "bookworm-20241016-slim")
           DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
@@ -175,8 +199,7 @@ jobs:
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-            
+          labels: ${{ steps.meta.outputs.labels }}            
           build-args: |
 
             # Build

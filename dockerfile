@@ -11,6 +11,7 @@ FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+ARG DEBIAN_VERSION_CODENAME
 ARG TARGETARCH
 ARG COMPAT_LAYER
 ARG DEBUGGER=""
@@ -20,7 +21,7 @@ ARG APP_COMMAND_PREFIX=""
 ARG WINE_BRANCH="staging" \
     WINE_ID="debian" \
     WINE_VERSION="9.21" \
-    WINE_DIST="$DEBIAN_TAG" \
+    WINE_DIST="$DEBIAN_VERSION_CODENAME" \
     WINE_TAG="-1" 
 
     # Proton -----------------------------------------------------------------------------------------------------

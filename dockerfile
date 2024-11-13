@@ -198,7 +198,6 @@ RUN set -eux; \
     echo "DEBUG: TARGETARCH=${TARGETARCH}"; \
     if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
-        # FIXME armhf might swell things, seperate build stage?
         dpkg --add-architecture armhf; \
         apt-get update; \
         \
@@ -218,7 +217,7 @@ RUN set -eux; \
         # TODO implement BOX64_VERSION, BOX86_VERSION from build args
         apt-get update; \
         apt-get install -y --no-install-recommends \
-            box64 box86:armhf; \ 
+            box64 box86 \ 
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \

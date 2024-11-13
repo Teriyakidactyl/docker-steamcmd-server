@@ -37,7 +37,7 @@ jobs:
       WINE_ID: "debian"
       WINE_TAG: "-1"
 
-      PROTON_VERSION:
+      PROTON_VERSION: "TODO"
 
       # Box64 and Box86 Versions
       # BOX64_VERSION: "0.3.0+20240710.62695ce-1"

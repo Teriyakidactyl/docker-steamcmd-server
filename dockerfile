@@ -9,7 +9,7 @@ ARG TARGETPLATFORM
 # FIXME probably need to reimpliment hard-coded amd64 multistage steamcmd, wine due arm package failures
 
 # Final image setup
-FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
+FROM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 

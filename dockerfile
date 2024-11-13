@@ -198,8 +198,7 @@ RUN set -eux; \
         apt-get update; \
         \
         # Install ARM-specific packages
-        apt-get install -y --no-install-recommends \
-            $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD; \
+        apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD; \
         \
         # Add and configure Box86: https://github.com/ryanfortner/box86-debs, alternate: https://itai-nelken.github.io/weekly-box86-debs/
         # commit list: https://github.com/ryanfortner/box86-debs/commits/master

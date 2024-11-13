@@ -207,7 +207,7 @@ RUN set -eux; \
         \
         # Add and configure Box86: https://github.com/ryanfortner/box86-debs, alternate: https://itai-nelken.github.io/weekly-box86-debs/
         curl -fsSL https://ryanfortner.github.io/box86-debs/box86.list -o /etc/apt/sources.list.d/box86.list; \
-        curl -fsSL https://ryanfortner.github.io/box86-debs/debian/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg; \
+        curl -fsSL https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg; \
         \
         # Add and configure Box64: https://github.com/ryanfortner/box64-debs
         curl -fsSL https://ryanfortner.github.io/box64-debs/box64.list -o /etc/apt/sources.list.d/box64.list; \

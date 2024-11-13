@@ -176,12 +176,7 @@ jobs:
             # Pseudo-code: `${{ env.DEBIAN_VERSION_CODENAME }}-${{ matrix.compat_layer }}`
             # Example: 'bookworm-wine' or just 'bookworm' (if no compat layer).
             ${{ env.TAG_CODENAME }}      
-
-            # Latest Tag: 'latest' for the main branch, 'latest_<branch_name>' for all other branches.
-            # Pseudo-code: `latest_${{ github.ref_name }}`
-            # Example: 'latest', 'latest_dev', or 'latest_special' based on the branch.
-            ${{ env.TAG_LATEST }}
-          
+        
           labels: |
             org.opencontainers.image.title=SteamCMD Server Base Images
             org.opencontainers.image.description=A base image with common elements
@@ -232,3 +227,40 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: ${{ matrix.platform }}
           # platforms: linux/amd64,linux/arm64  # Multi-architecture build
+
+  merge:
+    name: Merge and Create Manifest List
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download build digests
+        uses: actions/download-artifact@v4
+        with:
+          name: digests
+          path: /tmp/digests
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create manifest list and push
+        run: |
+          docker buildx imagetools create \
+            ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }} \
+            ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_CODENAME }} \
+            --tag ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }}
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }}
+
+      # Test the versioned image
+      - name: Test the versioned image
+        run: |
+          # Pull the versioned image
+          docker pull ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }}
+
+          # Run a basic test (e.g., check if the container starts)
+          docker run --rm ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }} /bin/sh -c "echo 'Image test passed for versioned tag!'"
+
+          # Or you can run a more complex test if needed:
+          # docker run --rm ghcr.io/teriyakidactyl/docker-s

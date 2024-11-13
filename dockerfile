@@ -1,6 +1,8 @@
 # Dockerfile for SteamCMD, Wine, Proton, Box86/Box64 depending on platform and compatibility layer
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
+# FIXME Do multiarch container maintain EVN values for each arch?
+
 ARG DEBIAN_TAG="trixie-slim"
 
 # Final image setup

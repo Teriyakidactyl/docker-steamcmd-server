@@ -136,7 +136,9 @@ ENV DIRECTORIES="\
 # Begin installation and setup process in a single RUN statement
 RUN set -eux; \
     \
-    # Update and install common BASE_DEPENDENCIES    
+    # Needed for Steamcmd
+    dpkg --add-architecture i386; \
+    # Update and install common BASE_DEPENDENCIES
     apt-get update; \
     apt-get install -y --no-install-recommends \
         $PACKAGES_BASE $PACKAGES_BASE_BUILD; \

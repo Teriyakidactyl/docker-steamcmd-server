@@ -218,7 +218,7 @@ RUN set -eux; \
         # TODO implement BOX64_VERSION, BOX86_VERSION from build args
         apt-get update; \
         apt-get install -y --no-install-recommends \
-            box64:amd64 box86:armhf; \ 
+            box64 box86:armhf; \ 
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \

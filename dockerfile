@@ -136,8 +136,6 @@ ENV DIRECTORIES="\
 # Begin installation and setup process in a single RUN statement
 RUN set -eux; \
     \
-    # Needed for Steamcmd
-    dpkg --add-architecture i386; \
     # Update and install common BASE_DEPENDENCIES
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -217,7 +215,7 @@ RUN set -eux; \
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
     else \ 
         # AMD64 specific packages
-        apt-get install -y --no-install-recommends \
+        apt-get install -y \
             $PACKAGES_AMD64_ONLY; \        
     fi; \
     \

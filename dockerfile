@@ -210,7 +210,7 @@ RUN set -eux; \
         apt-get update; \
         apt-get install -y --no-install-recommends \
             box64 box86; \ 
-        export DEBUGGER="box86"
+        export DEBUGGER="box86"; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \

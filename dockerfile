@@ -13,8 +13,8 @@ ARG TARGETARCH
 ARG TARGETPLATFORM
 
 ARG COMPAT_LAYER
-ARG DEBUGGER=""
-ARG APP_COMMAND_PREFIX=""
+ARG DEBUGGER
+ARG APP_COMMAND_PREFIX
 
 # Wine -----------------------------------------------------------------------------------------------------------
 ARG WINE_BRANCH="staging" \
@@ -70,7 +70,7 @@ ENV CONTAINER_USER="container"
 ENV PUID="1000"
 ENV TERM="xterm-256color"
 ENV DISPLAY=":0"
-ENV DEBUGGER="$DEBUGGER"
+ENV DEBUGGER="${DEBUGGER}"
 ENV LOGS="/var/log"
 ENV SCRIPTS="/usr/local/bin"
 
@@ -80,7 +80,7 @@ ENV WORLD_DIRECTORIES="$WORLD_FILES/States"
 
 # App ------------------------------------------------------------------------------------------------------------
 ENV APP_FILES="/app"
-ENV APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX"
+ENV APP_COMMAND_PREFIX="${APP_COMMAND_PREFIX}"
     # NOTE Examples:
     # APP_NAME="game_server" \
     # APP_EXE="$APP_FILES/game_server_executable" \

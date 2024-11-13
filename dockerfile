@@ -206,18 +206,19 @@ RUN set -eux; \
             $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD; \
         \
         # Add and configure Box86: https://github.com/ryanfortner/box86-debs, alternate: https://itai-nelken.github.io/weekly-box86-debs/
+        # commit list: https://github.com/ryanfortner/box86-debs/commits/master
         curl -fsSL https://ryanfortner.github.io/box86-debs/box86.list -o /etc/apt/sources.list.d/box86.list; \
         curl -fsSL https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg; \
         \
         # Add and configure Box64: https://github.com/ryanfortner/box64-debs
+        # commit list: https://github.com/ryanfortner/box64-debs/commits/master
         curl -fsSL https://ryanfortner.github.io/box64-debs/box64.list -o /etc/apt/sources.list.d/box64.list; \
         curl -fsSL https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg; \
         \
         # Update and install Box86/Box64
-        # TODO implement BOX64_VERSION, BOX86_VERSION from build args
         apt-get update; \
         apt-get install -y --no-install-recommends \
-            box64 box86 \ 
+            box64 box86-generic-arm \ 
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \

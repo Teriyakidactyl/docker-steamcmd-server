@@ -1,9 +1,6 @@
 # Dockerfile for SteamCMD, Wine, Proton, Box86/Box64 depending on platform and compatibility layer
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
-# FIXME Do multiarch container maintain EVN values for each arch?
-# https://github.com/docker/build-push-action/issues/820#issuecomment-1486849546
-
 ARG DEBIAN_TAG
 ARG TARGETARCH
 ARG TARGETPLATFORM

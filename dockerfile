@@ -230,7 +230,7 @@ RUN set -eux; \
     # FIXME requires multistage run in amd64 to work due to qemu issues. 
     # FIXME .buildkit_qemu_emulator: /usr/local/bin/box86: Invalid ELF image for this architecture
     # FIXME .buildkit_qemu_emulator: /opt/steamcmd/linux32/steamcmd: Invalid ELF image for this architecture
-    # $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
+    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
     # TODO test steam download
     \
     # Create the container user

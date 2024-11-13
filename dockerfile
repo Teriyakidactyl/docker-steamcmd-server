@@ -1,8 +1,6 @@
 # Dockerfile for SteamCMD, Wine, Proton, Box86/Box64 depending on platform and compatibility layer
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
-# TODO set DEBUGGER=box86 and APP_COMMAND_PREFIX
-
 ARG DEBIAN_TAG="trixie-slim"
 
 # Final image setup

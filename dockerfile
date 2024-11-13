@@ -219,8 +219,8 @@ RUN set -eux; \
         apt-get install -y --no-install-recommends \
             box64 box86-generic-arm; \
         # Debug
-        box86 --vesion; \
-        box64 --version; \
+        # box86 --vesion; \
+        # box64 --version; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
@@ -231,7 +231,8 @@ RUN set -eux; \
     fi; \
     \
     # Install SteamCMD -------------------------------------------------------------------------------------------
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
+    # NOTE steamcmd.sh only runs on amd64. arm64 requires box86. Box86 won't run inside buildx (github-actions)
+        curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
     # FIXME remove || true when done testing.
     $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit || true; \
     \

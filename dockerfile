@@ -135,6 +135,9 @@ ENV DIRECTORIES="\
 # Begin installation and setup process in a single RUN statement
 RUN set -eux; \
     \
+    # DEBUG incoming output
+    echo "DEBUG: DEBUGGER=${DEBUGGER}"; \
+    \
     # Update and install common BASE_DEPENDENCIES
     apt-get update; \
     apt-get install -y --no-install-recommends \

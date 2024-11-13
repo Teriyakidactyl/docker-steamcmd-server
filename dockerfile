@@ -38,8 +38,7 @@ ARG  \
         \
     PACKAGES_ARM_BUILD="\
         # repo keyring add, https://packages.debian.org/bookworm/gnupg
-        gnupg \
-        apt-utils" \
+        gnupg" \
         \
     PACKAGES_BASE_BUILD="" \
         \

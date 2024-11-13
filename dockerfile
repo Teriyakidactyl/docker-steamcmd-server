@@ -5,17 +5,15 @@
 
 ARG DEBIAN_TAG="trixie-slim"
 
-
-# FIXME probably need to reimpliment hard-coded amd64 multistage steamcmd, wine due arm package failures
-
 # Final image setup
 FROM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
-
 ARG DEBIAN_VERSION_CODENAME
+
 ARG TARGETARCH
 ARG TARGETPLATFORM
+
 ARG COMPAT_LAYER
 ARG DEBUGGER=""
 ARG APP_COMMAND_PREFIX=""

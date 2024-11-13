@@ -6,6 +6,8 @@
 ARG DEBIAN_TAG="trixie-slim"
 ARG TARGETPLATFORM
 
+# FIXME probably need to reimpliment hard-coded amd64 multistage steamcmd, wine due arm package failures
+
 # Final image setup
 FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
@@ -24,7 +26,7 @@ ARG WINE_BRANCH="staging" \
     WINE_DIST="" \
     WINE_TAG="-1" 
 
-    # Proton -----------------------------------------------------------------------------------------------------
+# Proton -----------------------------------------------------------------------------------------------------
 ARG PROTON_VERSION=""
 
 # Packages -------------------------------------------------------------------------------------------------------

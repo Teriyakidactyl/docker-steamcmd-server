@@ -1,3 +1,5 @@
+# Refference:https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
+
 name: Build Docker Images
 
 on:
@@ -11,11 +13,20 @@ on:
       - main
   workflow_dispatch:  # Allows manual triggering
 
+env:
+  REGISTRY_IMAGE: ghcr.io/teriyakidactyl/docker-steamcmd-server
+
+  # Shared build args
+  WINE_VERSION: "9.21"
+  WINE_BRANCH: "staging"
+  WINE_ID: "debian"
+  WINE_TAG: "-1"
+
+  PROTON_VERSION: "9.0-3"
+
 jobs:
   build:
-    name: Build Docker Images
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         image: 
@@ -27,21 +38,8 @@ jobs:
           - "wine"
           - "proton"
         platform:
-          - "linux/amd64"
-          - "linux/arm64"
-
-    env:
-      # Shared build args
-      WINE_VERSION: "9.21"
-      WINE_BRANCH: "staging"
-      WINE_ID: "debian"
-      WINE_TAG: "-1"
-
-      PROTON_VERSION: "9.0-3"
-
-      # Box64 and Box86 Versions
-      # BOX64_VERSION: "0.3.0+20240710.62695ce-1"
-      # BOX86_VERSION: "0.3.7+20240707.fcbebfa-1"
+          - linux/amd64
+          - linux/arm64
 
     steps:
       # Check out the repository code
@@ -66,7 +64,7 @@ jobs:
       # Log in to GitHub Container Registry (only for pushes, not PRs)
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -163,9 +161,9 @@ jobs:
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/teriyakidactyl/docker-steamcmd-server          
+          images: ${{ env.REGISTRY_IMAGE }}
           tags: |
             # Version Tag: Combines the image name and compatibility layer (if present) with a version or compat version.
             # Pseudo-code: `${{ matrix.image }}_${{ matrix.compat_layer }}-${{ matrix.compat_version }}`
@@ -188,7 +186,7 @@ jobs:
           
       # Build and push Docker image
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           # provenance: false # NOTE << BUG Fix : 'unknown/unknown' OS Tags >> https://github.com/docker/build-push-action/issues/820#issuecomment-1486849546
@@ -227,10 +225,3 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: ${{ matrix.platform }}
           # platforms: linux/amd64,linux/arm64  # Multi-architecture build
-
-      - name: Create and push manifest list
-        if: github.event_name != 'pull_request'
-        run: |
-          docker buildx imagetools create -t ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }} \
-            ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }}-${{ matrix.platform }}
-      

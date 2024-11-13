@@ -2,17 +2,17 @@
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
 # FIXME Do multiarch container maintain EVN values for each arch?
+# https://github.com/docker/build-push-action/issues/820#issuecomment-1486849546
 
 ARG DEBIAN_TAG="trixie-slim"
+ARG TARGETARCH
+ARG TARGETPLATFORM
 
 # Final image setup
-FROM debian:$DEBIAN_TAG AS final
+FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DEBIAN_VERSION_CODENAME
-
-ARG TARGETARCH
-ARG TARGETPLATFORM
 
 ARG COMPAT_LAYER
 ARG DEBUGGER

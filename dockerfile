@@ -4,7 +4,7 @@
 # TODO set DEBUGGER=box86 and APP_COMMAND_PREFIX
 
 ARG DEBIAN_TAG="trixie-slim"
-ARG TARGETPLATFORM
+
 
 # FIXME probably need to reimpliment hard-coded amd64 multistage steamcmd, wine due arm package failures
 
@@ -15,6 +15,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ARG DEBIAN_VERSION_CODENAME
 ARG TARGETARCH
+ARG TARGETPLATFORM
 ARG COMPAT_LAYER
 ARG DEBUGGER=""
 ARG APP_COMMAND_PREFIX=""
@@ -148,7 +149,8 @@ RUN set -eux; \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \
     \
-    # Conditional Wine setup if COMPAT_LAYER is "wine"
+    # Conditional Wine setup if COMPAT_LAYER is "wine / proton"
+    echo "DEBUG: COMAT_LAYER=${COMPAT_LAYER}"; \
     if [ "$COMPAT_LAYER" = "wine" ]; then \
         apt-get install -y --no-install-recommends \
             $PACKAGES_WINE; \
@@ -186,9 +188,14 @@ RUN set -eux; \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
         # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf
         # NOTE $WINEPREFIX can be large.  
+    # Conditional Proton setup if COMPAT_LAYER is "proton"
+    elif [ "$COMPAT_LAYER" = "proton" ]; then \
+        # Proton installation (Placeholder for actual Proton installation logic)
+        echo "Proton installation is not yet implemented in this Dockerfile."; \
     fi; \
     \
     # ARCH Specific Packages -------------------------------------------------------------------------------------
+    echo "DEBUG: TARGETARCH=${TARGETARCH}"; \
     if echo "$TARGETARCH" | grep -q "arm"; then \
         # Add ARM architecture and update
         # FIXME armhf might swell things, seperate build stage?
@@ -212,7 +219,6 @@ RUN set -eux; \
         apt-get update; \
         apt-get install -y --no-install-recommends \
             box64 box86; \ 
-        export DEBUGGER="box86"; \
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
@@ -222,19 +228,10 @@ RUN set -eux; \
             $PACKAGES_AMD64_ONLY; \        
     fi; \
     \
-    # Conditional Proton setup if COMPAT_LAYER is "proton"
-    if [ "$COMPAT_LAYER" = "proton" ]; then \
-        # Proton installation (Placeholder for actual Proton installation logic)
-        echo "Proton installation is not yet implemented in this Dockerfile."; \
-    fi; \
-    \
     # Install SteamCMD -------------------------------------------------------------------------------------------
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
-    # FIXME requires multistage run in amd64 to work due to qemu issues. 
-    # FIXME .buildkit_qemu_emulator: /usr/local/bin/box86: Invalid ELF image for this architecture
-    # FIXME .buildkit_qemu_emulator: /opt/steamcmd/linux32/steamcmd: Invalid ELF image for this architecture
+    # FIXME remove || true when done testing.
     $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit || true; \
-    # TODO test steam download
     \
     # Create the container user
     chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    

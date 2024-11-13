@@ -205,7 +205,6 @@ jobs:
             # Build
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ env.BUILD_DATE }}  # Defined in prep_meta
-            # TARGETARCH=${{ matrix.platform }}
 
             # Debian 
             DEBIAN_TAG=${{ matrix.image }}

@@ -4,7 +4,7 @@
 # FIXME Do multiarch container maintain EVN values for each arch?
 # https://github.com/docker/build-push-action/issues/820#issuecomment-1486849546
 
-ARG DEBIAN_TAG="trixie-slim"
+ARG DEBIAN_TAG
 ARG TARGETARCH
 ARG TARGETPLATFORM
 

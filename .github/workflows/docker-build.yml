@@ -229,7 +229,8 @@ jobs:
           # platforms: linux/amd64,linux/arm64  # Multi-architecture build
 
       - name: Create and push manifest list
-        if: github.event_name != 'pull_request' && matrix.platform == 'linux/amd64'
+        if: github.event_name != 'pull_request'
         run: |
           docker buildx imagetools create -t ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }} \
-            ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }}
+            ghcr.io/teriyakidactyl/docker-steamcmd-server:${{ env.TAG_VERSIONED }}-${{ matrix.platform }}
+      

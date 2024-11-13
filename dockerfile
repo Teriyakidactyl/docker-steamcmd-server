@@ -214,7 +214,7 @@ RUN set -eux; \
         # Update and install Box86/Box64
         apt-get update; \
         apt-get install -y --no-install-recommends \
-            box64 box86-generic-arm \ 
+            box64 box86-generic-arm; \ 
         \
         # Clean up
         apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \

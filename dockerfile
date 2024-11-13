@@ -189,6 +189,7 @@ RUN set -eux; \
         # NOTE $WINEPREFIX can be large.  
     # Conditional Proton setup if COMPAT_LAYER is "proton"
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
+        # https://github.com/ValveSoftware/Proton
         # Proton installation (Placeholder for actual Proton installation logic)
         echo "Proton installation is not yet implemented in this Dockerfile."; \
     fi; \

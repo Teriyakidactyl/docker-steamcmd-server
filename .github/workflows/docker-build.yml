@@ -37,7 +37,7 @@ jobs:
       WINE_ID: "debian"
       WINE_TAG: "-1"
 
-      PROTON_VERSION: "TODO"
+      PROTON_VERSION: "9.0-3"
 
       # Box64 and Box86 Versions
       # BOX64_VERSION: "0.3.0+20240710.62695ce-1"
@@ -204,11 +204,11 @@ jobs:
 
             # Build
             SOURCE_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}  # Defined in prep_meta
+            BUILD_DATE=${{ env.BUILD_DATE }}
 
             # Debian 
             DEBIAN_TAG=${{ matrix.image }}
-            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}  # Defined in prep_meta
+            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}
             
             # Compatiblity Layer (wine, proton, empty)
             COMPAT_LAYER=${{ matrix.compat_layer }}
@@ -223,8 +223,8 @@ jobs:
             PROTON_VERSION=${{ env.PROTON_VERSION }}
 
             # Box86 / Box64
-            DEBUGGER=${{ env.DEBUGGER }}  # Defined in prep_meta
-            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}  # Defined in prep_meta
+            DEBUGGER=${{ env.DEBUGGER }}
+            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
 
           cache-from: type=gha
           cache-to: type=gha,mode=max

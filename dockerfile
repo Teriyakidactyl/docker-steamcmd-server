@@ -135,6 +135,11 @@ ENV DIRECTORIES="\
         $SCRIPTS"
 
 # Begin installation and setup process in a single RUN statement
+
+# TODO colored shell prompt
+# TODO log rotation @ $LOGS
+# TODO alternate BOX install for reproducability (version pinning)
+
 RUN set -eux; \
     \
     # DEBUG incoming output
@@ -235,9 +240,18 @@ RUN set -eux; \
     \
     # Install SteamCMD -------------------------------------------------------------------------------------------
     # NOTE steamcmd.sh only runs on amd64. arm64 requires box86. Box86 won't run inside buildx (github-actions)
-        curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
-    # FIXME remove || true when done testing.
-    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit || true; \
+    # NOTE steamcmd.sh failing at the next step SHOULD cause a failrue to build, as it's a core requirement.    
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
+    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
+    # ln -s "$STEAMCMD_PATH/linux32/steamclient.so" "$STEAMCMD_PATH/steamservice.so"; \
+    # mkdir -p "${HOMEDIR}/.steam/sdk32"; \
+    # ln -s "$STEAMCMD_PATH/linux32/steamclient.so" "${HOMEDIR}/.steam/sdk32/steamclient.so"; \
+    # ln -s "$STEAMCMD_PATH/linux32/steamcmd" "$STEAMCMD_PATH/linux32/steam"; \
+    # mkdir -p "${HOMEDIR}/.steam/sdk64"; \
+    # ln -s "$STEAMCMD_PATH/linux64/steamclient.so" "${HOMEDIR}/.steam/sdk64/steamclient.so"; \
+    # ln -s "$STEAMCMD_PATH/linux64/steamcmd" "$STEAMCMD_PATH/linux64/steam\"; \
+    # ln -s "$STEAMCMD_PATH/steamcmd.sh" "$STEAMCMD_PATH/steam.sh\"; \
+    # ln -s "$STEAMCMD_PATH/linux64/steamclient.so" "/usr/lib/x86_64-linux-gnu/steamclient.so"; \
     \
     # Create the container user
     chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    

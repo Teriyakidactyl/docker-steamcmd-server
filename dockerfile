@@ -5,8 +5,81 @@ ARG DEBIAN_TAG
 ARG TARGETARCH
 ARG TARGETPLATFORM
 
-# Final image setup
-FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS final
+# Base image for all platforms
+FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS base
+ARG TARGETARCH
+ARG TARGETPLATFORM
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_VERSION_CODENAME
+
+# AMD64-specific build stage for SteamCMD
+FROM base AS steamcmd-amd64-builder
+RUN apt-get update && \
+    apt-get install -y curl lib32gcc-s1 ca-certificates && \
+    mkdir -p /opt/steamcmd && \
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /opt/steamcmd && \
+    /opt/steamcmd/steamcmd.sh +login anonymous +quit
+
+# ARM64-specific build stage for Box86/Box64
+FROM base AS arm64-builder
+ARG TARGETARCH
+ARG TARGETPLATFORM
+
+# Box86 -----------------------------------------------------------------------------------------------------------
+ARG BOX86_VERSION
+
+# Box64 ----------------------------------------------------------------------------------------------------------
+ARG BOX64_VERSION
+
+RUN apt-get update && \
+    apt-get install -y build-essential cmake git ca-certificates
+
+# Build Box64 for ARM64
+RUN if [ -n "$BOX64_VERSION" ]; then \
+        git clone https://github.com/ptitSeb/box64 /tmp/box64 && \
+        cd /tmp/box64 && \
+        if [ "$BOX64_VERSION" != "latest" ]; then \
+            git checkout tags/v${BOX64_VERSION} -b v${BOX64_VERSION}; \
+        fi && \
+        mkdir build && cd build && \
+        # Use ARM64 generic for Oracle Ampere \
+        cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+        make -j$(nproc) && make install; \
+    fi
+
+# Build Box86 for ARM64 (requires multiarch)
+RUN if [ -n "$BOX86_VERSION" ]; then \
+        apt-get install -y gcc-arm-linux-gnueabihf && \
+        dpkg --add-architecture armhf && \
+        apt-get update && \
+        apt-get install -y libc6:armhf && \
+        git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
+        cd /tmp/box86 && \
+        if [ "$BOX86_VERSION" != "latest" ]; then \
+            git checkout tags/v${BOX86_VERSION} -b v${BOX86_VERSION}; \
+        fi && \
+        mkdir build && cd build && \
+        # Use ADLINK option for Oracle Ampere \
+        cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+        make -j$(nproc) && make install; \
+    fi
+
+# Platform-specific base images
+# AMD64 base
+FROM base AS base-amd64
+COPY --from=steamcmd-amd64-builder /opt/steamcmd /opt/steamcmd
+# No Box86/Box64 needed for amd64
+
+# ARM64 base
+FROM base AS base-arm64
+COPY --from=steamcmd-amd64-builder /opt/steamcmd /opt/steamcmd
+COPY --from=arm64-builder /usr/local/bin/box64 /usr/local/bin/box64
+COPY --from=arm64-builder /usr/local/bin/box86 /usr/local/bin/box86
+COPY --from=arm64-builder /usr/local/lib/box64 /usr/local/lib/box64
+COPY --from=arm64-builder /usr/local/lib/box86 /usr/local/lib/box86
+
+# Final image setup - uses the platform-specific base
+FROM base-${TARGETARCH} AS final
 
 ARG TARGETARCH
 ARG TARGETPLATFORM
@@ -111,9 +184,6 @@ ENV WINEDEBUG="fixme-all"
 # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
 ENV BOX86_LOG=1
 ENV BOX86_TRACE_FILE="$LOGS/box86.log"
-ENV BOX86_DEB_VERSION="box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
-    # box86-[target]_[version]+[date].[commit_hash]-[revision]_arm64.deb
-    # https://github.com/ryanfortner/box86-debs/tree/master/debian     
 
 # Box64 ----------------------------------------------------------------------------------------------------------
 # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
@@ -126,9 +196,6 @@ ENV BOX64_DYNAREC_BLEEDING_EDGE=0
 ENV BOX64_DYNAREC_BIGBLOCK=0
 ENV BOX64_DYNAREC_STRONGMEM=2
 ENV BOX64_TRACE_FILE="$LOGS/box64.log"
-ENV BOX64_DEB_VERSION="box64_0.3.5+20250411.51d9eb9-1_arm64.deb" 
-    # box64-[target]_[version]+[date].[commit_hash]-[revision]_arm64.deb
-    # https://github.com/ryanfortner/box64-debs/tree/master/debian     
 
 ENV DIRECTORIES="\
         $WINE_PATH \
@@ -141,7 +208,7 @@ ENV DIRECTORIES="\
         $LOGS \
         $SCRIPTS"
 
-# Begin installation and setup process in a single RUN statement
+# Begin installation and setup process
 
 # TODO colored shell prompt
 # TODO log rotation @ $LOGS
@@ -162,7 +229,7 @@ RUN set -eux; \
     mkdir -p $DIRECTORIES; \
     \
     # Conditional Wine setup if COMPAT_LAYER is "wine / proton"
-    echo "DEBUG: COMAT_LAYER=${COMPAT_LAYER}"; \
+    echo "DEBUG: COMPAT_LAYER=${COMPAT_LAYER}"; \
     if [ "$COMPAT_LAYER" = "wine" ]; then \
         apt-get install -y --no-install-recommends \
             $PACKAGES_WINE; \
@@ -190,11 +257,13 @@ RUN set -eux; \
         dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /; \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
-        # TODO Cleanup $TEMP_DIR
+        # Cleanup temp directory
+        rm -rf "$TEMP_DIR"; \
         chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
             ## $WINE_PATH/wine
         # Create symlinks for Wine binaries
         ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
+        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
@@ -203,54 +272,51 @@ RUN set -eux; \
     # Conditional Proton setup if COMPAT_LAYER is "proton"
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
         # https://github.com/ValveSoftware/Proton
-        # Proton installation (Placeholder for actual Proton installation logic)
-        echo "Proton installation is not yet implemented in this Dockerfile."; \
+        # Install required packages for Proton
+        apt-get install -y --no-install-recommends \
+            $PACKAGES_WINE \
+            python3 \
+            python3-pip \
+            python3-setuptools \
+            python3-wheel; \
+            
+        # Create directories for Proton
+        mkdir -p /opt/proton; \
+            
+        # Download and extract Proton
+        if [ "$PROTON_VERSION" != "" ]; then \
+            PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz"; \
+            curl -sL "$PROTON_URL" | tar -xz -C /opt/proton; \
+            ln -sf "/opt/proton/proton-${PROTON_VERSION}/proton" /usr/local/bin/proton; \
+        else \
+            echo "No Proton version specified. Skipping Proton installation."; \
+        fi; \
     fi; \
     \
     # ARCH Specific Packages -------------------------------------------------------------------------------------
     echo "DEBUG: TARGETARCH=${TARGETARCH}"; \
-    if echo "$TARGETARCH" | grep -q "arm"; then \
-        # Add ARM architecture and update
-        dpkg --add-architecture armhf; \
-        apt-get update; \
-        \
+    if [ "$TARGETARCH" = "arm64" ]; then \
         # Install ARM-specific packages
         apt-get install -y \
             $PACKAGES_ARM_ONLY; \
-        \
-        # Version pinning implementation for Box86/Box64
-        # Download and install specific Box86/Box64 versions
-        mkdir -p /tmp/box_debs; \
-        echo "Installing Box64 version: $BOX64_DEB_VERSION"; \
-        curl -sL "https://github.com/ryanfortner/box64-debs/raw/master/debian/$BOX64_DEB_VERSION" -o "/tmp/box_debs/box64.deb"; \
-        echo "Installing Box86 version: $BOX86_DEB_VERSION"; \
-        curl -sL "https://github.com/ryanfortner/box86-debs/raw/master/debian/$BOX86_DEB_VERSION" -o "/tmp/box_debs/box86.deb"; \
-        dpkg -i /tmp/box_debs/*.deb; \
-        rm -rf /tmp/box_debs; \
-        \
-        # Debug
-        box86 --version || echo "Box86 version command failed, but continuing"; \
-        box64 --version || echo "Box64 version command failed, but continuing"; \
-    else \ 
+    elif [ "$TARGETARCH" = "amd64" ]; then \ 
         # AMD64 specific packages
         apt-get install -y \
             $PACKAGES_AMD64_ONLY; \
     fi; \
     \
-    # Install SteamCMD -------------------------------------------------------------------------------------------
-    # NOTE steamcmd.sh only runs on amd64. arm64 requires box86. Box86 won't run inside buildx (github-actions)
-    # NOTE steamcmd.sh failing at the next step SHOULD cause a failrue to build, as it's a core requirement.    
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C $STEAMCMD_PATH; \
-    $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit; \
-    # ln -s "$STEAMCMD_PATH/linux32/steamclient.so" "$STEAMCMD_PATH/steamservice.so"; \
-    # mkdir -p "${HOMEDIR}/.steam/sdk32"; \
-    # ln -s "$STEAMCMD_PATH/linux32/steamclient.so" "${HOMEDIR}/.steam/sdk32/steamclient.so"; \
-    # ln -s "$STEAMCMD_PATH/linux32/steamcmd" "$STEAMCMD_PATH/linux32/steam"; \
-    # mkdir -p "${HOMEDIR}/.steam/sdk64"; \
-    # ln -s "$STEAMCMD_PATH/linux64/steamclient.so" "${HOMEDIR}/.steam/sdk64/steamclient.so"; \
-    # ln -s "$STEAMCMD_PATH/linux64/steamcmd" "$STEAMCMD_PATH/linux64/steam\"; \
-    # ln -s "$STEAMCMD_PATH/steamcmd.sh" "$STEAMCMD_PATH/steam.sh\"; \
-    # ln -s "$STEAMCMD_PATH/linux64/steamclient.so" "/usr/lib/x86_64-linux-gnu/steamclient.so"; \
+    # Create steamcmd validation script for runtime
+    echo '#!/bin/bash' > /usr/local/bin/validate-steamcmd.sh; \
+    echo 'if [ ! -f "$STEAMCMD_PATH/.validated" ]; then' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '    echo "First run - validating SteamCMD installation"' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '    if [ -f /usr/local/bin/box86 ] && [ "$(uname -m)" = "aarch64" ]; then' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '        box86 $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '    else' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '        $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '    fi' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo '    touch "$STEAMCMD_PATH/.validated"' >> /usr/local/bin/validate-steamcmd.sh; \
+    echo 'fi' >> /usr/local/bin/validate-steamcmd.sh; \
+    chmod +x /usr/local/bin/validate-steamcmd.sh; \
     \
     # Create the container user
     chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    

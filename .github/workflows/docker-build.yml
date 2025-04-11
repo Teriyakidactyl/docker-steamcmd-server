@@ -1,5 +1,3 @@
-# Refference:https://docs.docker.com/build/ci/github-actions/multi-platform/#distribute-build-across-multiple-runners
-
 name: Build Docker Images
 
 on:
@@ -23,6 +21,10 @@ env:
   WINE_TAG: "-1"
 
   PROTON_VERSION: "9.0-3"
+  
+  # Box86/Box64 versions
+  BOX86_VERSION: "0.3.0"
+  BOX64_VERSION: "0.3.3"
 
 jobs:
   build:
@@ -44,7 +46,13 @@ jobs:
     steps:
       # Check out the repository code
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      # Set up QEMU for multi-platform builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ matrix.platform }}
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
@@ -52,12 +60,12 @@ jobs:
         with:
           install: true
 
-      # Cache Docker layers to speed up subsequent builds
+      # Cache Docker layers using GitHub cache
       - name: Cache Docker layers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}}
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -187,7 +195,7 @@ jobs:
             org.opencontainers.image.description=A base image with common elements
             org.opencontainers.image.vendor=TeriyakiDactyl
             org.opencontainers.image.version=${{ github.ref_name }}
-            org.opencontainers.image.created=${{ steps.prep.outputs.build_date }}
+            org.opencontainers.image.created=${{ env.BUILD_DATE }}
             org.opencontainers.image.revision=${{ github.sha }}
             com.example.git.branch=${{ github.ref_name }}
           
@@ -201,7 +209,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}            
           build-args: |
-
             # Build
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ env.BUILD_DATE }}
@@ -226,12 +233,85 @@ jobs:
             # Box86 / Box64
             DEBUGGER=${{ env.DEBUGGER }}
             APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
+            BOX86_VERSION=${{ env.BOX86_VERSION }}
+            BOX64_VERSION=${{ env.BOX64_VERSION }}
 
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           platforms: ${{ matrix.platform }}
-          # platforms: linux/amd64,linux/arm64
 
-          # TODO figure out how to pair up images that match on compat_layer and image, and then generate and push merged manifest.
+      # Move cache to avoid a potential issue with the cache growth
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-          # TODO test with failure on failure of steamcmd to download a small 
+  # Optional: Add a manifest job to create multi-platform images
+  create-manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        image: 
+          - trixie-20241016-slim
+          - bookworm-20241016-slim
+        compat_layer:
+          - ""
+          - "wine"
+          - "proton"
+    
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+          
+      - name: Extract metadata
+        id: prep_meta
+        run: |
+          # Extract Debian Version
+          DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
+          
+          # Build base tag components
+          BASE_VERSION_TAG="${{ matrix.image }}"
+          BASE_CODENAME_TAG="$DEBIAN_VERSION_CODENAME"
+          
+          # Add compatibility layer and version if present
+          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
+            if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
+              BASE_VERSION_TAG="${BASE_VERSION_TAG}_wine-${{ env.WINE_VERSION }}"
+              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-wine"
+            elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
+              BASE_VERSION_TAG="${BASE_VERSION_TAG}_proton-${{ env.PROTON_VERSION }}"
+              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-proton"
+            fi
+          fi
+          
+          # Add dev suffix if not on main branch
+          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+            BASE_VERSION_TAG="${BASE_VERSION_TAG}_dev"
+            BASE_CODENAME_TAG="${BASE_CODENAME_TAG}_dev"
+          fi
+          
+          echo "BASE_VERSION_TAG=$BASE_VERSION_TAG" >> $GITHUB_ENV
+          echo "BASE_CODENAME_TAG=$BASE_CODENAME_TAG" >> $GITHUB_ENV
+      
+      - name: Create and push manifests
+        run: |
+          # Create version tag manifest
+          docker manifest create ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }} \
+            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-amd64 \
+            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-arm64
+          
+          # Create codename tag manifest
+          docker manifest create ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }} \
+            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}-amd64 \
+            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}-arm64
+          
+          # Push manifests
+          docker manifest push ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}
+          docker manifest push ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}
+          

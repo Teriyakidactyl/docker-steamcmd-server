@@ -99,9 +99,8 @@ ARG BOX64_VERSION
 
 # Create directories regardless of architecture to avoid COPY errors
 RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
-    # Only run the actual build on ARM64
     if [ "$(uname -m)" = "aarch64" ]; then \
-        # Install dependencies (build tools now included in PACKAGES_ARM_BUILD)
+        # Install dependencies
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_ARM_BUILD && \
         # Build Box64 for ARM64
@@ -112,24 +111,22 @@ RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
                 git checkout tags/v${BOX64_VERSION} -b v${BOX64_VERSION}; \
             fi && \
             mkdir build && cd build && \
-            # Use ARM64 generic for Oracle Ampere \
             cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
             make -j$(nproc) && make install; \
         fi && \
-    # Build Box86 for ARM64 (requires multiarch)
-    if [ -n "$BOX86_VERSION" ]; then \
-        dpkg --add-architecture armhf && \
-        apt-get update && \
-        git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
-        cd /tmp/box86 && \
-        if [ "$BOX86_VERSION" != "latest" ]; then \
-            git checkout tags/v${BOX86_VERSION} -b v${BOX86_VERSION}; \
-        fi && \
-        mkdir build && cd build && \
-        # Use ADLINK option for Oracle Ampere \
-        cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-        make -j$(nproc) && make install; \
-    fi && \
+        # Build Box86 for ARM64 (requires multiarch)
+        if [ -n "$BOX86_VERSION" ]; then \
+            dpkg --add-architecture armhf && \
+            apt-get update && \
+            git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
+            cd /tmp/box86 && \
+            if [ "$BOX86_VERSION" != "latest" ]; then \
+                git checkout tags/v${BOX86_VERSION} -b v${BOX86_VERSION}; \
+            fi && \
+            mkdir build && cd build && \
+            cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+            make -j$(nproc) && make install; \
+        fi; \
     else \
         # On non-ARM64 builds, create empty placeholder files
         touch /usr/local/bin/box64 && \

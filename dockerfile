@@ -34,6 +34,7 @@ ARG PACKAGES_ARM_BUILD="\
     cmake \
     git \
     ca-certificates \
+    python3 \
     gcc-arm-linux-gnueabihf"
     
 ARG PACKAGES_BASE_BUILD=""

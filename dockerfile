@@ -89,7 +89,7 @@ FROM base AS steamcmd-amd64-builder
 ARG PACKAGES_AMD64_ONLY
 
 RUN apt-get update && \
-    apt-get install -y $PACKAGES_AMD64_ONLY curl lib32gcc-s1 ca-certificates && \
+    apt-get install -y $PACKAGES_AMD64_ONLY && \
     mkdir -p /opt/steamcmd && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /opt/steamcmd && \
     /opt/steamcmd/steamcmd.sh +login anonymous +quit
@@ -322,77 +322,11 @@ RUN set -eux; \
         # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf
         # NOTE $WINEPREFIX can be large.  
     # Conditional Proton setup if COMPAT_LAYER is "proton"
+    
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
         # https://github.com/ValveSoftware/Proton
         # Install required packages for Proton
-        apt-get install -y --no-install-recommends \
-            $PACKAGES_WINE \
-            python3 \
-            python3-pip \
-            python3-setuptools \
-            python3-wheel; \
-            
-        # Create directories for Proton
-        mkdir -p /opt/proton; \
-            
-        # Download and extract Proton
-        if [ "$PROTON_VERSION" != "" ]; then \
-            # Create a temporary directory for download
-            TEMP_DIR="/tmp/proton_download"; \
-            mkdir -p "$TEMP_DIR"; \
-            
-            # Format the URL correctly
-            PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/Proton-${PROTON_VERSION}.tar.gz"; \
-            echo "Downloading Proton from: $PROTON_URL"; \
-            
-            # Download to a file first
-            curl -L "$PROTON_URL" -o "$TEMP_DIR/proton.tar.gz"; \
-            
-            # Check if download was successful
-            if [ -s "$TEMP_DIR/proton.tar.gz" ]; then \
-                # Extract and verify
-                tar -xzf "$TEMP_DIR/proton.tar.gz" -C /opt/proton; \
-                
-                # Determine the extracted directory name (may vary)
-                PROTON_DIR=$(find /opt/proton -maxdepth 1 -type d -name "Proton*" | head -n 1); \
-                
-                if [ -n "$PROTON_DIR" ] && [ -f "$PROTON_DIR/proton" ]; then \
-                    ln -sf "$PROTON_DIR/proton" /usr/local/bin/proton; \
-                    echo "Proton successfully installed to $PROTON_DIR"; \
-                else \
-                    echo "Error: Proton binary not found after extraction"; \
-                fi; \
-            else \
-                echo "Failed to download Proton from $PROTON_URL"; \
-                
-                # Try alternative download from GloriousEggroll as fallback
-                GE_PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton${PROTON_VERSION}/GE-Proton${PROTON_VERSION}.tar.gz"; \
-                echo "Trying alternative source: $GE_PROTON_URL"; \
-                
-                curl -L "$GE_PROTON_URL" -o "$TEMP_DIR/proton_ge.tar.gz"; \
-                
-                if [ -s "$TEMP_DIR/proton_ge.tar.gz" ]; then \
-                    tar -xzf "$TEMP_DIR/proton_ge.tar.gz" -C /opt/proton; \
-                    
-                    # Find the GE Proton directory
-                    PROTON_DIR=$(find /opt/proton -maxdepth 1 -type d -name "GE-Proton*" | head -n 1); \
-                    
-                    if [ -n "$PROTON_DIR" ] && [ -f "$PROTON_DIR/proton" ]; then \
-                        ln -sf "$PROTON_DIR/proton" /usr/local/bin/proton; \
-                        echo "GE-Proton successfully installed to $PROTON_DIR"; \
-                    else \
-                        echo "Error: GE-Proton binary not found after extraction"; \
-                    fi; \
-                else \
-                    echo "Failed to download Proton from all sources. Skipping Proton installation."; \
-                fi; \
-            fi; \
-            
-            # Clean up temp directory
-            rm -rf "$TEMP_DIR"; \
-        else \
-            echo "No Proton version specified. Skipping Proton installation."; \
-        fi; \
+        # TODO proton place holder
     fi; \
     \
     # ARCH Specific Packages -------------------------------------------------------------------------------------

@@ -249,7 +249,7 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-  # Optional: Add a manifest job to create multi-platform images
+  # Create "fat manifests" - single multi-architecture manifests that combine architecture-specific images
   create-manifest:
     needs: build
     runs-on: ubuntu-latest
@@ -302,18 +302,23 @@ jobs:
           echo "BASE_VERSION_TAG=$BASE_VERSION_TAG" >> $GITHUB_ENV
           echo "BASE_CODENAME_TAG=$BASE_CODENAME_TAG" >> $GITHUB_ENV
       
-      - name: Create and push manifests
+      # Create "fat manifests" using buildx imagetools instead of docker manifest
+      # This creates a single multi-architecture manifest that references all platform-specific images
+      # Docker will automatically select the appropriate image based on the user's architecture
+      - name: Create and push multi-architecture manifests
         run: |
-          # Create version tag manifest
-          docker manifest create ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }} \
+          # Create version tag fat manifest (combines amd64 and arm64 into a single reference)
+          docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }} \
             ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-amd64 \
             ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-arm64
           
-          # Create codename tag manifest
-          docker manifest create ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }} \
+          # Create codename tag fat manifest (combines amd64 and arm64 into a single reference)
+          docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }} \
             ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}-amd64 \
             ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}-arm64
           
-          # Push manifests
-          docker manifest push ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}
-          docker manifest push ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}
+          # Benefits of this approach:
+          # 1. Users can pull a single tag without worrying about architecture
+          # 2. Docker automatically selects the right image for the user's platform
+          # 3. Registry shows a single multi-architecture image instead of multiple separate images
+          # 4. Follows Docker's standard approach for handling multi-architecture images

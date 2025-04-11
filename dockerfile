@@ -1,38 +1,113 @@
 # Dockerfile for SteamCMD, Wine, Proton, Box86/Box64 depending on platform and compatibility layer
 # Provides SteamCMD, Wine, Proton, and Box86/Box64 for specified platform
 
+# ======================================================================================================
+# Global ARGs - these will be available to all build stages
+# ======================================================================================================
 ARG DEBIAN_TAG
-ARG TARGETARCH
-ARG TARGETPLATFORM
-
-# Base image for all platforms
-FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS base
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG DEBIAN_FRONTEND=noninteractive
 ARG DEBIAN_VERSION_CODENAME
 
-# AMD64-specific build stage for SteamCMD
-FROM base AS steamcmd-amd64-builder
+# Compatibility layer ARGs
+ARG COMPAT_LAYER
+ARG DEBUGGER
+ARG APP_COMMAND_PREFIX
+
+# ======================================================================================================
+# Package ARGs with detailed comments for maintainers
+# ======================================================================================================
+ARG PACKAGES_AMD64_ONLY="\
+    # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
+    lib32gcc-s1"
+
+ARG PACKAGES_ARM_ONLY="\
+    # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
+    libc6:armhf"
+    
+ARG PACKAGES_ARM_BUILD="\
+    # repo keyring add, https://packages.debian.org/bookworm/gnupg
+    gnupg"
+    
+ARG PACKAGES_BASE_BUILD=""
+    
+ARG PACKAGES_WINE="\
+    # Fake X-Server desktop for Wine https://packages.debian.org/bookworm/xvfb
+    ## xauth needed with --no-install-recommends with wine
+    xvfb \
+    xauth"
+    
+ARG PACKAGES_BASE="\
+    # curl needed for api calls
+    curl \
+    # curl, steamcmd, https://packages.debian.org/bookworm/ca-certificates
+    ca-certificates \
+    # timezones, https://packages.debian.org/bookworm/tzdata
+    tzdata"
+    
+ARG PACKAGES_DEV="\
+    # disk space analyzer: https://packages.debian.org/trixie/ncdu
+    ncdu \
+    # top replacement: https://packages.debian.org/trixie/btop
+    btop"
+
+# Box version ARGs
+ARG BOX86_VERSION
+ARG BOX64_VERSION
+
+# Wine ARGs
+ARG WINE_BRANCH="staging"
+ARG WINE_ID="debian"
+ARG WINE_VERSION="9.21"
+ARG WINE_DIST=""
+ARG WINE_TAG="-1"
+
+# Proton ARG
+ARG PROTON_VERSION=""
+
+# ======================================================================================================
+# Base image for all platforms
+# ======================================================================================================
+FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS base
+
+# Base image will inherit ARGs from above
+ARG TARGETARCH
+ARG TARGETPLATFORM
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_BASE
+
+# Install base packages needed in all images
 RUN apt-get update && \
-    apt-get install -y curl lib32gcc-s1 ca-certificates && \
+    apt-get install -y --no-install-recommends $PACKAGES_BASE && \
+    rm -rf /var/lib/apt/lists/*
+
+# ======================================================================================================
+# AMD64-specific build stage for SteamCMD
+# ======================================================================================================
+FROM base AS steamcmd-amd64-builder
+ARG PACKAGES_AMD64_ONLY
+
+RUN apt-get update && \
+    apt-get install -y $PACKAGES_AMD64_ONLY curl lib32gcc-s1 ca-certificates && \
     mkdir -p /opt/steamcmd && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /opt/steamcmd && \
     /opt/steamcmd/steamcmd.sh +login anonymous +quit
 
+# ======================================================================================================
 # ARM64-specific build stage for Box86/Box64
+# ======================================================================================================
 FROM base AS arm64-builder
 ARG TARGETARCH
 ARG TARGETPLATFORM
 
-# Box86 -----------------------------------------------------------------------------------------------------------
+# Box86/Box64 version ARGs
 ARG BOX86_VERSION
-
-# Box64 ----------------------------------------------------------------------------------------------------------
 ARG BOX64_VERSION
+ARG PACKAGES_ARM_BUILD
 
 RUN apt-get update && \
-    apt-get install -y build-essential cmake git ca-certificates
+    apt-get install -y build-essential cmake git ca-certificates $PACKAGES_ARM_BUILD
 
 # Build Box64 for ARM64
 RUN if [ -n "$BOX64_VERSION" ]; then \
@@ -64,7 +139,9 @@ RUN if [ -n "$BOX86_VERSION" ]; then \
         make -j$(nproc) && make install; \
     fi
 
+# ======================================================================================================
 # Platform-specific base images
+# ======================================================================================================
 # AMD64 base
 FROM base AS base-amd64
 COPY --from=steamcmd-amd64-builder /opt/steamcmd /opt/steamcmd
@@ -78,67 +155,42 @@ COPY --from=arm64-builder /usr/local/bin/box86 /usr/local/bin/box86
 COPY --from=arm64-builder /usr/local/lib/box64 /usr/local/lib/box64
 COPY --from=arm64-builder /usr/local/lib/box86 /usr/local/lib/box86
 
+# ======================================================================================================
 # Final image setup - uses the platform-specific base
+# ======================================================================================================
 FROM base-${TARGETARCH} AS final
 
+# Re-declare ARGs for this stage
 ARG TARGETARCH
 ARG TARGETPLATFORM
-
-ARG DEBIAN_FRONTEND=noninteractive
+ARG DEBIAN_FRONTEND
 ARG DEBIAN_VERSION_CODENAME
 
 ARG COMPAT_LAYER
 ARG DEBUGGER
 ARG APP_COMMAND_PREFIX
 
-# Wine -----------------------------------------------------------------------------------------------------------
-ARG WINE_BRANCH="staging" \
-    WINE_ID="debian" \
-    WINE_VERSION="9.21" \
-    WINE_DIST="" \
-    WINE_TAG="-1" 
+# Re-declare package ARGs
+ARG PACKAGES_AMD64_ONLY
+ARG PACKAGES_ARM_ONLY
+ARG PACKAGES_ARM_BUILD
+ARG PACKAGES_BASE_BUILD
+ARG PACKAGES_WINE
+ARG PACKAGES_BASE
+ARG PACKAGES_DEV
 
-# Proton -----------------------------------------------------------------------------------------------------
-ARG PROTON_VERSION=""
+# Wine ARGs
+ARG WINE_BRANCH
+ARG WINE_ID
+ARG WINE_VERSION
+ARG WINE_DIST
+ARG WINE_TAG
 
-# Packages -------------------------------------------------------------------------------------------------------
-ARG  \
-    PACKAGES_AMD64_ONLY="\
-        # required for steamcmd, https://packages.debian.org/bookworm/lib32gcc-s1
-        lib32gcc-s1" \ 
-         \
-    PACKAGES_ARM_ONLY="\
-        # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
-        libc6:armhf" \
-        \
-    PACKAGES_ARM_BUILD="\
-        # repo keyring add, https://packages.debian.org/bookworm/gnupg
-        gnupg" \
-        \
-    PACKAGES_BASE_BUILD="" \
-        \
-    PACKAGES_WINE="\
-        # Fake X-Server desktop for Wine https://packages.debian.org/bookworm/xvfb
-        ## xauth needed with --no-install-recommends with wine
-        xvfb \
-        xauth" \
-        \
-    PACKAGES_BASE="\
-        # curl needed for api calls
-        curl \
-        # curl, steamcmd, https://packages.debian.org/bookworm/ca-certificates
-        ca-certificates \
-        # timezones, https://packages.debian.org/bookworm/tzdata
-        tzdata" \
-        \
-    PACKAGES_DEV="\
-        # disk space analyzer: https://packages.debian.org/trixie/ncdu
-        ncdu \
-        # top replacement: https://packages.debian.org/trixie/btop
-        btop"
+# Proton ARG
+ARG PROTON_VERSION
 
 # Define environment variables
-    # NOTE: In Docker 1.10 and higher, only RUN, COPY, and ADD instructions create layers.
+# NOTE: In Docker 1.10 and higher, only RUN, COPY, and ADD instructions create layers.
 
 # Base -----------------------------------------------------------------------------------------------------------
 ENV CONTAINER_USER="container"
@@ -189,7 +241,7 @@ ENV BOX86_TRACE_FILE="$LOGS/box86.log"
 # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
 ## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
 # https://community.fydeos.io/t/topic/26128
-# Box64 Config, Refference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md ,errors: https://github.com/ptitSeb/box64/issues/1182
+# Box64 Config, Reference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md, errors: https://github.com/ptitSeb/box64/issues/1182
 
 ENV BOX64_LOG=1
 ENV BOX64_DYNAREC_BLEEDING_EDGE=0
@@ -218,13 +270,13 @@ RUN set -eux; \
     # DEBUG incoming output
     echo "DEBUG: DEBUGGER=${DEBUGGER}"; \
     \
-    # Update and install common BASE_DEPENDENCIES
+    # Update and install common packages
     apt-get update; \
     apt-get install -y --no-install-recommends \
         $PACKAGES_BASE $PACKAGES_BASE_BUILD; \
     \
     # Create and set up $DIRECTORIES permissions
-    # links to seperate save game files 'stateful' data from application.
+    # links to separate save game files 'stateful' data from application.
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \
     \

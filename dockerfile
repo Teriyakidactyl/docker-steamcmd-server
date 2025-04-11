@@ -111,17 +111,24 @@ ENV WINEDEBUG="fixme-all"
 # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
 ENV BOX86_LOG=1
 ENV BOX86_TRACE_FILE="$LOGS/box86.log"
+ENV BOX86_DEB_VERSION="box86-generic-arm_0.3.0+20250304.a5c7d6b-1_armhf.deb"
+    # box86-[target]_[version]+[date].[commit_hash]-[revision]_arm64.deb
+    # https://github.com/ryanfortner/box86-debs/tree/master/debian     
 
 # Box64 ----------------------------------------------------------------------------------------------------------
 # Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
 ## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
 # https://community.fydeos.io/t/topic/26128
 # Box64 Config, Refference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md ,errors: https://github.com/ptitSeb/box64/issues/1182
+
 ENV BOX64_LOG=1
 ENV BOX64_DYNAREC_BLEEDING_EDGE=0
 ENV BOX64_DYNAREC_BIGBLOCK=0
 ENV BOX64_DYNAREC_STRONGMEM=2
 ENV BOX64_TRACE_FILE="$LOGS/box64.log"
+ENV BOX64_DEB_VERSION="box64_0.3.3+20250125.6f8f37e-1_arm64.deb" 
+    # box64-[target]_[version]+[date].[commit_hash]-[revision]_arm64.deb
+    # https://github.com/ryanfortner/box64-debs/tree/master/debian     
 
 ENV DIRECTORIES="\
         $WINE_PATH \
@@ -138,7 +145,6 @@ ENV DIRECTORIES="\
 
 # TODO colored shell prompt
 # TODO log rotation @ $LOGS
-# TODO alternate BOX install for reproducability (version pinning)
 
 RUN set -eux; \
     \
@@ -210,28 +216,21 @@ RUN set -eux; \
         \
         # Install ARM-specific packages
         apt-get install -y \
-            $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD; \
+            $PACKAGES_ARM_ONLY; \
         \
-        # Add and configure Box86: https://github.com/ryanfortner/box86-debs, alternate: https://itai-nelken.github.io/weekly-box86-debs/
-        # commit list: https://github.com/ryanfortner/box86-debs/commits/master
-        curl -fsSL https://ryanfortner.github.io/box86-debs/box86.list -o /etc/apt/sources.list.d/box86.list; \
-        curl -fsSL https://ryanfortner.github.io/box86-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box86-debs-archive-keyring.gpg; \
+        # Version pinning implementation for Box86/Box64
+        # Download and install specific Box86/Box64 versions
+        mkdir -p /tmp/box_debs; \
+        echo "Installing Box64 version: $BOX64_DEB_VERSION"; \
+        curl -sL "https://github.com/ryanfortner/box64-debs/raw/master/debian/$BOX64_DEB_VERSION" -o "/tmp/box_debs/box64.deb"; \
+        echo "Installing Box86 version: $BOX86_DEB_VERSION"; \
+        curl -sL "https://github.com/ryanfortner/box86-debs/raw/master/debian/$BOX86_DEB_VERSION" -o "/tmp/box_debs/box86.deb"; \
+        dpkg -i /tmp/box_debs/*.deb; \
+        rm -rf /tmp/box_debs; \
         \
-        # Add and configure Box64: https://github.com/ryanfortner/box64-debs
-        # commit list: https://github.com/ryanfortner/box64-debs/commits/master
-        curl -fsSL https://ryanfortner.github.io/box64-debs/box64.list -o /etc/apt/sources.list.d/box64.list; \
-        curl -fsSL https://ryanfortner.github.io/box64-debs/KEY.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/box64-debs-archive-keyring.gpg; \
-        \
-        # Update and install Box86/Box64
-        apt-get update; \
-        apt-get install -y --no-install-recommends \
-            box64 box86-generic-arm; \
         # Debug
-        # box86 --vesion; \
-        # box64 --version; \
-        \
-        # Clean up
-        apt-get autoremove --purge -y $PACKAGES_ARM_BUILD; \
+        box86 --version || echo "Box86 version command failed, but continuing"; \
+        box64 --version || echo "Box64 version command failed, but continuing"; \
     else \ 
         # AMD64 specific packages
         apt-get install -y \

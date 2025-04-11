@@ -111,7 +111,7 @@ ENV WINEDEBUG="fixme-all"
 # https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
 ENV BOX86_LOG=1
 ENV BOX86_TRACE_FILE="$LOGS/box86.log"
-ENV BOX86_DEB_VERSION="box86-generic-arm_0.3.0+20250304.a5c7d6b-1_armhf.deb"
+ENV BOX86_DEB_VERSION="box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
     # box86-[target]_[version]+[date].[commit_hash]-[revision]_arm64.deb
     # https://github.com/ryanfortner/box86-debs/tree/master/debian     
 
@@ -126,7 +126,7 @@ ENV BOX64_DYNAREC_BLEEDING_EDGE=0
 ENV BOX64_DYNAREC_BIGBLOCK=0
 ENV BOX64_DYNAREC_STRONGMEM=2
 ENV BOX64_TRACE_FILE="$LOGS/box64.log"
-ENV BOX64_DEB_VERSION="box64_0.3.3+20250125.6f8f37e-1_arm64.deb" 
+ENV BOX64_DEB_VERSION="box64_0.3.5+20250411.51d9eb9-1_arm64.deb" 
     # box64-[target]_[version]+[date].[commit_hash]-[revision]_arm64.deb
     # https://github.com/ryanfortner/box64-debs/tree/master/debian     
 

@@ -27,15 +27,22 @@ ARG PACKAGES_ARM_ONLY="\
     libc6:armhf"
     
 ARG PACKAGES_ARM_BUILD="\
-    # repo keyring add, https://packages.debian.org/bookworm/gnupg
+    # Required for adding repository keys
     gnupg \
-    # build tools for box86/box64
+    # Core build tools for compilation
     build-essential \
+    # Required for CMake build system
     cmake \
+    # Required for retrieving source code
     git \
+    # Required for secure connections
     ca-certificates \
+    # Required for Box64/Box86 build process (CMake Python detection)
     python3 \
-    gcc-arm-linux-gnueabihf"
+    # ARM cross-compiler for building 32-bit ARM binaries
+    gcc-arm-linux-gnueabihf \
+    # Development files for ARM cross-compilation (provides missing .o files)
+    libc6-dev-armhf-cross"
     
 ARG PACKAGES_BASE_BUILD=""
     

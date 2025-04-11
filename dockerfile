@@ -116,8 +116,6 @@ RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
         fi && \
         # Build Box86 for ARM64 (requires multiarch)
         if [ -n "$BOX86_VERSION" ]; then \
-            dpkg --add-architecture armhf && \
-            apt-get update && \
             git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
             cd /tmp/box86 && \
             if [ "$BOX86_VERSION" != "latest" ]; then \
@@ -348,6 +346,8 @@ RUN set -eux; \
     echo "DEBUG: TARGETARCH=${TARGETARCH}"; \
     if [ "$TARGETARCH" = "arm64" ]; then \
         # Install ARM-specific packages
+        dpkg --add-architecture armhf && \
+        apt-get update && \
         apt-get install -y \
             $PACKAGES_ARM_ONLY; \
     elif [ "$TARGETARCH" = "amd64" ]; then \ 

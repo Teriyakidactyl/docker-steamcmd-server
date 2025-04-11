@@ -41,7 +41,7 @@ jobs:
         compat_layer:
           - ""
           - "wine"
-          # TODO - "proton"
+          # TODO - "proton" (no ARM!)
         platform:
           - linux/amd64
           - linux/arm64

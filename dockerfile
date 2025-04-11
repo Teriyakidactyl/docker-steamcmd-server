@@ -88,41 +88,53 @@ FROM --platform=linux/arm64 debian:${DEBIAN_TAG} AS box-builder
 ARG DEBIAN_FRONTEND
 ARG PACKAGES_BASE
 ARG PACKAGES_ARM_BUILD
-ARG PACKAGES_ARM_ONLY
 ARG BOX86_VERSION
 ARG BOX64_VERSION
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_ARM_BUILD build-essential cmake git ca-certificates && \
-    # Build Box64 for ARM64
-    if [ -n "$BOX64_VERSION" ]; then \
-        git clone https://github.com/ptitSeb/box64 /tmp/box64 && \
-        cd /tmp/box64 && \
-        if [ "$BOX64_VERSION" != "latest" ]; then \
-            git checkout tags/v${BOX64_VERSION} -b v${BOX64_VERSION}; \
-        fi && \
-        mkdir build && cd build && \
-        # Use ARM64 generic for Oracle Ampere \
-        cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-        make -j$(nproc) && make install; \
-    fi && \
-    # Build Box86 for ARM64 (requires multiarch)
-    if [ -n "$BOX86_VERSION" ]; then \
-        apt-get install -y gcc-arm-linux-gnueabihf && \
-        dpkg --add-architecture armhf && \
+# Create directories regardless of architecture to avoid COPY errors
+RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
+    # Only run the actual build on ARM64
+    if [ "$(uname -m)" = "aarch64" ]; then \
+        # Install dependencies
         apt-get update && \
-        apt-get install -y libc6:armhf && \
-        git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
-        cd /tmp/box86 && \
-        if [ "$BOX86_VERSION" != "latest" ]; then \
-            git checkout tags/v${BOX86_VERSION} -b v${BOX86_VERSION}; \
+        apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_ARM_BUILD build-essential cmake git ca-certificates && \
+        # Build Box64 for ARM64
+        if [ -n "$BOX64_VERSION" ]; then \
+            git clone https://github.com/ptitSeb/box64 /tmp/box64 && \
+            cd /tmp/box64 && \
+            if [ "$BOX64_VERSION" != "latest" ]; then \
+                git checkout tags/v${BOX64_VERSION} -b v${BOX64_VERSION}; \
+            fi && \
+            mkdir build && cd build && \
+            # Use ARM64 generic for Oracle Ampere \
+            cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+            make -j$(nproc) && make install; \
         fi && \
-        mkdir build && cd build && \
-        # Use ADLINK option for Oracle Ampere \
-        cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-        make -j$(nproc) && make install; \
-    fi && \
-    rm -rf /var/lib/apt/lists/* /tmp/box64 /tmp/box86
+        # Build Box86 for ARM64 (requires multiarch)
+        if [ -n "$BOX86_VERSION" ]; then \
+            apt-get install -y gcc-arm-linux-gnueabihf && \
+            dpkg --add-architecture armhf && \
+            apt-get update && \
+            apt-get install -y libc6:armhf && \
+            git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
+            cd /tmp/box86 && \
+            if [ "$BOX86_VERSION" != "latest" ]; then \
+                git checkout tags/v${BOX86_VERSION} -b v${BOX86_VERSION}; \
+            fi && \
+            mkdir build && cd build && \
+            # Use ADLINK option for Oracle Ampere \
+            cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+            make -j$(nproc) && make install; \
+        fi && \
+        # Clean up
+        rm -rf /var/lib/apt/lists/* /tmp/box64 /tmp/box86; \
+    else \
+        # On non-ARM64 builds, create empty placeholder files
+        touch /usr/local/bin/box64 && \
+        touch /usr/local/bin/box86 && \
+        touch /usr/local/lib/box64/placeholder && \
+        touch /usr/local/lib/box86/placeholder; \
+    fi
 
 # ======================================================================================================
 # Wine Builder - Only if COMPAT_LAYER is wine
@@ -138,8 +150,10 @@ ARG WINE_DIST
 ARG WINE_TAG
 ARG COMPAT_LAYER
 
-# Only run this if COMPAT_LAYER=wine
-RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
+# Create wine directory regardless of COMPAT_LAYER to avoid COPY errors
+RUN mkdir -p /opt/wine-$WINE_BRANCH/bin && \
+    # Only process wine if COMPAT_LAYER=wine
+    if [ "$COMPAT_LAYER" = "wine" ]; then \
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_WINE && \
         \
@@ -150,7 +164,7 @@ RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
         WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/"; \
         WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \
         # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) \
-        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \
+        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \    
         \
         # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/ \
         # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md \
@@ -168,9 +182,12 @@ RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
         # Cleanup temp directory \
         rm -rf "$TEMP_DIR"; \
+        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
+            ## $WINE_PATH/wine \
         rm -rf /var/lib/apt/lists/*; \
     else \
-        mkdir -p /opt/wine-$WINE_BRANCH/bin; \
+        # Create placeholder files for when wine is not needed
+        touch /opt/wine-$WINE_BRANCH/bin/placeholder; \
     fi
 
 # ======================================================================================================
@@ -182,17 +199,26 @@ ARG PACKAGES_BASE
 ARG PROTON_VERSION
 ARG COMPAT_LAYER
 
-# Only run this if COMPAT_LAYER=proton
-RUN if [ "$COMPAT_LAYER" = "proton" ]; then \
+# Create proton directory regardless of COMPAT_LAYER to avoid COPY errors
+RUN mkdir -p /opt/proton && \
+    # Only process proton if COMPAT_LAYER=proton
+    if [ "$COMPAT_LAYER" = "proton" ]; then \
         apt-get update && \
-        apt-get install -y --no-install-recommends $PACKAGES_BASE && \
+        apt-get install -y --no-install-recommends $PACKAGES_BASE curl && \
         # https://github.com/ValveSoftware/Proton \
-        # Install required packages for Proton \
-        # TODO proton place holder \
-        echo "Proton not implemented" > /tmp/proton.txt && \
+        # Download Proton from GitHub releases if version is specified \
+        if [ -n "$PROTON_VERSION" ]; then \
+            PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz" && \
+            curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz && \
+            tar -xzf /tmp/proton.tar.gz -C /opt/proton --strip-components=1 && \
+            rm /tmp/proton.tar.gz; \
+        else \
+            echo "No Proton version specified" > /opt/proton/README.txt; \
+        fi && \
         rm -rf /var/lib/apt/lists/*; \
     else \
-        mkdir -p /opt/proton; \
+        # Create placeholder when proton not needed
+        echo "Proton not enabled" > /opt/proton/README.txt; \
     fi
 
 # ======================================================================================================
@@ -359,17 +385,21 @@ RUN set -eux; \
 # Copy steamcmd from steamcmd-builder (always amd64)
 COPY --from=steamcmd-builder /opt/steamcmd /opt/steamcmd
 
-# Copy Box86/Box64 only for ARM64
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86; \
-    fi
+# Copy Box86/Box64 files
 COPY --from=box-builder /usr/local/bin/box64 /usr/local/bin/box64
 COPY --from=box-builder /usr/local/bin/box86 /usr/local/bin/box86
 COPY --from=box-builder /usr/local/lib/box64 /usr/local/lib/box64
 COPY --from=box-builder /usr/local/lib/box86 /usr/local/lib/box86
 
-# Copy Wine if COMPAT_LAYER=wine and set up symlinks
+# Make Box86/Box64 executable only on ARM64
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        chmod +x /usr/local/bin/box64 /usr/local/bin/box86; \
+    fi
+
+# Copy Wine files
 COPY --from=wine-builder /opt/wine-$WINE_BRANCH /opt/wine-$WINE_BRANCH
+
+# Setup Wine symlinks if COMPAT_LAYER=wine
 RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
         chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
         ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
@@ -381,7 +411,7 @@ RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
         # NOTE $WINEPREFIX can be large. \
     fi
 
-# Copy Proton if COMPAT_LAYER=proton
+# Copy Proton files
 COPY --from=proton-builder /opt/proton /opt/proton
 
 # Set ownership of all directories

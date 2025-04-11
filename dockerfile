@@ -327,7 +327,7 @@ RUN set -eux; \
         # https://github.com/ValveSoftware/Proton
         # Install required packages for Proton
         # TODO proton place holder
-        echo "Poton not implemented" \
+        echo "Poton not implemented"; \
     fi; \
     \
     # ARCH Specific Packages -------------------------------------------------------------------------------------

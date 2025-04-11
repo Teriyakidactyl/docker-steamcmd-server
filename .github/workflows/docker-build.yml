@@ -20,11 +20,14 @@ env:
   WINE_ID: "debian"
   WINE_TAG: "-1"
 
-  PROTON_VERSION: "9.0-3"
+  PROTON_VERSION: "9.0-4"
+    # https://github.com/ValveSoftware/Proton/releases
   
   # Box86/Box64 versions
-  BOX86_VERSION: "0.3.0"
-  BOX64_VERSION: "0.3.3"
+  BOX86_VERSION: "0.3.8"
+    # https://github.com/ptitSeb/box86/releases
+  BOX64_VERSION: "0.3.4"
+    # https://github.com/ptitSeb/box64/releases
 
 jobs:
   build:
@@ -314,4 +317,3 @@ jobs:
           # Push manifests
           docker manifest push ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}
           docker manifest push ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}
-          

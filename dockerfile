@@ -337,9 +337,59 @@ RUN set -eux; \
             
         # Download and extract Proton
         if [ "$PROTON_VERSION" != "" ]; then \
-            PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz"; \
-            curl -sL "$PROTON_URL" | tar -xz -C /opt/proton; \
-            ln -sf "/opt/proton/proton-${PROTON_VERSION}/proton" /usr/local/bin/proton; \
+            # Create a temporary directory for download
+            TEMP_DIR="/tmp/proton_download"; \
+            mkdir -p "$TEMP_DIR"; \
+            
+            # Format the URL correctly
+            PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/Proton-${PROTON_VERSION}.tar.gz"; \
+            echo "Downloading Proton from: $PROTON_URL"; \
+            
+            # Download to a file first
+            curl -L "$PROTON_URL" -o "$TEMP_DIR/proton.tar.gz"; \
+            
+            # Check if download was successful
+            if [ -s "$TEMP_DIR/proton.tar.gz" ]; then \
+                # Extract and verify
+                tar -xzf "$TEMP_DIR/proton.tar.gz" -C /opt/proton; \
+                
+                # Determine the extracted directory name (may vary)
+                PROTON_DIR=$(find /opt/proton -maxdepth 1 -type d -name "Proton*" | head -n 1); \
+                
+                if [ -n "$PROTON_DIR" ] && [ -f "$PROTON_DIR/proton" ]; then \
+                    ln -sf "$PROTON_DIR/proton" /usr/local/bin/proton; \
+                    echo "Proton successfully installed to $PROTON_DIR"; \
+                else \
+                    echo "Error: Proton binary not found after extraction"; \
+                fi; \
+            else \
+                echo "Failed to download Proton from $PROTON_URL"; \
+                
+                # Try alternative download from GloriousEggroll as fallback
+                GE_PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/GE-Proton${PROTON_VERSION}/GE-Proton${PROTON_VERSION}.tar.gz"; \
+                echo "Trying alternative source: $GE_PROTON_URL"; \
+                
+                curl -L "$GE_PROTON_URL" -o "$TEMP_DIR/proton_ge.tar.gz"; \
+                
+                if [ -s "$TEMP_DIR/proton_ge.tar.gz" ]; then \
+                    tar -xzf "$TEMP_DIR/proton_ge.tar.gz" -C /opt/proton; \
+                    
+                    # Find the GE Proton directory
+                    PROTON_DIR=$(find /opt/proton -maxdepth 1 -type d -name "GE-Proton*" | head -n 1); \
+                    
+                    if [ -n "$PROTON_DIR" ] && [ -f "$PROTON_DIR/proton" ]; then \
+                        ln -sf "$PROTON_DIR/proton" /usr/local/bin/proton; \
+                        echo "GE-Proton successfully installed to $PROTON_DIR"; \
+                    else \
+                        echo "Error: GE-Proton binary not found after extraction"; \
+                    fi; \
+                else \
+                    echo "Failed to download Proton from all sources. Skipping Proton installation."; \
+                fi; \
+            fi; \
+            
+            # Clean up temp directory
+            rm -rf "$TEMP_DIR"; \
         else \
             echo "No Proton version specified. Skipping Proton installation."; \
         fi; \

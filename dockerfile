@@ -67,50 +67,35 @@ ARG WINE_TAG="-1"
 ARG PROTON_VERSION=""
 
 # ======================================================================================================
-# Base image for all platforms
+# SteamCMD Builder - Always on amd64
 # ======================================================================================================
-FROM --platform=$TARGETPLATFORM debian:$DEBIAN_TAG AS base
-
-# Base image will inherit ARGs from above
-ARG TARGETARCH
-ARG TARGETPLATFORM
+FROM --platform=linux/amd64 debian:${DEBIAN_TAG} AS steamcmd-builder
 ARG DEBIAN_FRONTEND
 ARG PACKAGES_BASE
-
-# Install base packages needed in all images
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends $PACKAGES_BASE && \
-    rm -rf /var/lib/apt/lists/*
-
-# ======================================================================================================
-# AMD64-specific build stage for SteamCMD
-# ======================================================================================================
-FROM base AS steamcmd-amd64-builder
 ARG PACKAGES_AMD64_ONLY
 
 RUN apt-get update && \
-    apt-get install -y $PACKAGES_AMD64_ONLY && \
+    apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_AMD64_ONLY && \
     mkdir -p /opt/steamcmd && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /opt/steamcmd && \
-    /opt/steamcmd/steamcmd.sh +login anonymous +quit
+    /opt/steamcmd/steamcmd.sh +login anonymous +quit && \
+    rm -rf /var/lib/apt/lists/*
 
 # ======================================================================================================
-# ARM64-specific build stage for Box86/Box64
+# Box86/Box64 Builder - Only needed for ARM64
 # ======================================================================================================
-FROM base AS arm64-builder
-ARG TARGETARCH
-ARG TARGETPLATFORM
-
-# Box86/Box64 version ARGs
+FROM --platform=linux/arm64 debian:${DEBIAN_TAG} AS box-builder
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_BASE
+ARG PACKAGES_ARM_BUILD
+ARG PACKAGES_ARM_ONLY
 ARG BOX86_VERSION
 ARG BOX64_VERSION
-ARG PACKAGES_ARM_BUILD
 
 RUN apt-get update && \
-    apt-get install -y build-essential cmake git ca-certificates $PACKAGES_ARM_BUILD
-
-# Build Box64 for ARM64
-RUN if [ -n "$BOX64_VERSION" ]; then \
+    apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_ARM_BUILD build-essential cmake git ca-certificates && \
+    # Build Box64 for ARM64
+    if [ -n "$BOX64_VERSION" ]; then \
         git clone https://github.com/ptitSeb/box64 /tmp/box64 && \
         cd /tmp/box64 && \
         if [ "$BOX64_VERSION" != "latest" ]; then \
@@ -120,10 +105,9 @@ RUN if [ -n "$BOX64_VERSION" ]; then \
         # Use ARM64 generic for Oracle Ampere \
         cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
         make -j$(nproc) && make install; \
-    fi
-
-# Build Box86 for ARM64 (requires multiarch)
-RUN if [ -n "$BOX86_VERSION" ]; then \
+    fi && \
+    # Build Box86 for ARM64 (requires multiarch)
+    if [ -n "$BOX86_VERSION" ]; then \
         apt-get install -y gcc-arm-linux-gnueabihf && \
         dpkg --add-architecture armhf && \
         apt-get update && \
@@ -137,35 +121,90 @@ RUN if [ -n "$BOX86_VERSION" ]; then \
         # Use ADLINK option for Oracle Ampere \
         cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
         make -j$(nproc) && make install; \
+    fi && \
+    rm -rf /var/lib/apt/lists/* /tmp/box64 /tmp/box86
+
+# ======================================================================================================
+# Wine Builder - Only if COMPAT_LAYER is wine
+# ======================================================================================================
+FROM --platform=$TARGETPLATFORM debian:${DEBIAN_TAG} AS wine-builder
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_BASE
+ARG PACKAGES_WINE
+ARG WINE_BRANCH
+ARG WINE_ID
+ARG WINE_VERSION
+ARG WINE_DIST
+ARG WINE_TAG
+ARG COMPAT_LAYER
+
+# Only run this if COMPAT_LAYER=wine
+RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_WINE && \
+        \
+        WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/"; \
+        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
+        # (required for wine64 / can work alongside wine_i386 main bin) \
+        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
+        WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/"; \
+        WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \
+        # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) \
+        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \
+        \
+        # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/ \
+        # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md \
+        ## Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help. \
+        TEMP_DIR="/tmp/wine_debs"; \
+        mkdir -p "$TEMP_DIR"; \
+        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_64_MAIN_BIN}"; \
+        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}"; \
+            # NOTE Skipping wine32 i386 \
+            #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
+            #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
+        dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" /; \
+        dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /; \
+            #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
+            #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
+        # Cleanup temp directory \
+        rm -rf "$TEMP_DIR"; \
+        rm -rf /var/lib/apt/lists/*; \
+    else \
+        mkdir -p /opt/wine-$WINE_BRANCH/bin; \
     fi
 
 # ======================================================================================================
-# Platform-specific base images
+# Proton Builder - Only if COMPAT_LAYER is proton
 # ======================================================================================================
-# AMD64 base
-FROM base AS base-amd64
-COPY --from=steamcmd-amd64-builder /opt/steamcmd /opt/steamcmd
-# No Box86/Box64 needed for amd64
+FROM --platform=$TARGETPLATFORM debian:${DEBIAN_TAG} AS proton-builder
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_BASE
+ARG PROTON_VERSION
+ARG COMPAT_LAYER
 
-# ARM64 base
-FROM base AS base-arm64
-COPY --from=steamcmd-amd64-builder /opt/steamcmd /opt/steamcmd
-COPY --from=arm64-builder /usr/local/bin/box64 /usr/local/bin/box64
-COPY --from=arm64-builder /usr/local/bin/box86 /usr/local/bin/box86
-COPY --from=arm64-builder /usr/local/lib/box64 /usr/local/lib/box64
-COPY --from=arm64-builder /usr/local/lib/box86 /usr/local/lib/box86
+# Only run this if COMPAT_LAYER=proton
+RUN if [ "$COMPAT_LAYER" = "proton" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends $PACKAGES_BASE && \
+        # https://github.com/ValveSoftware/Proton \
+        # Install required packages for Proton \
+        # TODO proton place holder \
+        echo "Proton not implemented" > /tmp/proton.txt && \
+        rm -rf /var/lib/apt/lists/*; \
+    else \
+        mkdir -p /opt/proton; \
+    fi
 
 # ======================================================================================================
-# Final image setup - uses the platform-specific base
+# Final image - combines components based on architecture and compatibility requirements
 # ======================================================================================================
-FROM base-${TARGETARCH} AS final
+FROM --platform=$TARGETPLATFORM debian:${DEBIAN_TAG} AS final
 
 # Re-declare ARGs for this stage
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG DEBIAN_FRONTEND
 ARG DEBIAN_VERSION_CODENAME
-
 ARG COMPAT_LAYER
 ARG DEBUGGER
 ARG APP_COMMAND_PREFIX
@@ -280,56 +319,6 @@ RUN set -eux; \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $DIRECTORIES; \
     \
-    # Conditional Wine setup if COMPAT_LAYER is "wine / proton"
-    echo "DEBUG: COMPAT_LAYER=${COMPAT_LAYER}"; \
-    if [ "$COMPAT_LAYER" = "wine" ]; then \
-        apt-get install -y --no-install-recommends \
-            $PACKAGES_WINE; \
-        \
-        WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/"; \
-        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
-        # (required for wine64 / can work alongside wine_i386 main bin) 
-        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"; \
-        WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/"; \
-        WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \
-        # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files) 
-        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"; \    
-        \
-        # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian , https://www.winehq.org/news/
-        # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
-        ## Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
-        TEMP_DIR="/tmp/wine_debs"; \
-        mkdir -p "$TEMP_DIR"; \
-        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_64_MAIN_BIN}"; \
-        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}"; \
-            # NOTE Skipping wine32 i386 
-            #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}"; \
-            #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}"; \
-        dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" /; \
-        dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /; \
-            #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" /; \
-            #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
-        # Cleanup temp directory
-        rm -rf "$TEMP_DIR"; \
-        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
-            ## $WINE_PATH/wine
-        # Create symlinks for Wine binaries
-        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
-        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
-        ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
-        ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
-        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
-        # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf
-        # NOTE $WINEPREFIX can be large.  
-    # Conditional Proton setup if COMPAT_LAYER is "proton"
-    
-    elif [ "$COMPAT_LAYER" = "proton" ]; then \
-        # https://github.com/ValveSoftware/Proton
-        # Install required packages for Proton
-        # TODO proton place holder
-        echo "Poton not implemented"; \
-    fi; \
-    \
     # ARCH Specific Packages -------------------------------------------------------------------------------------
     echo "DEBUG: TARGETARCH=${TARGETARCH}"; \
     if [ "$TARGETARCH" = "arm64" ]; then \
@@ -340,6 +329,13 @@ RUN set -eux; \
         # AMD64 specific packages
         apt-get install -y \
             $PACKAGES_AMD64_ONLY; \
+    fi; \
+    \
+    # Conditional Wine setup if COMPAT_LAYER is "wine / proton"
+    echo "DEBUG: COMPAT_LAYER=${COMPAT_LAYER}"; \
+    if [ "$COMPAT_LAYER" = "wine" ]; then \
+        apt-get install -y --no-install-recommends \
+            $PACKAGES_WINE; \
     fi; \
     \
     # Create steamcmd validation script for runtime
@@ -355,15 +351,44 @@ RUN set -eux; \
     echo 'fi' >> /usr/local/bin/validate-steamcmd.sh; \
     chmod +x /usr/local/bin/validate-steamcmd.sh; \
     \
-    # Create the container user
-    chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
-    chmod 755 $DIRECTORIES; \ 
-    \
     # Final cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD;
+    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
+# Copy steamcmd from steamcmd-builder (always amd64)
+COPY --from=steamcmd-builder /opt/steamcmd /opt/steamcmd
+
+# Copy Box86/Box64 only for ARM64
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86; \
+    fi
+COPY --from=box-builder /usr/local/bin/box64 /usr/local/bin/box64
+COPY --from=box-builder /usr/local/bin/box86 /usr/local/bin/box86
+COPY --from=box-builder /usr/local/lib/box64 /usr/local/lib/box64
+COPY --from=box-builder /usr/local/lib/box86 /usr/local/lib/box86
+
+# Copy Wine if COMPAT_LAYER=wine and set up symlinks
+COPY --from=wine-builder /opt/wine-$WINE_BRANCH /opt/wine-$WINE_BRANCH
+RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
+        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
+        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
+        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
+        ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
+        ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
+        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
+        # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf \
+        # NOTE $WINEPREFIX can be large. \
+    fi
+
+# Copy Proton if COMPAT_LAYER=proton
+COPY --from=proton-builder /opt/proton /opt/proton
+
+# Set ownership of all directories
+RUN chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
+    chmod 755 $DIRECTORIES
+
+# Copy scripts and set up user
 COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
 
 USER $CONTAINER_USER

@@ -72,6 +72,9 @@ env:
   # Source: https://github.com/ptitSeb/box64/releases
   BOX64_VERSION: "0.3.4"
 
+  # Runner architecture (will be set in jobs)
+  RUNNER_ARCH: amd64
+
 jobs:
   # Setup job to process matrix values from environment variables
   setup:
@@ -81,6 +84,7 @@ jobs:
       image-tags: ${{ steps.set-matrix.outputs.image-tags }}
       compat-layers: ${{ steps.set-matrix.outputs.compat-layers }}
       platforms: ${{ steps.set-matrix.outputs.platforms }}
+      runner-arch: ${{ steps.set-runner-arch.outputs.arch }}
     steps:
       - id: set-matrix
         name: Process matrix configurations
@@ -90,6 +94,20 @@ jobs:
           echo "image-tags=$(echo '${{ env.MATRIX_IMAGES }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
           echo "compat-layers=$(echo '${{ env.MATRIX_COMPAT_LAYERS }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
           echo "platforms=$(echo '${{ env.MATRIX_PLATFORMS }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
+      
+      - id: set-runner-arch
+        name: Determine runner architecture
+        run: |
+          # Determine the architecture of the GitHub runner
+          ARCH=$(uname -m)
+          if [[ "$ARCH" == "x86_64" ]]; then
+            echo "arch=amd64" >> $GITHUB_OUTPUT
+          elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+            echo "arch=arm64" >> $GITHUB_OUTPUT
+          else
+            echo "arch=$ARCH" >> $GITHUB_OUTPUT
+          fi
+          echo "Running on architecture: $ARCH"
 
   # Build job that creates individual architecture-specific images
   build:
@@ -151,7 +169,7 @@ jobs:
           # Initialize base version tag using matrix image
           TAG_VERSIONED="${{ matrix.image }}"
           
-          # Add compatibility layer and version if present
+          # Add compatibility layer and version if present (only for non-native)
           if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
             if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
               TAG_VERSIONED="${TAG_VERSIONED}_wine-${{ env.WINE_VERSION }}"
@@ -172,7 +190,7 @@ jobs:
           # Initialize with Debian codename
           TAG_CODENAME="$DEBIAN_VERSION_CODENAME"
           
-          # Add compatibility layer if present
+          # Add compatibility layer if present (only for non-native)
           if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
             TAG_CODENAME="${TAG_CODENAME}-${{ matrix.compat_layer }}"
           fi
@@ -287,8 +305,8 @@ jobs:
             DEBIAN_TAG=${{ matrix.image }}
             DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}
             
-            # Compatibility Layer (wine, proton, empty)
-            COMPAT_LAYER=${{ matrix.compat_layer }}
+            # Compatibility Layer (wine, proton, empty for native)
+            COMPAT_LAYER=${{ matrix.compat_layer != 'native' && matrix.compat_layer || '' }}
 
             # Wine configuration
             WINE_VERSION=${{ env.WINE_VERSION }}
@@ -312,22 +330,53 @@ jobs:
             type=gha,scope=${{ matrix.image }}-${{ matrix.compat_layer }}-${{ matrix.platform }},mode=max
           platforms: ${{ matrix.platform }}
 
-      # Basic test for the image (run for both PRs and pushes)
+      # Basic test for the image - FIXED to be architecture-aware
       - name: Test Docker image
         if: success() && steps.docker_build.outcome == 'success'
         run: |
-          # Load the image we just built
+          # Get runner architecture
+          RUNNER_ARCH=$(uname -m)
+          if [[ "$RUNNER_ARCH" == "x86_64" ]]; then
+            RUNNER_ARCH="amd64"
+          elif [[ "$RUNNER_ARCH" == "aarch64" ]]; then
+            RUNNER_ARCH="arm64"
+          fi
+          echo "Runner architecture: $RUNNER_ARCH"
+          
+          # Get image architecture from matrix
+          IMAGE_ARCH="${{ env.ARCHITECTURE }}"
+          echo "Image architecture: $IMAGE_ARCH"
+          
+          # Only test if architectures match (or use QEMU for cross-architecture testing)
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             # For PRs, the image exists locally but isn't pushed
             echo "Testing locally built image"
             # Get the image ID from the build output
             IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
-            docker run --rm $IMAGE_ID bash -c "echo 'Image test passed'"
+            
+            # Use QEMU if architectures don't match
+            if [[ "$RUNNER_ARCH" != "$IMAGE_ARCH" ]]; then
+              echo "Cross-architecture testing with QEMU"
+              docker run --platform linux/$IMAGE_ARCH --rm $IMAGE_ID bash -c "echo 'Image test passed'"
+            else
+              docker run --rm $IMAGE_ID bash -c "echo 'Image test passed'"
+            fi
           else
             # For pushes, we can pull the image we just pushed
             echo "Testing pushed image"
-            docker pull ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }}
-            docker run --rm ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }} bash -c "echo 'Image test passed'"
+            
+            # Always use the architecture-specific image that matches the architecture we just built
+            TAG_TO_TEST="${{ env.TAG_VERSIONED }}"
+            
+            # Use QEMU if architectures don't match
+            if [[ "$RUNNER_ARCH" != "$IMAGE_ARCH" ]]; then
+              echo "Cross-architecture testing with QEMU"
+              docker pull ${{ env.REGISTRY_IMAGE }}:$TAG_TO_TEST
+              docker run --platform linux/$IMAGE_ARCH --rm ${{ env.REGISTRY_IMAGE }}:$TAG_TO_TEST bash -c "echo 'Image test passed'"
+            else
+              docker pull ${{ env.REGISTRY_IMAGE }}:$TAG_TO_TEST
+              docker run --rm ${{ env.REGISTRY_IMAGE }}:$TAG_TO_TEST bash -c "echo 'Image test passed'"
+            fi
           fi
           
           echo "::notice::Image test successfully completed!"
@@ -374,7 +423,7 @@ jobs:
           BASE_VERSION_TAG="${{ matrix.image }}"
           BASE_CODENAME_TAG="$DEBIAN_VERSION_CODENAME"
           
-          # Add compatibility layer and version if present
+          # Add compatibility layer and version if present (only for non-native)
           if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
             if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
               BASE_VERSION_TAG="${BASE_VERSION_TAG}_wine-${{ env.WINE_VERSION }}"
@@ -475,4 +524,59 @@ jobs:
           # - Slack notification: Using actions/slack-notify@vX.X.X
           # - Email notification: Using dawidd6/action-send-mail@vX.X.X
           # - Teams notification: Using actions/teams-notify@vX.X.X
+
+  cleanup:
+    needs: [create-manifest]
+    runs-on: ubuntu-latest
+    # Only run cleanup on main branch pushes and when manually triggered
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      # First cleanup job specifically for untagged images with a more aggressive retention policy
+      - name: Cleanup untagged container images
+        uses: snok/container-retention-policy@v2
+        with:
+          # Target image names (supports wildcards)
+          image-names: docker-steamcmd-server*
+          # Delete untagged images older than 2 weeks
+          cut-off: 2 weeks ago UTC
+          # Use last updated timestamp for age calculation
+          timestamp-to-use: updated_at
+          # Organization or user account
+          account-type: ${{ contains(github.repository_owner, '/') && 'org' || 'user' }}
+          # Only needed if account-type is 'org'
+          org-name: ${{ github.repository_owner }}
+          # Only target untagged images
+          untagged-only: true
+          # Authentication token with delete:packages permission
+          token: ${{ secrets.GHCR_PAT }}
+
+      # Original cleanup job for tagged images
+      - name: Cleanup old container images
+        uses: snok/container-retention-policy@v2
+        with:
+          # Target image names (supports wildcards)
+          image-names: docker-steamcmd-server*
+          # Delete images older than 6 months
+          cut-off: 6 months ago UTC
+          # Use last updated timestamp for age calculation
+          timestamp-to-use: updated_at
+          # Organization or user account
+          account-type: ${{ contains(github.repository_owner, '/') && 'org' || 'user' }}
+          # Only needed if account-type is 'org'
+          org-name: ${{ github.repository_owner }}
+          # Always keep at least one version of each image
+          keep-at-least: 1
+          # Don't delete these tags
+          skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
+          # Only target tagged images (skip untagged as we handle them in the previous step)
+          untagged-only: false
+          # Authentication token with delete:packages permission
+          token: ${{ secrets.GHCR_PAT }}
           

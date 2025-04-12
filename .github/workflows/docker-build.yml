@@ -45,7 +45,7 @@ env:
   
   # Compatibility layers (empty string for native)
   MATRIX_COMPAT_LAYERS: |
-    
+    ""
     wine
   # TODO: Add "proton" to MATRIX_COMPAT_LAYERS when ready (no ARM support yet)
   
@@ -468,4 +468,3 @@ jobs:
           # - Slack notification: Using actions/slack-notify@vX.X.X
           # - Email notification: Using dawidd6/action-send-mail@vX.X.X
           # - Teams notification: Using actions/teams-notify@vX.X.X
-          

@@ -108,9 +108,11 @@ ARG BOX64_VERSION
 # Create directories regardless of architecture to avoid COPY errors
 RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
     if [ "$(uname -m)" = "aarch64" ]; then \
+        \
         # Install dependencies
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_ARM_BUILD && \
+        \
         # Build Box64 for ARM64
         if [ -n "$BOX64_VERSION" ]; then \
             git clone https://github.com/ptitSeb/box64 /tmp/box64 && \
@@ -122,6 +124,7 @@ RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
             cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
             make -j$(nproc) && make install; \
         fi && \
+        \
         # Build Box86 for ARM64 (requires multiarch)
         if [ -n "$BOX86_VERSION" ]; then \
             git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
@@ -159,6 +162,7 @@ ARG COMPAT_LAYER
 RUN mkdir -p /opt/wine-$WINE_BRANCH/bin && \
     # Only process wine if COMPAT_LAYER=wine
     if [ "$COMPAT_LAYER" = "wine" ]; then \
+        \
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_WINE && \
         \
@@ -312,7 +316,6 @@ ENV BOX86_TRACE_FILE="$LOGS/box86.log"
 ## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
 # https://community.fydeos.io/t/topic/26128
 # Box64 Config, Reference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md, errors: https://github.com/ptitSeb/box64/issues/1182
-
 ENV BOX64_LOG=1
 ENV BOX64_DYNAREC_BLEEDING_EDGE=0
 ENV BOX64_DYNAREC_BIGBLOCK=0

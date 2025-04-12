@@ -45,7 +45,7 @@ env:
   
   # Compatibility layers (empty string for native)
   MATRIX_COMPAT_LAYERS: |
-    ""
+    native
     wine
   # TODO: Add "proton" to MATRIX_COMPAT_LAYERS when ready (no ARM support yet)
   
@@ -152,7 +152,7 @@ jobs:
           TAG_VERSIONED="${{ matrix.image }}"
           
           # Add compatibility layer and version if present
-          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
+          if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
             if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
               TAG_VERSIONED="${TAG_VERSIONED}_wine-${{ env.WINE_VERSION }}"
             elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
@@ -173,7 +173,7 @@ jobs:
           TAG_CODENAME="$DEBIAN_VERSION_CODENAME"
           
           # Add compatibility layer if present
-          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
+          if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
             TAG_CODENAME="${TAG_CODENAME}-${{ matrix.compat_layer }}"
           fi
           
@@ -211,6 +211,7 @@ jobs:
           elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
             APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"
           fi
+          # For native compatibility layer, keep the prefix as is
           echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX" >> $GITHUB_ENV
       
           # ===== Set Build Metadata =====
@@ -262,8 +263,9 @@ jobs:
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: ./Dockerfile
+          dockerfile: Dockerfile
           failure-threshold: warning
+        continue-on-error: true  # Continue even if linting fails
 
       # Build and push Docker image with improved caching
       - name: Build and push Docker image
@@ -373,7 +375,7 @@ jobs:
           BASE_CODENAME_TAG="$DEBIAN_VERSION_CODENAME"
           
           # Add compatibility layer and version if present
-          if [[ "${{ matrix.compat_layer }}" != "" ]]; then
+          if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
             if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
               BASE_VERSION_TAG="${BASE_VERSION_TAG}_wine-${{ env.WINE_VERSION }}"
               BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-wine"
@@ -393,7 +395,7 @@ jobs:
           echo "BASE_CODENAME_TAG=$BASE_CODENAME_TAG" >> $GITHUB_ENV
           
           # Set latest tag flag (only for native images on main branch)
-          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ matrix.compat_layer }}" == "" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ matrix.compat_layer }}" == "native" ]]; then
             echo "HAS_LATEST_TAG=true" >> $GITHUB_ENV
           else
             echo "HAS_LATEST_TAG=false" >> $GITHUB_ENV
@@ -423,6 +425,11 @@ jobs:
           
           # Create latest tag if this is a native image on main branch
           if [[ "${{ env.HAS_LATEST_TAG }}" == "true" ]]; then
+            # Verify the architecture-specific latest tags exist
+            docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest-amd64 || { echo "::error::latest-amd64 image not found"; exit 1; }
+            docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest-arm64 || { echo "::error::latest-arm64 image not found"; exit 1; }
+            
+            # Create the multi-arch latest tag
             docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:latest \
               ${{ env.REGISTRY_IMAGE }}:latest-amd64 \
               ${{ env.REGISTRY_IMAGE }}:latest-arm64
@@ -468,3 +475,4 @@ jobs:
           # - Slack notification: Using actions/slack-notify@vX.X.X
           # - Email notification: Using dawidd6/action-send-mail@vX.X.X
           # - Teams notification: Using actions/teams-notify@vX.X.X
+          

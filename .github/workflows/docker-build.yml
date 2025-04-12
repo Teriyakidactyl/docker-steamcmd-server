@@ -1,5 +1,8 @@
 name: Build Docker Images
 
+
+# TODO how can I quickly alter the matrix to include exclude dimensions like include proton or exclude trixie?
+
 on:
   push:
     branches:
@@ -15,7 +18,8 @@ env:
   REGISTRY_IMAGE: ghcr.io/teriyakidactyl/docker-steamcmd-server
 
   # Shared build args
-  WINE_VERSION: "9.21"
+  WINE_VERSION: "10.0"
+    # https://gitlab.winehq.org/wine/wine/-/releases
   WINE_BRANCH: "staging"
   WINE_ID: "debian"
   WINE_TAG: "-1"
@@ -36,8 +40,8 @@ jobs:
       matrix:
         image: 
           # Debian Tags: https://hub.docker.com/_/debian
-          - trixie-20241016-slim
-          - bookworm-20241016-slim
+          - trixie-20250407-slim
+          - bookworm-20250407-slim
         compat_layer:
           - ""
           - "wine"

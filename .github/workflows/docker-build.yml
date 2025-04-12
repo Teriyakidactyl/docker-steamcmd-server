@@ -262,7 +262,7 @@ jobs:
         compat_layer:
           - ""
           - "wine"
-          - "proton"
+          # TODO - "proton" (no ARM!)
     
     steps:
       - name: Login to GitHub Container Registry

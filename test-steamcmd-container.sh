@@ -75,16 +75,35 @@ run_test() {
     local command=$2
     local image=$3
     
+    # Extract tag from the full image path
+    local tag=$(echo "$image" | cut -d ':' -f2)
+    
+    # Extract architecture from tag
+    local arch=""
+    if [[ "$tag" == *"-amd64" ]]; then
+        arch="amd64"
+    elif [[ "$tag" == *"-arm64" ]]; then
+        arch="arm64"
+    else
+        # Default to amd64 if not specified
+        arch="amd64"
+    fi
+    
+    # Always use the platform flag for consistency
+    local platform_arg="--platform linux/${arch}"
+    
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
     
-    # Always show the command that will be executed when in debug mode
+    # Debug output
     if [ "$DEBUG_MODE" = true ]; then
         echo -e "${YELLOW}Executing command:${NC}"
         echo -e "${CYAN}$command${NC}"
+        echo -e "${CYAN}Platform: linux/${arch}${NC}"
     fi
     
     # Run the command and capture output
     docker run --rm --name $CONTAINER_NAME \
+        $platform_arg \
         -v $TEST_DIR/app:/app \
         -v $TEST_DIR/world:/world \
         -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
@@ -97,7 +116,6 @@ run_test() {
     # Display test result
     if [ $EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ Test passed${NC}"
-        # If debug mode is enabled, show the command output even for successful tests
         if [ "$DEBUG_MODE" = true ]; then
             echo -e "${YELLOW}Command output:${NC}"
             cat $TEST_DIR/test_output.log
@@ -110,7 +128,6 @@ run_test() {
     
     return $EXIT_CODE
 }
-
 
 #
 # Test Functions - Each one tests a specific aspect of the container

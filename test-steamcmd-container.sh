@@ -20,7 +20,7 @@
 #   - About 1GB free disk space
 #
 # Installation:
-#   wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/main/test_steamcmd_container.sh
+#   wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/test-steamcmd-container.sh
 #   chmod +x test_steamcmd_container.sh
 #   ./test_steamcmd_container.sh
 
@@ -36,7 +36,7 @@ echo "-----------------------------------------------"
 
 # Define variables
 BASE_IMAGE="ghcr.io/teriyakidactyl/docker-steamcmd-server"
-IMAGE_TAG="bookworm-amd64"  # Using top-level tag instead of date tag
+IMAGE_TAG="bookworm_dev-amd64"  # Using top-level tag instead of date tag
 CONTAINER_NAME="steamcmd-test-container"
 CS_GO_SERVER_APPID="740" # Counter-Strike 2 Dedicated Server
 

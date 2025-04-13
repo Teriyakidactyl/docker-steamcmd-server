@@ -9,6 +9,8 @@
 # Usage:
 #   ./test_steamcmd_container.sh             # Test all container tags
 #   ./test_steamcmd_container.sh bookworm    # Test only tags containing "bookworm"
+#   ./test_steamcmd_container.sh -d          # Test all container tags with debug output
+#   ./test_steamcmd_container.sh bookworm -d # Test only tags containing "bookworm" with debug output
 #
 # Exit codes:
 #   0 - All tests passed
@@ -37,6 +39,18 @@ NC='\033[0m' # No Color
 BASE_IMAGE="ghcr.io/teriyakidactyl/docker-steamcmd-server"
 CONTAINER_NAME="steamcmd-test-container"
 CS_GO_SERVER_APPID="740" # Counter-Strike 2 Dedicated Server
+DEBUG_MODE=false
+
+# Parse command line arguments
+TAG_FILTER=""
+for arg in "$@"; do
+    if [ "$arg" = "-d" ] || [ "$arg" = "--debug" ]; then
+        DEBUG_MODE=true
+    else
+        # If not a flag, treat as tag filter
+        TAG_FILTER="$arg"
+    fi
+done
 
 # Define the tags to test - use _dev suffix for dev branch
 # Each tag will be tested in sequence
@@ -47,9 +61,6 @@ TAGS_TO_TEST=(
     "trixie-wine_dev-amd64"
     # Add more tags as needed
 )
-
-# Filters for tests if provided as command line argument
-TAG_FILTER="$1"
 
 # Create test directories
 TEST_DIR=$(mktemp -d)
@@ -68,6 +79,7 @@ run_test() {
     
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
     
+    # Run the command and capture output
     docker run --rm --name $CONTAINER_NAME \
         -v $TEST_DIR/app:/app \
         -v $TEST_DIR/world:/world \
@@ -78,8 +90,14 @@ run_test() {
     
     local EXIT_CODE=$?
     
+    # Display test result
     if [ $EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ Test passed${NC}"
+        # If debug mode is enabled, show the command output even for successful tests
+        if [ "$DEBUG_MODE" = true ]; then
+            echo -e "${YELLOW}Command output:${NC}"
+            cat $TEST_DIR/test_output.log
+        fi
     else
         echo -e "${RED}✗ Test failed with exit code $EXIT_CODE${NC}"
         echo -e "${RED}Command output:${NC}"
@@ -317,6 +335,9 @@ test_container() {
 
 echo -e "${YELLOW}Docker SteamCMD Server Multi-Container Test Script${NC}"
 echo "-----------------------------------------------"
+if [ "$DEBUG_MODE" = true ]; then
+    echo -e "${BLUE}Debug mode enabled - Command output will be displayed for all tests${NC}"
+fi
 
 # Check if Docker is installed
 echo "Checking Docker installation..."

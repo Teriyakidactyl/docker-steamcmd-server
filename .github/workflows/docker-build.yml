@@ -540,43 +540,38 @@ jobs:
           # - Teams notification: Using actions/teams-notify@vX.X.X
 
   cleanup:
-      needs: [create-manifest]
-      runs-on: ubuntu-latest
-      if: github.event_name == 'push'
-      permissions:
-        packages: write
-      steps:
-        - name: Login to GitHub Container Registry
-          uses: docker/login-action@v3
-          with:
-            registry: ghcr.io
-            username: ${{ github.actor }}
-            password: ${{ secrets.GITHUB_TOKEN }}
+    needs: [create-manifest]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      packages: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-        # Cleanup untagged images - TRYING WITHOUT OWNER PREFIX
-        - name: Cleanup untagged container images
-          uses: snok/container-retention-policy@v2
-          with:
-            # TESTING: Remove the owner prefix since account-type=personal implies it
-            image-names: docker-steamcmd-server
-            cut-off: 2 weeks ago UTC
-            timestamp-to-use: updated_at
-            account-type: personal # Correct
-            untagged-only: true
-            token: ${{ secrets.GITHUB_TOKEN }}
-            token-type: github-token
-
-        # Cleanup tagged images - TRYING WITHOUT OWNER PREFIX
-        - name: Cleanup old container images
-          uses: snok/container-retention-policy@v2
-          with:
-            # TESTING: Remove the owner prefix here too
-            image-names: docker-steamcmd-server
-            cut-off: 6 months ago UTC
-            timestamp-to-use: updated_at
-            account-type: personal # Correct
-            keep-at-least: 1
-            skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
-            untagged-only: false
-            token: ${{ secrets.GITHUB_TOKEN }}
-            token-type: github-token
+      # Delete all untagged container images
+      - name: Cleanup untagged container images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: docker-steamcmd-server
+          package-type: container
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      # For tagged images
+      # Note: There's no direct way to specify age in actions/delete-package-versions@v5
+      # So we'll use a combination of min-versions-to-keep and num-old-versions-to-delete
+      - name: Cleanup old container images
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: docker-steamcmd-server
+          package-type: container
+          min-versions-to-keep: 1
+          ignore-versions: "latest|bookworm|trixie|bookworm-wine|trixie-wine"
+          num-old-versions-to-delete: 100  # This will delete up to 100 old versions per run
+          token: ${{ secrets.GITHUB_TOKEN }}

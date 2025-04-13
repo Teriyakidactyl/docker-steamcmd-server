@@ -22,9 +22,7 @@
 #   - About 1GB free disk space per image tested
 #
 # Installation:
-#   wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/dev/test_steamcmd_container.sh
-#   chmod +x test_steamcmd_container.sh
-#   ./test_steamcmd_container.sh
+# wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/test-steamcmd-container.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
 
 # Colors for output
 GREEN='\033[0;32m'

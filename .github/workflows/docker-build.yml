@@ -557,7 +557,7 @@ jobs:
       - name: Cleanup untagged container images
         uses: actions/delete-package-versions@v5
         with:
-          package-name: docker-steamcmd-server
+          package-name: teriyakidactyl/docker-steamcmd-server
           package-type: container
           min-versions-to-keep: 0
           delete-only-untagged-versions: true
@@ -567,7 +567,7 @@ jobs:
       - name: Cleanup old tagged container images
         uses: actions/delete-package-versions@v5
         with:
-          package-name: docker-steamcmd-server
+          package-name: teriyakidactyl/docker-steamcmd-server
           package-type: container
           min-versions-to-keep: 1
           ignore-versions: "latest|bookworm|trixie|bookworm-wine|trixie-wine"

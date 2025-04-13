@@ -18,6 +18,11 @@
 #   - Docker
 #   - Internet connection (for pulling images)
 #   - About 1GB free disk space
+#
+# Installation:
+#   wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/main/test_steamcmd_container.sh
+#   chmod +x test_steamcmd_container.sh
+#   ./test_steamcmd_container.sh
 
 # Colors for output
 GREEN='\033[0;32m'

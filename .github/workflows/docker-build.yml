@@ -542,6 +542,7 @@ jobs:
   cleanup:
     needs: [create-manifest]
     runs-on: ubuntu-latest
+    # Only run cleanup on any branch push
     if: github.event_name == 'push'
     permissions:
       packages: write
@@ -552,17 +553,17 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
-      # Delete ALL untagged container images
-      - name: Remove untagged container images
-        uses: actions/delete-package-versions@v5
+      # First cleanup job specifically for untagged images with a more aggressive retention policy
+      - name: Cleanup untagged container images
+        uses: snok/container-retention-policy@v2
         with:
-          package-name: docker-steamcmd-server
-          package-type: container
-          min-versions-to-keep: 0
-          delete-only-untagged-versions: true
+          image-names: docker-steamcmd-server
+          cut-off: 2 weeks ago UTC
+          timestamp-to-use: updated_at
+          account-type: personal
+          untagged-only: true
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+          token-type: github-token
       # Original cleanup job for tagged images
       - name: Cleanup old container images
         uses: snok/container-retention-policy@v2

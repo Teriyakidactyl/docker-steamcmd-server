@@ -562,16 +562,14 @@ jobs:
           min-versions-to-keep: 0
           delete-only-untagged-versions: true
           token: ${{ secrets.GITHUB_TOKEN }}
-      
-      # For tagged images
-      # Note: There's no direct way to specify age in actions/delete-package-versions@v5
-      # So we'll use a combination of min-versions-to-keep and num-old-versions-to-delete
-      - name: Cleanup old container images
+          
+      # Optional: Add the tagged images cleanup if you want
+      - name: Cleanup old tagged container images
         uses: actions/delete-package-versions@v5
         with:
           package-name: docker-steamcmd-server
           package-type: container
           min-versions-to-keep: 1
           ignore-versions: "latest|bookworm|trixie|bookworm-wine|trixie-wine"
-          num-old-versions-to-delete: 100  # This will delete up to 100 old versions per run
+          num-old-versions-to-delete: 100
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -11,6 +11,11 @@
 #   ./test_steamcmd_container.sh bookworm    # Test only tags containing "bookworm"
 #   ./test_steamcmd_container.sh -d          # Test all container tags with debug output
 #   ./test_steamcmd_container.sh bookworm -d # Test only tags containing "bookworm" with debug output
+#   ./test_steamcmd_container.sh arm64       # Test only ARM64 tags (requires QEMU)
+#
+# Notes:
+#   - ARM64 testing requires QEMU user-static emulation to be installed
+#   - ARM64 images will automatically test box86/box64 if present
 #
 # Exit codes:
 #   0 - All tests passed
@@ -55,10 +60,16 @@ done
 # Define the tags to test - use _dev suffix for dev branch
 # Each tag will be tested in sequence
 TAGS_TO_TEST=(
+    # AMD64 Tags
     "bookworm_dev-amd64"
     "bookworm-wine_dev-amd64"
     "trixie_dev-amd64"
     "trixie-wine_dev-amd64"
+    # ARM64 Tags
+    "bookworm_dev-arm64"
+    "bookworm-wine_dev-arm64"
+    "trixie_dev-arm64"
+    "trixie-wine_dev-arm64"
     # Add more tags as needed
 )
 
@@ -71,16 +82,46 @@ mkdir -p $TEST_DIR/world/Mods
 # Global array to track failed tags
 FAILED_TAGS=()
 
+# Flag to track if QEMU is set up
+QEMU_SETUP=false
+
+# Function to setup QEMU for ARM64 emulation
+setup_qemu_emulation() {
+    echo -e "\n${YELLOW}====== Setting up QEMU for ARM64 emulation ======${NC}"
+    
+    # Check if QEMU is already set up
+    if docker run --rm --privileged multiarch/qemu-user-static --reset -p yes > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ QEMU emulation handlers registered successfully${NC}"
+        QEMU_SETUP=true
+        return 0
+    else
+        echo -e "${RED}✗ Failed to set up QEMU emulation${NC}"
+        echo -e "${YELLOW}You may need to install qemu-user-static and binfmt-support:${NC}"
+        echo -e "  sudo apt-get update"
+        echo -e "  sudo apt-get install -y qemu-user-static binfmt-support"
+        return 1
+    fi
+}
+
 # General test function
 run_test() {
     local test_name=$1
     local command=$2
     local image=$3
+    local platform_args=""
+    
+    # Check if image contains platform args (--platform linux/arm64)
+    if [[ "$image" == *"--platform"* ]]; then
+        # Extract platform arguments and image
+        platform_args=$(echo "$image" | grep -o '\-\-platform [^ ]*')
+        image=$(echo "$image" | sed "s/$platform_args //")
+    fi
     
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
     
     # Run the command and capture output
     docker run --rm --name $CONTAINER_NAME \
+        $platform_args \
         -v $TEST_DIR/app:/app \
         -v $TEST_DIR/world:/world \
         -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
@@ -278,22 +319,82 @@ test_startup_script() {
     return $?
 }
 
+test_box86_box64() {
+    local image=$1
+    echo -e "\n${YELLOW}====== Box86/Box64 Tests ======${NC}"
+    
+    # Test box86 if present
+    run_test "Box86 Version" "
+        if command -v box86 &> /dev/null; then
+            box86 --version && echo 'Box86 version verified'
+        else
+            echo 'Box86 not found, skipping test'
+            exit 0
+        fi
+    " "$image"
+    
+    local box86_result=$?
+    
+    # Test box64 if present
+    run_test "Box64 Version" "
+        if command -v box64 &> /dev/null; then
+            box64 --version && echo 'Box64 version verified'
+        else
+            echo 'Box64 not found, skipping test'
+            exit 0
+        fi
+    " "$image"
+    
+    local box64_result=$?
+    
+    # Return success if at least one of them worked or was skipped gracefully
+    [ $box86_result -eq 0 ] || [ $box64_result -eq 0 ]
+    return $?
+}
+
 # Run tests on a container image
 test_container() {
     local tag=$1
     local image="${BASE_IMAGE}:${tag}"
     local failed_tests=()
+    local platform="linux/amd64"
     
-    echo -e "\n${BOLD}${CYAN}====== Testing Container: ${image} ======${NC}"
+    # Determine if this is an ARM64 image
+    if [[ "$tag" == *"-arm64"* ]]; then
+        platform="linux/arm64"
+        
+        # Check if QEMU is set up
+        if [ "$QEMU_SETUP" = false ]; then
+            echo -e "\n${YELLOW}====== ARM64 image detected but QEMU not set up ======${NC}"
+            echo -e "${YELLOW}Attempting to set up QEMU emulation...${NC}"
+            if ! setup_qemu_emulation; then
+                echo -e "${RED}Skipping ARM64 image ${tag} due to missing QEMU emulation${NC}"
+                FAILED_TAGS+=("$tag - Skipped: QEMU setup failed")
+                return 1
+            fi
+        fi
+    fi
+    
+    echo -e "\n${BOLD}${CYAN}====== Testing Container: ${image} (${platform}) ======${NC}"
     
     # Pull the image
     echo "Pulling the Docker image: ${image}..."
-    if ! docker pull $image; then
+    if ! docker pull --platform ${platform} $image; then
         echo -e "${RED}Failed to pull image: $image${NC}"
         FAILED_TAGS+=("$tag - Failed to pull image")
         return 1
     fi
     echo -e "${GREEN}Image pulled successfully.${NC}"
+    
+    # Modify run_test function calls to include platform
+    local original_run_test=run_test
+    function run_test() {
+        local test_name=$1
+        local command=$2
+        local img=$3
+        
+        $original_run_test "$test_name" "$command" "--platform ${platform} $img"
+    }
     
     # Run the base tests that all containers should pass
     test_directories "$image" || failed_tests+=("Directory Structure")
@@ -315,6 +416,15 @@ test_container() {
     else
         echo -e "${BLUE}Skipping Wine tests for non-Wine image${NC}"
     fi
+    
+    # Run box86/box64 tests only for ARM64 images
+    if [[ "$platform" == "linux/arm64" ]]; then
+        echo -e "${BLUE}Detected ARM64 image, running Box86/Box64 tests...${NC}"
+        test_box86_box64 "$image" || failed_tests+=("Box86/Box64")
+    fi
+    
+    # Restore original run_test function
+    run_test=$original_run_test
     
     # Display test results for this container
     if [ ${#failed_tests[@]} -eq 0 ]; then
@@ -372,6 +482,21 @@ echo -e "${BLUE}Will test the following container tags:${NC}"
 for tag in "${TAGS_TO_TEST[@]}"; do
     echo "  - $tag"
 done
+
+# Check if we need to set up QEMU for ARM64 testing
+ARM64_NEEDED=false
+for tag in "${TAGS_TO_TEST[@]}"; do
+    if [[ "$tag" == *"-arm64"* ]]; then
+        ARM64_NEEDED=true
+        break
+    fi
+done
+
+if [ "$ARM64_NEEDED" = true ]; then
+    echo -e "${BLUE}ARM64 images detected, setting up QEMU emulation...${NC}"
+    setup_qemu_emulation
+    # If QEMU setup failed, we'll skip ARM64 images during testing
+fi
 
 # Test each container in the array
 for tag in "${TAGS_TO_TEST[@]}"; do

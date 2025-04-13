@@ -426,17 +426,39 @@ for tag in "${TAGS_TO_TEST[@]}"; do
     test_container "$tag"
 done
 
-# Display final test results
+# Display final test results and prompt for inspection
 echo -e "\n${BOLD}${YELLOW}====== Final Test Results Summary ======${NC}"
 
 if [ ${#FAILED_TAGS[@]} -eq 0 ]; then
     echo -e "${GREEN}All container tests passed successfully!${NC}"
+    INSPECT_PROMPT=false
 else
     echo -e "${RED}Failed containers (${#FAILED_TAGS[@]}):"
-    for tag in "${FAILED_TAGS[@]}"; do
-        echo -e "  ✗ $tag"
+    for i in "${!FAILED_TAGS[@]}"; do
+        echo -e "  ${RED}$((i+1)).${NC} ${FAILED_TAGS[$i]}"
     done
     echo -e "${NC}"
+    INSPECT_PROMPT=true
+fi
+
+# If there were failures, offer to inspect containers
+if [ "$INSPECT_PROMPT" = true ]; then
+    echo -e "\n${YELLOW}Would you like to inspect any of the failed containers?${NC}"
+    echo -e "${BLUE}This will launch an interactive bash session in the container.${NC}"
+    echo -e "Enter the number of the container to inspect, or 'n' to exit:"
+    
+    read -r choice
+    
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#FAILED_TAGS[@]}" ]; then
+        # Extract just the tag from the failed tag entry (removing the error message)
+        failed_tag="${FAILED_TAGS[$((choice-1))]}"
+        tag_only=$(echo "$failed_tag" | cut -d' ' -f1)
+        
+        # Launch inspection session
+        inspect_container "$tag_only"
+    else
+        echo -e "${BLUE}Skipping container inspection.${NC}"
+    fi
 fi
 
 # Clean up

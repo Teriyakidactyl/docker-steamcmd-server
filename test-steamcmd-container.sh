@@ -27,9 +27,7 @@
 #   - About 1GB free disk space per image tested
 #
 # Installation:
-#   wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/dev/test_steamcmd_container.sh
-#   chmod +x test_steamcmd_container.sh
-#   ./test_steamcmd_container.sh
+# wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/test-steamcmd-container.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -111,17 +109,16 @@ run_test() {
     local platform_args=""
     
     # Check if image contains platform args (--platform linux/arm64)
-    if [[ "$image" == *"--platform"* ]]; then
-        # Extract platform arguments and image
-        platform_args=$(echo "$image" | grep -o '\-\-platform [^ ]*')
-        image=$(echo "$image" | sed "s/$platform_args //")
+    if [[ "$image" == "--platform"* ]]; then
+        # Extract platform arguments (assuming format: "--platform linux/amd64 image_name")
+        platform_args=$(echo "$image" | awk '{print $1" "$2}')
+        image=$(echo "$image" | cut -d' ' -f3-)
     fi
     
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
     echo -e "${CYAN}Command: docker run --rm --name $CONTAINER_NAME $platform_args -v $TEST_DIR/app:/app -v $TEST_DIR/world:/world ... $image${NC}"
     
     # Set resource limits to prevent container from being killed
-    # (This may help with OOM issues)
     local memory_limit="--memory=1g --memory-swap=2g"
     
     # Run the command and capture output with increased verbosity
@@ -160,6 +157,7 @@ run_test() {
     
     return $EXIT_CODE
 }
+
 
 #
 # Test Functions - Each one tests a specific aspect of the container
@@ -441,8 +439,8 @@ test_container() {
         # Ensure any previous container is removed
         docker rm -f $CONTAINER_NAME &> /dev/null
         
-        # Call the original run_test with platform flags
-        $original_run_test "$test_name" "$command" "--platform ${platform} $img"
+        # Call the original run_test with platform flags but properly formatted
+        $original_run_test "$test_name" "$command" "--platform ${platform} ${img}"
         
         # Wait a moment to ensure resources are released
         sleep 1

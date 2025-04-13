@@ -77,6 +77,12 @@ run_test() {
     
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
     
+    # Always show the command that will be executed when in debug mode
+    if [ "$DEBUG_MODE" = true ]; then
+        echo -e "${YELLOW}Executing command:${NC}"
+        echo -e "${CYAN}$command${NC}"
+    fi
+    
     # Run the command and capture output
     docker run --rm --name $CONTAINER_NAME \
         -v $TEST_DIR/app:/app \
@@ -104,6 +110,7 @@ run_test() {
     
     return $EXIT_CODE
 }
+
 
 #
 # Test Functions - Each one tests a specific aspect of the container

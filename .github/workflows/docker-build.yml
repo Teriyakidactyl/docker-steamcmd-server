@@ -542,7 +542,6 @@ jobs:
   cleanup:
     needs: [create-manifest]
     runs-on: ubuntu-latest
-    # Only run cleanup on any branch push
     if: github.event_name == 'push'
     permissions:
       packages: write
@@ -553,27 +552,29 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      # Remove ALL untagged images with no time limit
+      
+      # Cleanup ALL untagged container images without any time restriction
       - name: Cleanup all untagged container images
-        uses: snok/container-retention-policy@v2
+        uses: snok/container-retention-policy@v3.0.0
         with:
-          image-names: docker-steamcmd-server
-          cut-off: now UTC
-          timestamp-to-use: updated_at
-          account-type: personal
-          untagged-only: true
+          account: ${{ github.repository_owner }}  # Use repository owner (user or org)
           token: ${{ secrets.GITHUB_TOKEN }}
-          token-type: github-token
+          image-names: docker-steamcmd-server
+          tag-selection: untagged  # This replaces untagged-only: true
+          cut-off: now  # Remove all untagged images regardless of age
+          timestamp-to-use: updated_at
+          dry-run: false  # Make sure this is false to actually delete images
+      
       # Original cleanup job for tagged images
       - name: Cleanup old container images
-        uses: snok/container-retention-policy@v2
+        uses: snok/container-retention-policy@v3.0.0
         with:
+          account: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           image-names: docker-steamcmd-server
+          image-tags: "* !latest !bookworm !trixie !bookworm-wine !trixie-wine"  # Replaces skip-tags
+          tag-selection: tagged  # Only target tagged images
           cut-off: 6 months ago UTC
           timestamp-to-use: updated_at
-          account-type: personal
-          keep-at-least: 1
-          skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
-          untagged-only: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-          token-type: github-token
+          keep-n-most-recent: 1  # Replaces keep-at-least
+          dry-run: false

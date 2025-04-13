@@ -118,16 +118,22 @@ run_test() {
     fi
     
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
+    echo -e "${CYAN}Command: docker run --rm --name $CONTAINER_NAME $platform_args -v $TEST_DIR/app:/app -v $TEST_DIR/world:/world ... $image${NC}"
     
-    # Run the command and capture output
+    # Set resource limits to prevent container from being killed
+    # (This may help with OOM issues)
+    local memory_limit="--memory=1g --memory-swap=2g"
+    
+    # Run the command and capture output with increased verbosity
     docker run --rm --name $CONTAINER_NAME \
         $platform_args \
+        $memory_limit \
         -v $TEST_DIR/app:/app \
         -v $TEST_DIR/world:/world \
         -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
         -e PATH=$PATH:/opt/wine-staging/bin \
         $image \
-        bash -c "$command" > $TEST_DIR/test_output.log 2>&1
+        bash -c "set -x; $command" > $TEST_DIR/test_output.log 2>&1
     
     local EXIT_CODE=$?
     
@@ -143,6 +149,13 @@ run_test() {
         echo -e "${RED}✗ Test failed with exit code $EXIT_CODE${NC}"
         echo -e "${RED}Command output:${NC}"
         cat $TEST_DIR/test_output.log
+        
+        # Check if the container was killed due to OOM
+        if dmesg | grep -q "Out of memory: Killed process"; then
+            echo -e "${RED}Container was likely killed due to out of memory (OOM)${NC}"
+            echo -e "${YELLOW}Latest OOM messages:${NC}"
+            dmesg | grep -i "out of memory" | tail -5
+        fi
     fi
     
     return $EXIT_CODE
@@ -359,6 +372,9 @@ test_container() {
     local failed_tests=()
     local platform="linux/amd64"
     
+    # Ensure any previous container is removed
+    docker rm -f $CONTAINER_NAME &> /dev/null
+    
     # Determine if this is an ARM64 image
     if [[ "$tag" == *"-arm64"* ]]; then
         platform="linux/arm64"
@@ -377,14 +393,40 @@ test_container() {
     
     echo -e "\n${BOLD}${CYAN}====== Testing Container: ${image} (${platform}) ======${NC}"
     
-    # Pull the image
+    # Simple verify test first to ensure container works
+    echo -e "${YELLOW}Running basic verification test...${NC}"
+    if ! docker run --rm --name $CONTAINER_NAME \
+        --platform ${platform} \
+        --memory=1g --memory-swap=2g \
+        $image \
+        bash -c "echo 'Basic container verification succeeded'"; then
+        
+        echo -e "${RED}✗ Basic verification failed - container may not be working correctly${NC}"
+        FAILED_TAGS+=("$tag - Failed basic verification")
+        return 1
+    fi
+    
+    echo -e "${GREEN}✓ Basic verification passed${NC}"
+    
+    # Pull the image (with a timeout to prevent hanging)
     echo "Pulling the Docker image: ${image}..."
-    if ! docker pull --platform ${platform} $image; then
+    timeout 300 docker pull --platform ${platform} $image
+    PULL_STATUS=$?
+    
+    if [ $PULL_STATUS -eq 124 ]; then
+        echo -e "${RED}Pulling image timed out after 5 minutes${NC}"
+        FAILED_TAGS+=("$tag - Pull operation timed out")
+        return 1
+    elif [ $PULL_STATUS -ne 0 ]; then
         echo -e "${RED}Failed to pull image: $image${NC}"
         FAILED_TAGS+=("$tag - Failed to pull image")
         return 1
     fi
+    
     echo -e "${GREEN}Image pulled successfully.${NC}"
+    
+    # Wait a moment to ensure resources are released
+    sleep 2
     
     # Modify run_test function calls to include platform
     local original_run_test=run_test
@@ -393,7 +435,17 @@ test_container() {
         local command=$2
         local img=$3
         
+        # Allow system to recover between tests
+        sleep 1
+        
+        # Ensure any previous container is removed
+        docker rm -f $CONTAINER_NAME &> /dev/null
+        
+        # Call the original run_test with platform flags
         $original_run_test "$test_name" "$command" "--platform ${platform} $img"
+        
+        # Wait a moment to ensure resources are released
+        sleep 1
     }
     
     # Run the base tests that all containers should pass

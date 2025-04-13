@@ -41,10 +41,10 @@ CS_GO_SERVER_APPID="740" # Counter-Strike 2 Dedicated Server
 # Define the tags to test - use _dev suffix for dev branch
 # Each tag will be tested in sequence
 TAGS_TO_TEST=(
-    "bookworm-amd64_dev"
-    "bookworm-wine-amd64_dev"
-    "trixie-amd64_dev"
-    "trixie-wine-amd64_dev"
+    "bookworm_dev-amd64"
+    "bookworm-wine_dev-amd64"
+    "trixie_dev-amd64"
+    "trixie-wine_dev-amd64"
     # Add more tags as needed
 )
 

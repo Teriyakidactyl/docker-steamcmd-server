@@ -553,17 +553,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      # Cleanup ALL untagged container images without any time restriction
+      # Cleanup ALL untagged container images
       - name: Cleanup all untagged container images
         uses: snok/container-retention-policy@v3.0.0
         with:
-          account: ${{ github.repository_owner }}  # Use repository owner (user or org)
+          account: ${{ github.repository_owner }}
           token: ${{ secrets.GITHUB_TOKEN }}
           image-names: docker-steamcmd-server
-          tag-selection: untagged  # This replaces untagged-only: true
-          cut-off: now  # Remove all untagged images regardless of age
+          tag-selection: untagged
+          cut-off: 0d  # Use 0d to specify "0 days ago" (now)
           timestamp-to-use: updated_at
-          dry-run: false  # Make sure this is false to actually delete images
+          dry-run: false
       
       # Original cleanup job for tagged images
       - name: Cleanup old container images

@@ -541,37 +541,8 @@ jobs:
 
   ## https://github.com/marketplace/actions/delete-package-versions
   ## Clean all untagged packages
+  ## 100 Item limit to manage github rate limit?
 
-  cleanup:
-    needs: [create-manifest]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    permissions:
-      packages: write
-    steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # Delete all untagged container images
-      - name: Cleanup untagged container images
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ github.repository_owner }}/docker-steamcmd-server
-          package-type: container
-          min-versions-to-keep: 0
-          delete-only-untagged-versions: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-        
-      # Optional: Add the tagged images cleanup if you want
-      - name: Cleanup old tagged container images
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ github.repository_owner }}/docker-steamcmd-server
-          package-type: container
-          min-versions-to-keep: 1
-          ignore-versions: "latest|bookworm|trixie|bookworm-wine|trixie-wine"
-          num-old-versions-to-delete: 100
-          token: ${{ secrets.GITHUB_TOKEN }}
+  # https://blog.kotlin-academy.com/automating-deletion-of-github-packages-with-kotlin-script-84900e1bf115
+
+  ## TODO Implement untagged cleanup, but currently it's a pain

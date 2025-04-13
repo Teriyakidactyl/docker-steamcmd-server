@@ -398,6 +398,7 @@ RUN set -eux; \
 COPY --from=steamcmd-builder /opt/steamcmd /opt/steamcmd
 
 # Copy Box86/Box64 files
+# FIXME box should only copy if arm64
 COPY --from=box-builder /usr/local/bin/box64 /usr/local/bin/box64
 COPY --from=box-builder /usr/local/bin/box86 /usr/local/bin/box86
 COPY --from=box-builder /usr/local/lib/box64 /usr/local/lib/box64
@@ -409,11 +410,12 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
     fi
 
 # Copy Wine files
+# FIXME copy wine only on wine tags
 COPY --from=wine-builder /opt/wine-$WINE_BRANCH /opt/wine-$WINE_BRANCH
 
 # Setup Wine symlinks if COMPAT_LAYER=wine
 RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
-        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
+        # chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
         # NOTE testing no softlinks to see if deb does it.
         # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
         # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \

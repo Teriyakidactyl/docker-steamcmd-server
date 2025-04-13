@@ -539,6 +539,9 @@ jobs:
           # - Email notification: Using dawidd6/action-send-mail@vX.X.X
           # - Teams notification: Using actions/teams-notify@vX.X.X
 
+  ## https://github.com/marketplace/actions/delete-package-versions
+  ## Clean all untagged packages
+
   cleanup:
     needs: [create-manifest]
     runs-on: ubuntu-latest
@@ -552,22 +555,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       # Delete all untagged container images
       - name: Cleanup untagged container images
         uses: actions/delete-package-versions@v5
         with:
-          package-name: teriyakidactyl/docker-steamcmd-server
+          package-name: ${{ github.repository_owner }}/docker-steamcmd-server
           package-type: container
           min-versions-to-keep: 0
           delete-only-untagged-versions: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+        
       # Optional: Add the tagged images cleanup if you want
       - name: Cleanup old tagged container images
         uses: actions/delete-package-versions@v5
         with:
-          package-name: teriyakidactyl/docker-steamcmd-server
+          package-name: ${{ github.repository_owner }}/docker-steamcmd-server
           package-type: container
           min-versions-to-keep: 1
           ignore-versions: "latest|bookworm|trixie|bookworm-wine|trixie-wine"

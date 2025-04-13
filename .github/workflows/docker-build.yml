@@ -542,7 +542,7 @@ jobs:
   cleanup:
       needs: [create-manifest]
       runs-on: ubuntu-latest
-      # Only run cleanup on any branch push (removing workflow_dispatch)
+      # Only run cleanup on any branch push
       if: github.event_name == 'push'
       steps:
         - name: Login to GitHub Container Registry
@@ -558,7 +558,8 @@ jobs:
             image-names: docker-steamcmd-server*
             cut-off: 2 weeks ago UTC
             timestamp-to-use: updated_at
-            account-type: ${{ contains(github.repository_owner, '/') && 'org' || 'user' }}
+            # Change from 'user' to 'personal'
+            account-type: ${{ contains(github.repository_owner, '/') && 'org' || 'personal' }}
             org-name: ${{ github.repository_owner }}
             untagged-only: true
             token: ${{ secrets.GHCR_PAT }}
@@ -569,7 +570,8 @@ jobs:
             image-names: docker-steamcmd-server*
             cut-off: 6 months ago UTC
             timestamp-to-use: updated_at
-            account-type: ${{ contains(github.repository_owner, '/') && 'org' || 'user' }}
+            # Change from 'user' to 'personal'
+            account-type: ${{ contains(github.repository_owner, '/') && 'org' || 'personal' }}
             org-name: ${{ github.repository_owner }}
             keep-at-least: 1
             skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine

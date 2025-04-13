@@ -414,11 +414,12 @@ COPY --from=wine-builder /opt/wine-$WINE_BRANCH /opt/wine-$WINE_BRANCH
 # Setup Wine symlinks if COMPAT_LAYER=wine
 RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
         chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
-        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
-        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
-        ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
-        ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
-        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
+        # NOTE testing no softlinks to see if deb does it.
+        # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
+        # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
+        # ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
+        # ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
+        # ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
         # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf \
         # NOTE $WINEPREFIX can be large. \
     fi
@@ -438,6 +439,8 @@ USER $CONTAINER_USER
 # Set the entrypoint to start the server
 # ENTRYPOINT ["/bin/bash", "-c"]
 # CMD ["up.sh"]
+
+# FIXME $APP_FILES,$WORLD_FILES are root, not container
 
 # Expose application volumes
 VOLUME ["$APP_FILES"]

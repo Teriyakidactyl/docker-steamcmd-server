@@ -105,7 +105,6 @@ ARG PACKAGES_ARM_BUILD
 ARG BOX86_VERSION
 ARG BOX64_VERSION
 
-# Create directories regardless of architecture to avoid COPY errors
 RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
     if [ "$(uname -m)" = "aarch64" ]; then \
         \
@@ -136,12 +135,6 @@ RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
             cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
             make -j$(nproc) && make install; \
         fi; \
-    else \
-        # On non-ARM64 builds, create empty placeholder files
-        touch /usr/local/bin/box64 && \
-        touch /usr/local/bin/box86 && \
-        touch /usr/local/lib/box64/placeholder && \
-        touch /usr/local/lib/box86/placeholder; \
     fi
 
 # ======================================================================================================
@@ -158,13 +151,8 @@ ARG WINE_DIST
 ARG WINE_TAG
 ARG COMPAT_LAYER
 
-# Create wine directory regardless of COMPAT_LAYER to avoid COPY errors
-# FIXME /opt/wine-staging/bin is empty, it appears to fail
-
-RUN mkdir -p /opt/wine-$WINE_BRANCH/bin && \
-    # Only process wine if COMPAT_LAYER=wine
-    if [ "$COMPAT_LAYER" = "wine" ]; then \
-        \
+RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
+        mkdir -p /opt/wine-$WINE_BRANCH/bin && \
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_WINE && \
         \
@@ -193,12 +181,12 @@ RUN mkdir -p /opt/wine-$WINE_BRANCH/bin && \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
         # Cleanup temp directory \
         rm -rf "$TEMP_DIR"; \
-        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
+        chmod +x /opt/wine-$WINE_BRANCH/bin/wine64 \
+                /opt/wine-$WINE_BRANCH/bin/wineboot \
+                /opt/wine-$WINE_BRANCH/bin/winecfg \
+                /opt/wine-$WINE_BRANCH/bin/wineserver; \
             ## $WINE_PATH/wine \
         rm -rf /var/lib/apt/lists/*; \
-    else \
-        # Create placeholder files for when wine is not needed
-        touch /opt/wine-$WINE_BRANCH/bin/placeholder; \
     fi
 
 # ======================================================================================================
@@ -210,10 +198,8 @@ ARG PACKAGES_BASE
 ARG PROTON_VERSION
 ARG COMPAT_LAYER
 
-# Create proton directory regardless of COMPAT_LAYER to avoid COPY errors
-RUN mkdir -p /opt/proton && \
-    # Only process proton if COMPAT_LAYER=proton
-    if [ "$COMPAT_LAYER" = "proton" ]; then \
+RUN if [ "$COMPAT_LAYER" = "proton" ]; then \
+        mkdir -p /opt/proton && \
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE curl && \
         # https://github.com/ValveSoftware/Proton \
@@ -227,48 +213,18 @@ RUN mkdir -p /opt/proton && \
             echo "No Proton version specified" > /opt/proton/README.txt; \
         fi && \
         rm -rf /var/lib/apt/lists/*; \
-    else \
-        # Create placeholder when proton not needed
-        echo "Proton not enabled" > /opt/proton/README.txt; \
     fi
 
 # ======================================================================================================
-# Final image - combines components based on architecture and compatibility requirements
+# Base configuration stage - common setup for all variants
 # ======================================================================================================
-FROM --platform=$TARGETPLATFORM debian:${DEBIAN_TAG} AS final
-
-# Re-declare ARGs for this stage
-ARG TARGETARCH
-ARG TARGETPLATFORM
+FROM --platform=$TARGETPLATFORM debian:${DEBIAN_TAG} AS base
 ARG DEBIAN_FRONTEND
-ARG DEBIAN_VERSION_CODENAME
-ARG COMPAT_LAYER
-ARG DEBUGGER
-ARG APP_COMMAND_PREFIX
-
-# Re-declare package ARGs
-ARG PACKAGES_AMD64_ONLY
-ARG PACKAGES_ARM_ONLY
-ARG PACKAGES_ARM_BUILD
-ARG PACKAGES_BASE_BUILD
-ARG PACKAGES_WINE
 ARG PACKAGES_BASE
-ARG PACKAGES_DEV
+ARG PACKAGES_BASE_BUILD
+ARG DEBUGGER
 
-# Wine ARGs
-ARG WINE_BRANCH
-ARG WINE_ID
-ARG WINE_VERSION
-ARG WINE_DIST
-ARG WINE_TAG
-
-# Proton ARG
-ARG PROTON_VERSION
-
-# Define environment variables
-# NOTE: In Docker 1.10 and higher, only RUN, COPY, and ADD instructions create layers.
-
-# Base -----------------------------------------------------------------------------------------------------------
+# Define environment variables (common for all variants)
 ENV CONTAINER_USER="container"
 ENV PUID="1000"
 ENV TERM="xterm-256color"
@@ -276,105 +232,24 @@ ENV DISPLAY=":0"
 ENV DEBUGGER="${DEBUGGER}"
 ENV LOGS="/var/log"
 ENV SCRIPTS="/usr/local/bin"
-
-# World ----------------------------------------------------------------------------------------------------------
 ENV WORLD_FILES="/world"
 ENV WORLD_DIRECTORIES="$WORLD_FILES/States"
-
-# App ------------------------------------------------------------------------------------------------------------
 ENV APP_FILES="/app"
 ENV APP_COMMAND_PREFIX="${APP_COMMAND_PREFIX}"
-    # NOTE Examples:
-    # APP_NAME="game_server" \
-    # APP_EXE="$APP_FILES/game_server_executable" \
-    # APP_LOGS="/var/log/$APP_NAME" \
-
-# Steam ----------------------------------------------------------------------------------------------------------
 ENV STEAMCMD_PATH="/opt/steamcmd"
 ENV STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam"
 ENV STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
 ENV HOME=$STEAMCMD_PATH
-    # NOTE: https://github.com/ValveSoftware/steam-for-linux/issues/10979
-    ## ^ Bugfix RE: ERROR! Failed to install app (Missing file permissions)
 ENV STEAM_LIBRARY="$APP_FILES/Steam"
-    # NOTE Examples:
-    # STEAM_ALLOW_LIST_PATH="" \
-    # STEAM_SERVER_APPID="" \
-    # STEAM_CLIENT_APPID="" \
 
-# Wine -----------------------------------------------------------------------------------------------------------
-ENV WINE_PATH="/opt/wine-$WINE_BRANCH/bin"
-ENV WINEPREFIX="/app/Wine"
-ENV WINEARCH="win64"
-ENV WINEDEBUG="fixme-all"
-
-# Box86 ----------------------------------------------------------------------------------------------------------
-# https://github.com/ptitSeb/box86/blob/master/docs/USAGE.md
-ENV BOX86_LOG=1
-ENV BOX86_TRACE_FILE="$LOGS/box86.log"
-
-# Box64 ----------------------------------------------------------------------------------------------------------
-# Box64 + Wine: https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
-## https://forum.armbian.com/topic/19526-how-to-install-box86-box64-wine32-wine64-winetricks-on-arm64/
-# https://community.fydeos.io/t/topic/26128
-# Box64 Config, Reference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md, errors: https://github.com/ptitSeb/box64/issues/1182
-ENV BOX64_LOG=1
-ENV BOX64_DYNAREC_BLEEDING_EDGE=0
-ENV BOX64_DYNAREC_BIGBLOCK=0
-ENV BOX64_DYNAREC_STRONGMEM=2
-ENV BOX64_TRACE_FILE="$LOGS/box64.log"
-
-ENV DIRECTORIES="\
-        $WINE_PATH \
-        $WORLD_FILES \
-        $WORLD_DIRECTORIES \
-        $APP_FILES \
-        $STEAM_LIBRARY \
-        $STEAMCMD_PATH \
-        $STEAMCMD_LOGS \
-        $LOGS \
-        $SCRIPTS"
-
-# Begin installation and setup process
-
-# TODO colored shell prompt
-# TODO log rotation @ $LOGS
-
+# Setup base directories and install common packages
 RUN set -eux; \
-    \
-    # DEBUG incoming output
-    echo "DEBUG: DEBUGGER=${DEBUGGER}"; \
-    \
-    # Update and install common packages
     apt-get update; \
-    apt-get install -y --no-install-recommends \
-        $PACKAGES_BASE $PACKAGES_BASE_BUILD; \
+    apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_BASE_BUILD; \
     \
-    # Create and set up $DIRECTORIES permissions
-    # links to separate save game files 'stateful' data from application.
+    # Create user and directories
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
-    mkdir -p $DIRECTORIES; \
-    \
-    # ARCH Specific Packages -------------------------------------------------------------------------------------
-    echo "DEBUG: TARGETARCH=${TARGETARCH}"; \
-    if [ "$TARGETARCH" = "arm64" ]; then \
-        # Install ARM-specific packages
-        dpkg --add-architecture armhf && \
-        apt-get update && \
-        apt-get install -y \
-            $PACKAGES_ARM_ONLY; \
-    elif [ "$TARGETARCH" = "amd64" ]; then \ 
-        # AMD64 specific packages
-        apt-get install -y \
-            $PACKAGES_AMD64_ONLY; \
-    fi; \
-    \
-    # Conditional Wine setup if COMPAT_LAYER is "wine / proton"
-    echo "DEBUG: COMPAT_LAYER=${COMPAT_LAYER}"; \
-    if [ "$COMPAT_LAYER" = "wine" ]; then \
-        apt-get install -y --no-install-recommends \
-            $PACKAGES_WINE; \
-    fi; \
+    mkdir -p $STEAMCMD_PATH $STEAMCMD_LOGS $WORLD_FILES $WORLD_DIRECTORIES $APP_FILES $STEAM_LIBRARY $LOGS $SCRIPTS; \
     \
     # Create steamcmd validation script for runtime
     echo '#!/bin/bash' > /usr/local/bin/validate-steamcmd.sh; \
@@ -389,61 +264,133 @@ RUN set -eux; \
     echo 'fi' >> /usr/local/bin/validate-steamcmd.sh; \
     chmod +x /usr/local/bin/validate-steamcmd.sh; \
     \
+    # SteamCMD is needed in all configurations
+    mkdir -p /opt/steamcmd; \
+    \
     # Final cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
-# Copy steamcmd from steamcmd-builder (always amd64)
+# Copy SteamCMD - needed in all configurations
 COPY --from=steamcmd-builder /opt/steamcmd /opt/steamcmd
 
-# Copy Box86/Box64 files
-# FIXME box should only copy if arm64
+# ======================================================================================================
+# Architecture-specific stages
+# ======================================================================================================
+# AMD64 stage
+FROM base AS base-amd64
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_AMD64_ONLY
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends $PACKAGES_AMD64_ONLY && \
+    rm -rf /var/lib/apt/lists/*
+
+# ARM64 stage with Box86/Box64
+FROM base AS base-arm64
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_ARM_ONLY
+
+# Box86/Box64 environment variables
+ENV BOX86_LOG=1
+ENV BOX86_TRACE_FILE="/var/log/box86.log"
+ENV BOX64_LOG=1
+ENV BOX64_DYNAREC_BLEEDING_EDGE=0
+ENV BOX64_DYNAREC_BIGBLOCK=0
+ENV BOX64_DYNAREC_STRONGMEM=2
+ENV BOX64_TRACE_FILE="/var/log/box64.log"
+
+RUN apt-get update && \
+    dpkg --add-architecture armhf && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy Box86/Box64 binaries (only on ARM64)
 COPY --from=box-builder /usr/local/bin/box64 /usr/local/bin/box64
 COPY --from=box-builder /usr/local/bin/box86 /usr/local/bin/box86
 COPY --from=box-builder /usr/local/lib/box64 /usr/local/lib/box64
 COPY --from=box-builder /usr/local/lib/box86 /usr/local/lib/box86
 
-# Make Box86/Box64 executable only on ARM64
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        chmod +x /usr/local/bin/box64 /usr/local/bin/box86; \
-    fi
+RUN chmod +x /usr/local/bin/box64 /usr/local/bin/box86
+
+# ======================================================================================================
+# Compatibility layer stages
+# ======================================================================================================
+# Wine compatibility layer for each architecture
+FROM base-${TARGETARCH} AS compat-wine
+ARG DEBIAN_FRONTEND
+ARG PACKAGES_WINE
+ARG WINE_BRANCH
+
+# Wine-specific environment variables
+ENV WINE_PATH="/opt/wine-$WINE_BRANCH/bin"
+ENV WINEPREFIX="/app/Wine"
+ENV WINEARCH="win64"
+ENV WINEDEBUG="fixme-all"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends $PACKAGES_WINE && \
+    mkdir -p $WINE_PATH && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy Wine files
-# FIXME copy wine only on wine tags
 COPY --from=wine-builder /opt/wine-$WINE_BRANCH /opt/wine-$WINE_BRANCH
 
-# Setup Wine symlinks if COMPAT_LAYER=wine
-RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
-        # chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
-        # NOTE testing no softlinks to see if deb does it.
-        # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
-        # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
-        # ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
-        # ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
-        # ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
-        # TODO Winesetup; if ! -d $WINEPREFIX, if ARCH = arm, box64 wine64 wineboot -iuf else wine64 wineboot -iuf \
-        # NOTE $WINEPREFIX can be large. \
+# Setup Wine symlinks
+RUN if [ -f "$WINE_PATH/wine64" ]; then \
+        chmod +x $WINE_PATH/wine64 $WINE_PATH/wineboot $WINE_PATH/winecfg $WINE_PATH/wineserver; \
+        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
+        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
+        ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot; \
+        ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg; \
+        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
     fi
+
+# Proton compatibility layer for each architecture
+FROM base-${TARGETARCH} AS compat-proton
+ARG DEBIAN_FRONTEND
 
 # Copy Proton files
 COPY --from=proton-builder /opt/proton /opt/proton
 
+# No compatibility layer
+FROM base-${TARGETARCH} AS compat-none
+# No extra setup needed
+
+# ======================================================================================================
+# Final image selection
+# ======================================================================================================
+FROM compat-${COMPAT_LAYER:-none} AS final
+
+# Copy scripts and set up user/permissions
+COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
+
 # Set ownership of all directories
-RUN chown -R $CONTAINER_USER:$CONTAINER_USER $DIRECTORIES; \    
-    chmod 755 $DIRECTORIES
+RUN chown -R ${CONTAINER_USER}:${CONTAINER_USER} \
+        ${STEAMCMD_PATH} \
+        ${STEAMCMD_LOGS} \
+        ${WORLD_FILES} \
+        ${WORLD_DIRECTORIES} \
+        ${APP_FILES} \
+        ${STEAM_LIBRARY} \
+        ${LOGS} \
+        ${SCRIPTS} && \
+    chmod 755 \
+        ${STEAMCMD_PATH} \
+        ${STEAMCMD_LOGS} \
+        ${WORLD_FILES} \
+        ${WORLD_DIRECTORIES} \
+        ${APP_FILES} \
+        ${STEAM_LIBRARY} \
+        ${LOGS} \
+        ${SCRIPTS}
 
-# Copy scripts and set up user
-COPY --chown=$CONTAINER_USER:$CONTAINER_USER scripts $SCRIPTS
-
-USER $CONTAINER_USER
-
-# Set the entrypoint to start the server
-# ENTRYPOINT ["/bin/bash", "-c"]
-# CMD ["up.sh"]
-
-# FIXME $APP_FILES,$WORLD_FILES are root, not container
+USER ${CONTAINER_USER}
 
 # Expose application volumes
-VOLUME ["$APP_FILES"]
-VOLUME ["$WORLD_FILES"]
+VOLUME ["${APP_FILES}"]
+VOLUME ["${WORLD_FILES}"]
+
+# CMD ["up.sh"]

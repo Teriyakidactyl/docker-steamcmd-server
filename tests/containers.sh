@@ -22,7 +22,12 @@
 #   - About 1GB free disk space per image tested
 #
 # Installation:
-# wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/test-steamcmd-container.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
+# wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/tests/containers.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
+
+# TODO on fail, prompt to enter container via bash (example):
+# docker rm -f steamcmd-test-container 2>/dev/null || true && \
+# docker run --name steamcmd-test-container -it --entrypoint bash ghcr.io/teriyakidactyl/docker-steamcmd-server:bookworm-wine_dev-amd64
+
 
 # Colors for output
 GREEN='\033[0;32m'

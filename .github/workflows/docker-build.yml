@@ -57,7 +57,7 @@ env:
   # ===== Software Versions =====
   # Wine configuration
   # Source: https://gitlab.winehq.org/wine/wine/-/releases
-  WINE_VERSION: "10.0"
+  WINE_VERSION: "10.5"
   WINE_BRANCH: "staging"
   WINE_ID: "debian"
   WINE_TAG: "-1"

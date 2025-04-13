@@ -159,6 +159,8 @@ ARG WINE_TAG
 ARG COMPAT_LAYER
 
 # Create wine directory regardless of COMPAT_LAYER to avoid COPY errors
+# FIXME /opt/wine-staging/bin is empty, it appears to fail
+
 RUN mkdir -p /opt/wine-$WINE_BRANCH/bin && \
     # Only process wine if COMPAT_LAYER=wine
     if [ "$COMPAT_LAYER" = "wine" ]; then \

@@ -24,10 +24,9 @@
 # Installation:
 # wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/tests/containers.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
 
-# TODO on fail, prompt to enter container via bash (example):
+# TODO on fail, prompt to enter container via bash:
 # docker rm -f steamcmd-test-container 2>/dev/null || true && \
 # docker run --name steamcmd-test-container -it --entrypoint bash ghcr.io/teriyakidactyl/docker-steamcmd-server:bookworm-wine_dev-amd64
-
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -70,7 +69,6 @@ TEST_DIR=$(mktemp -d)
 mkdir -p $TEST_DIR/app
 mkdir -p $TEST_DIR/world
 mkdir -p $TEST_DIR/world/Mods
-chmod -R 777 $TEST_DIR
 
 # Global array to track failed tags
 FAILED_TAGS=()

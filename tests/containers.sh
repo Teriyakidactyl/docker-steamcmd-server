@@ -70,6 +70,7 @@ TEST_DIR=$(mktemp -d)
 mkdir -p $TEST_DIR/app
 mkdir -p $TEST_DIR/world
 mkdir -p $TEST_DIR/world/Mods
+chmod -R 777 $TEST_DIR
 
 # Global array to track failed tags
 FAILED_TAGS=()

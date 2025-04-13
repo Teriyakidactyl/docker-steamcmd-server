@@ -28,7 +28,6 @@
 # docker rm -f steamcmd-test-container 2>/dev/null || true && \
 # docker run --name steamcmd-test-container -it --entrypoint bash ghcr.io/teriyakidactyl/docker-steamcmd-server:bookworm-wine_dev-amd64
 
-
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -354,6 +353,28 @@ test_container() {
         echo -e "${NC}"
         FAILED_TAGS+=("$tag - Failed tests: ${failed_tests[*]}")
     fi
+}
+
+inspect_container() {
+    local tag=$1
+    local image="${BASE_IMAGE}:${tag}"
+    
+    echo -e "\n${YELLOW}Launching interactive bash session in container:${NC} ${CYAN}$image${NC}"
+    echo -e "${YELLOW}Type 'exit' when done exploring the container.${NC}"
+    
+    # Clean up any existing test container
+    docker rm -f $CONTAINER_NAME 2>/dev/null || true
+    
+    # Run the container with interactive terminal
+    docker run --name $CONTAINER_NAME \
+        -v $TEST_DIR/app:/app \
+        -v $TEST_DIR/world:/world \
+        -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
+        -e PATH=$PATH:/opt/wine-staging/bin \
+        -it --entrypoint bash $image
+    
+    # Clean up the container after exiting
+    docker rm -f $CONTAINER_NAME 2>/dev/null || true
 }
 
 #

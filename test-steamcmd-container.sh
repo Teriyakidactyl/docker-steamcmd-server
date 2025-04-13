@@ -27,7 +27,9 @@
 #   - About 1GB free disk space per image tested
 #
 # Installation:
-# wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/test-steamcmd-container.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
+#   wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/dev/test_steamcmd_container.sh
+#   chmod +x test_steamcmd_container.sh
+#   ./test_steamcmd_container.sh
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -106,14 +108,7 @@ run_test() {
     local test_name=$1
     local command=$2
     local image=$3
-    local platform_args=""
-    
-    # Check if image contains platform args (--platform linux/arm64)
-    if [[ "$image" == "--platform"* ]]; then
-        # Extract platform arguments (assuming format: "--platform linux/amd64 image_name")
-        platform_args=$(echo "$image" | awk '{print $1" "$2}')
-        image=$(echo "$image" | cut -d' ' -f3-)
-    fi
+    local platform_args=$4  # Optional parameter for platform args
     
     echo -e "\n${BLUE}Running test: ${test_name}${NC}"
     echo -e "${CYAN}Command: docker run --rm --name $CONTAINER_NAME $platform_args -v $TEST_DIR/app:/app -v $TEST_DIR/world:/world ... $image${NC}"
@@ -157,7 +152,6 @@ run_test() {
     
     return $EXIT_CODE
 }
-
 
 #
 # Test Functions - Each one tests a specific aspect of the container
@@ -369,6 +363,7 @@ test_container() {
     local image="${BASE_IMAGE}:${tag}"
     local failed_tests=()
     local platform="linux/amd64"
+    local platform_args=""
     
     # Ensure any previous container is removed
     docker rm -f $CONTAINER_NAME &> /dev/null
@@ -376,6 +371,7 @@ test_container() {
     # Determine if this is an ARM64 image
     if [[ "$tag" == *"-arm64"* ]]; then
         platform="linux/arm64"
+        platform_args="--platform ${platform}"
         
         # Check if QEMU is set up
         if [ "$QEMU_SETUP" = false ]; then
@@ -394,7 +390,7 @@ test_container() {
     # Simple verify test first to ensure container works
     echo -e "${YELLOW}Running basic verification test...${NC}"
     if ! docker run --rm --name $CONTAINER_NAME \
-        --platform ${platform} \
+        $platform_args \
         --memory=1g --memory-swap=2g \
         $image \
         bash -c "echo 'Basic container verification succeeded'"; then
@@ -408,7 +404,7 @@ test_container() {
     
     # Pull the image (with a timeout to prevent hanging)
     echo "Pulling the Docker image: ${image}..."
-    timeout 300 docker pull --platform ${platform} $image
+    timeout 300 docker pull $platform_args $image
     PULL_STATUS=$?
     
     if [ $PULL_STATUS -eq 124 ]; then
@@ -426,9 +422,8 @@ test_container() {
     # Wait a moment to ensure resources are released
     sleep 2
     
-    # Modify run_test function calls to include platform
-    local original_run_test=run_test
-    function run_test() {
+    # Create a wrapper function for run_test to include platform_args
+    run_platform_test() {
         local test_name=$1
         local command=$2
         local img=$3
@@ -439,11 +434,23 @@ test_container() {
         # Ensure any previous container is removed
         docker rm -f $CONTAINER_NAME &> /dev/null
         
-        # Call the original run_test with platform flags but properly formatted
-        $original_run_test "$test_name" "$command" "--platform ${platform} ${img}"
+        # Call run_test with the platform args
+        run_test "$test_name" "$command" "$img" "$platform_args"
+        
+        local result=$?
         
         # Wait a moment to ensure resources are released
         sleep 1
+        
+        return $result
+    }
+    
+    # Save original function for direct tests
+    local original_run_test=run_test
+    
+    # Override run_test to use our platform-specific version
+    run_test() {
+        run_platform_test "$@"
     }
     
     # Run the base tests that all containers should pass

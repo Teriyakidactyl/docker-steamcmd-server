@@ -558,7 +558,8 @@ jobs:
           image-names: docker-steamcmd-server*
           cut-off: 2 weeks ago UTC
           timestamp-to-use: updated_at
-          account: ${{ github.repository_owner }}
+          account-type: personal
+          org-name: ${{ github.repository_owner }}
           untagged-only: true
           token: ${{ secrets.GITHUB_TOKEN }}
       # Original cleanup job for tagged images
@@ -568,7 +569,8 @@ jobs:
           image-names: docker-steamcmd-server*
           cut-off: 6 months ago UTC
           timestamp-to-use: updated_at
-          account: ${{ github.repository_owner }}
+          account-type: personal
+          org-name: ${{ github.repository_owner }}
           keep-at-least: 1
           skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
           untagged-only: false

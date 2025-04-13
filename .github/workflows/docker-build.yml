@@ -553,28 +553,26 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      # Cleanup ALL untagged container images
-      - name: Cleanup all untagged container images
-        uses: snok/container-retention-policy@v3.0.0
+      # Delete ALL untagged container images
+      - name: Remove untagged container images
+        uses: actions/delete-package-versions@v5
         with:
-          account: ${{ github.repository_owner }}
+          package-name: docker-steamcmd-server
+          package-type: container
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          image-names: docker-steamcmd-server
-          tag-selection: untagged
-          cut-off: 0d  # Use 0d to specify "0 days ago" (now)
-          timestamp-to-use: updated_at
-          dry-run: false
       
       # Original cleanup job for tagged images
       - name: Cleanup old container images
-        uses: snok/container-retention-policy@v3.0.0
+        uses: snok/container-retention-policy@v2
         with:
-          account: ${{ github.repository_owner }}
-          token: ${{ secrets.GITHUB_TOKEN }}
           image-names: docker-steamcmd-server
-          image-tags: "* !latest !bookworm !trixie !bookworm-wine !trixie-wine"  # Replaces skip-tags
-          tag-selection: tagged  # Only target tagged images
           cut-off: 6 months ago UTC
           timestamp-to-use: updated_at
-          keep-n-most-recent: 1  # Replaces keep-at-least
-          dry-run: false
+          account-type: personal
+          keep-at-least: 1
+          skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
+          untagged-only: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          token-type: github-token

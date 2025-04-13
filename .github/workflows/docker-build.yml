@@ -540,40 +540,50 @@ jobs:
           # - Teams notification: Using actions/teams-notify@vX.X.X
 
   cleanup:
-    needs: [create-manifest]
-    runs-on: ubuntu-latest
-    # Only run cleanup on any branch push
-    if: github.event_name == 'push'
-    permissions:
-      packages: write
-    steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      # First cleanup job specifically for untagged images with a more aggressive retention policy
-      - name: Cleanup untagged container images
-        uses: snok/container-retention-policy@v2
-        with:
-          image-names: docker-steamcmd-server
-          cut-off: 2 weeks ago UTC
-          timestamp-to-use: updated_at
-          account-type: personal
-          untagged-only: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          token-type: github-token
-      # Original cleanup job for tagged images
-      - name: Cleanup old container images
-        uses: snok/container-retention-policy@v2
-        with:
-          image-names: docker-steamcmd-server
-          cut-off: 6 months ago UTC
-          timestamp-to-use: updated_at
-          account-type: personal
-          keep-at-least: 1
-          skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
-          untagged-only: false
-          token: ${{ secrets.GITHUB_TOKEN }}
-          token-type: github-token
+      needs: [create-manifest]
+      runs-on: ubuntu-latest
+      # Only run cleanup on any branch push
+      if: github.event_name == 'push'
+      permissions:
+        packages: write
+      steps:
+        - name: Login to GitHub Container Registry
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            # Using GITHUB_TOKEN is correct here for the cleanup action
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+        # First cleanup job specifically for untagged images
+        - name: Cleanup untagged container images
+          uses: snok/container-retention-policy@v2
+          with:
+            # CORRECTED: Use the owner/repo format or strip registry from env var
+            # Option 1 (Recommended): Explicitly use owner and base image name
+            image-names: ${{ github.repository_owner }}/docker-steamcmd-server
+            # Option 2 (Alternative): Use the env var, but be careful if action dislikes registry prefix
+            # image-names: ${{ env.REGISTRY_IMAGE }} # May need testing if ghcr.io/ causes issues
+
+            cut-off: 2 weeks ago UTC
+            timestamp-to-use: updated_at
+            account-type: personal # Correct for your account
+            untagged-only: true
+            token: ${{ secrets.GITHUB_TOKEN }} # Correct token for this action
+            token-type: github-token
+
+        # Original cleanup job for tagged images
+        - name: Cleanup old container images
+          uses: snok/container-retention-policy@v2
+          with:
+            # CORRECTED: Use the owner/repo format here too for consistency
+            image-names: ${{ github.repository_owner }}/docker-steamcmd-server
+            cut-off: 6 months ago UTC
+            timestamp-to-use: updated_at
+            account-type: personal # Correct
+            keep-at-least: 1
+            # Make sure these base tags match what you actually want to keep (without arch suffix)
+            skip-tags: latest,bookworm,trixie,bookworm-wine,trixie-wine
+            untagged-only: false
+            token: ${{ secrets.GITHUB_TOKEN }} # Correct
+            token-type: github-token

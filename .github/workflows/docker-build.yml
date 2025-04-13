@@ -557,7 +557,7 @@ jobs:
       - name: Cleanup untagged container images
         uses: snok/container-retention-policy@v2
         with:
-          image-names: docker-steamcmd-server*
+          image-names: docker-steamcmd-server
           cut-off: 2 weeks ago UTC
           timestamp-to-use: updated_at
           account-type: personal
@@ -569,7 +569,7 @@ jobs:
       - name: Cleanup old container images
         uses: snok/container-retention-policy@v2
         with:
-          image-names: docker-steamcmd-server*
+          image-names: docker-steamcmd-server
           cut-off: 6 months ago UTC
           timestamp-to-use: updated_at
           account-type: personal

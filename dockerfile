@@ -265,26 +265,26 @@ RUN apt-get update && \
     \
     # Download and install Box86 if version is specified
     if [ -n "$BOX86_VERSION" ]; then \
-        mkdir -p /tmp/box86 && \
         BOX86_URL="https://github.com/Teriyakidactyl/box-builds/releases/download/box86-v${BOX86_VERSION}/box86-${BOX86_VERSION}-aarch64.tar.gz" && \
         echo "Downloading Box86 from: $BOX86_URL" && \
         curl -L "$BOX86_URL" -o /tmp/box86.tar.gz && \
-        tar -xzf /tmp/box86.tar.gz -C /tmp/box86 && \
-        cp -a /tmp/box86/usr/local/bin/box86 /usr/local/bin/ && \
-        cp -a /tmp/box86/usr/local/lib/box86/* /usr/local/lib/box86/ && \
-        rm -rf /tmp/box86 /tmp/box86.tar.gz; \
+        tar -xzf /tmp/box86.tar.gz -C /usr/local/bin/ && \
+        # Create empty lib directory as it might be expected by the system
+        mkdir -p /usr/local/lib/box86 && \
+        # Cleanup
+        rm -f /tmp/box86.tar.gz; \
     fi && \
     \
     # Download and install Box64 if version is specified
     if [ -n "$BOX64_VERSION" ]; then \
-        mkdir -p /tmp/box64 && \
         BOX64_URL="https://github.com/Teriyakidactyl/box-builds/releases/download/box64-v${BOX64_VERSION}/box64-${BOX64_VERSION}-aarch64.tar.gz" && \
         echo "Downloading Box64 from: $BOX64_URL" && \
         curl -L "$BOX64_URL" -o /tmp/box64.tar.gz && \
-        tar -xzf /tmp/box64.tar.gz -C /tmp/box64 && \
-        cp -a /tmp/box64/usr/local/bin/box64 /usr/local/bin/ && \
-        cp -a /tmp/box64/usr/local/lib/box64/* /usr/local/lib/box64/ && \
-        rm -rf /tmp/box64 /tmp/box64.tar.gz; \
+        tar -xzf /tmp/box64.tar.gz -C /usr/local/bin/ && \
+        # Create empty lib directory as it might be expected by the system
+        mkdir -p /usr/local/lib/box64 && \
+        # Cleanup
+        rm -f /tmp/box64.tar.gz; \
     fi && \
     \
     # Ensure executables have proper permissions

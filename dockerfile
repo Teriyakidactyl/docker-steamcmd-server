@@ -64,12 +64,11 @@ ARG BOX86_VERSION
 ARG BOX64_VERSION
 
 # Wine ARGs
-# FIXME most of these are defined in the docker-build.yml, except WINE_DIST
-ARG WINE_BRANCH="staging"
-ARG WINE_ID="debian"
-ARG WINE_VERSION="9.21"
+ARG WINE_BRANCH
+ARG WINE_ID
+ARG WINE_VERSION
 ARG WINE_DIST=""
-ARG WINE_TAG="-1"
+ARG WINE_TAG
 
 # Proton ARG
 ARG PROTON_VERSION=""
@@ -256,10 +255,9 @@ ENV BOX64_DYNAREC_BIGBLOCK=0
 ENV BOX64_DYNAREC_STRONGMEM=2
 ENV BOX64_TRACE_FILE="/var/log/box64.log"
 
-RUN apt-get update && \
-    dpkg --add-architecture armhf && \
+RUN dpkg --add-architecture armhf && \
     apt-get update && \
-    apt-get install -y --no-install-recommends --allow-downgrades $PACKAGES_ARM_ONLY && \
+    apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD && \
     \
     # Download and install precompiled Box86/Box64 based on version
     mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
@@ -270,9 +268,6 @@ RUN apt-get update && \
         echo "Downloading Box86 from: $BOX86_URL" && \
         curl -L "$BOX86_URL" -o /tmp/box86.tar.gz && \
         tar -xzf /tmp/box86.tar.gz -C /usr/local/bin/ && \
-        # Create empty lib directory as it might be expected by the system
-        mkdir -p /usr/local/lib/box86 && \
-        # Cleanup
         rm -f /tmp/box86.tar.gz; \
     fi && \
     \
@@ -282,9 +277,6 @@ RUN apt-get update && \
         echo "Downloading Box64 from: $BOX64_URL" && \
         curl -L "$BOX64_URL" -o /tmp/box64.tar.gz && \
         tar -xzf /tmp/box64.tar.gz -C /usr/local/bin/ && \
-        # Create empty lib directory as it might be expected by the system
-        mkdir -p /usr/local/lib/box64 && \
-        # Cleanup
         rm -f /tmp/box64.tar.gz; \
     fi && \
     \

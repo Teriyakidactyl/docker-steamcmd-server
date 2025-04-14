@@ -25,6 +25,7 @@ ARG PACKAGES_AMD64_ONLY="\
 ARG PACKAGES_ARM_ONLY="\
     # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
     libc6:armhf \
+    # Required for extracting archives
     tar"
     
 ARG PACKAGES_ARM_BUILD="\
@@ -33,9 +34,7 @@ ARG PACKAGES_ARM_BUILD="\
     # Required for secure connections
     ca-certificates \
     # Required for downloading and extracting files
-    curl \
-    # Required for extracting archives
-    tar"
+    curl"
     
 ARG PACKAGES_BASE_BUILD=""
     

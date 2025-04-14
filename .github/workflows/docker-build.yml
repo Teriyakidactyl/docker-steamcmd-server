@@ -67,10 +67,15 @@ env:
   PROTON_VERSION: "9.0-4"
   
   # Box86/Box64 versions (for ARM compatibility)
-  # Source: https://github.com/ptitSeb/box86/releases
-  BOX86_VERSION: "0.3.8"
-  # Source: https://github.com/ptitSeb/box64/releases
-  BOX64_VERSION: "0.3.4"
+  BOX86_VERSION: "0.3.9"
+      # https://github.com/ptitSeb/box86/releases
+  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/refs/heads/master/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+      # https://github.com/ryanfortner/box86-debs/tree/master/debian
+
+  BOX64_VERSION: "0.3.5"
+      # Source: https://github.com/ptitSeb/box64/releases
+  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/refs/heads/master/debian/box64_0.3.5+20250414.2191162-1_arm64.deb"
+      # https://github.com/ryanfortner/box64-debs/tree/master/debian
 
   # Runner architecture (will be set in jobs)
   RUNNER_ARCH: amd64
@@ -322,6 +327,8 @@ jobs:
             APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
             BOX86_VERSION=${{ env.BOX86_VERSION }}
             BOX64_VERSION=${{ env.BOX64_VERSION }}
+            BOX86_DEB_URL=${{ env.BOX86_DEB_URL }}
+            BOX64_DEB_URL=${{ env.BOX64_DEB_URL }}
 
           # Improved caching using GitHub's native cache
           cache-from: |

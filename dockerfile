@@ -237,7 +237,9 @@ ARG DEBIAN_FRONTEND
 ARG PACKAGES_ARM_ONLY
 ARG PACKAGES_ARM_BUILD
 ARG BOX86_VERSION
+ARG BOX86_DEB_URL
 ARG BOX64_VERSION
+ARG BOX64_DEB_URL
 
 # Box86/Box64 environment variables
 ENV DEBUGGER="box86"
@@ -256,22 +258,19 @@ RUN dpkg --add-architecture armhf && \
     # Download and install precompiled Box86/Box64 based on version
     mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
     \
-    # Download and install Box86 if version is specified
-    if [ -n "$BOX86_VERSION" ]; then \
-        BOX86_URL="https://github.com/Teriyakidactyl/box-builds/releases/download/box86-v${BOX86_VERSION}/box86-${BOX86_VERSION}-aarch64.tar.gz" && \
-        echo "Downloading Box86 from: $BOX86_URL" && \
-        curl -L "$BOX86_URL" -o /tmp/box86.tar.gz && \
-        tar -xzf /tmp/box86.tar.gz -C /usr/local/bin/ && \
-        rm -f /tmp/box86.tar.gz; \
+    # Download and install specific Box86/Box64 .deb packages
+    if [ -n "$BOX86_DEB_URL" ]; then \
+        echo "Downloading Box86 from: $BOX86_DEB_URL" && \
+        curl -L "$BOX86_DEB_URL" -o /tmp/box86.deb && \
+        dpkg -i /tmp/box86.deb || apt-get -f install -y && \
+        rm -f /tmp/box86.deb; \
     fi && \
     \
-    # Download and install Box64 if version is specified
-    if [ -n "$BOX64_VERSION" ]; then \
-        BOX64_URL="https://github.com/Teriyakidactyl/box-builds/releases/download/box64-v${BOX64_VERSION}/box64-${BOX64_VERSION}-aarch64.tar.gz" && \
-        echo "Downloading Box64 from: $BOX64_URL" && \
-        curl -L "$BOX64_URL" -o /tmp/box64.tar.gz && \
-        tar -xzf /tmp/box64.tar.gz -C /usr/local/bin/ && \
-        rm -f /tmp/box64.tar.gz; \
+    if [ -n "$BOX64_DEB_URL" ]; then \
+        echo "Downloading Box64 from: $BOX64_DEB_URL" && \
+        curl -L "$BOX64_DEB_URL" -o /tmp/box64.deb && \
+        dpkg -i /tmp/box64.deb || apt-get -f install -y && \
+        rm -f /tmp/box64.deb; \
     fi && \
     \
     # Ensure executables have proper permissions

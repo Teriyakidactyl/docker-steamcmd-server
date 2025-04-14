@@ -24,7 +24,8 @@ ARG PACKAGES_AMD64_ONLY="\
 
 ARG PACKAGES_ARM_ONLY="\
     # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
-    libc6:armhf"
+    libc6:armhf \
+    tar"
     
 ARG PACKAGES_ARM_BUILD="\
     # Required for adding repository keys
@@ -258,7 +259,7 @@ ENV BOX64_TRACE_FILE="/var/log/box64.log"
 RUN apt-get update && \
     dpkg --add-architecture armhf && \
     apt-get update && \
-    apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD && \
+    apt-get install -y --no-install-recommends --allow-downgrades $PACKAGES_ARM_ONLY && \
     \
     # Download and install precompiled Box86/Box64 based on version
     mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \

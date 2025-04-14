@@ -213,7 +213,7 @@ RUN set -eux; \
     \
     # Final cleanup
     apt-get clean; \
-    rm -rf /var/lib/apt/lists/*; \
+    rm -rf /var/lib/apt/lists/*;
     # apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
 # Copy SteamCMD - needed in all configurations
@@ -279,7 +279,7 @@ RUN dpkg --add-architecture armhf && \
     \
     # Clean up
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/lib/apt/lists/*
     # apt-get autoremove --purge -y $PACKAGES_ARM_BUILD
 
 # ======================================================================================================

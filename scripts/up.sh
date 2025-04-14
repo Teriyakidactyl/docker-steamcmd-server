@@ -2,6 +2,9 @@
 source $SCRIPTS/logging_functions
 source $SCRIPTS/updates_functions
 
+# TODO create bash wrappers during docker build that handle box86 box64 prefixes? Then this script can be simplified.
+# TODO check for updates at 3am (ENV default configurable)
+## Alternately create cron like folders that are run from the while loop
 
 # Set Variables ---------------------------------------------------------------------------
 export ARCH=$(dpkg --print-architecture)

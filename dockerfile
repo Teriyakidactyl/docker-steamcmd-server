@@ -29,20 +29,12 @@ ARG PACKAGES_ARM_ONLY="\
 ARG PACKAGES_ARM_BUILD="\
     # Required for adding repository keys
     gnupg \
-    # Core build tools for compilation
-    build-essential \
-    # Required for CMake build system
-    cmake \
-    # Required for retrieving source code
-    git \
     # Required for secure connections
     ca-certificates \
-    # Required for Box64/Box86 build process (CMake Python detection)
-    python3 \
-    # ARM cross-compiler for building 32-bit ARM binaries
-    gcc-arm-linux-gnueabihf \
-    # Development files for ARM cross-compilation (provides missing .o files)
-    libc6-dev-armhf-cross"
+    # Required for downloading and extracting files
+    curl \
+    # Required for extracting archives
+    tar"
     
 ARG PACKAGES_BASE_BUILD=""
     
@@ -71,6 +63,7 @@ ARG BOX86_VERSION
 ARG BOX64_VERSION
 
 # Wine ARGs
+# FIXME most of these are defined in the docker-build.yml, except WINE_DIST
 ARG WINE_BRANCH="staging"
 ARG WINE_ID="debian"
 ARG WINE_VERSION="9.21"
@@ -94,48 +87,6 @@ RUN apt-get update && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /opt/steamcmd && \
     /opt/steamcmd/steamcmd.sh +login anonymous +quit && \
     rm -rf /var/lib/apt/lists/*
-
-# ======================================================================================================
-# Box86/Box64 Builder - Only needed for ARM64
-# ======================================================================================================
-FROM --platform=linux/arm64 debian:${DEBIAN_TAG} AS box-builder
-ARG DEBIAN_FRONTEND
-ARG PACKAGES_BASE
-ARG PACKAGES_ARM_BUILD
-ARG BOX86_VERSION
-ARG BOX64_VERSION
-
-RUN mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
-    if [ "$(uname -m)" = "aarch64" ]; then \
-        \
-        # Install dependencies
-        apt-get update && \
-        apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_ARM_BUILD && \
-        \
-        # Build Box64 for ARM64
-        if [ -n "$BOX64_VERSION" ]; then \
-            git clone https://github.com/ptitSeb/box64 /tmp/box64 && \
-            cd /tmp/box64 && \
-            if [ "$BOX64_VERSION" != "latest" ]; then \
-                git checkout tags/v${BOX64_VERSION} -b v${BOX64_VERSION}; \
-            fi && \
-            mkdir build && cd build && \
-            cmake .. -DARM64=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-            make -j$(nproc) && make install; \
-        fi && \
-        \
-        # Build Box86 for ARM64 (requires multiarch)
-        if [ -n "$BOX86_VERSION" ]; then \
-            git clone https://github.com/ptitSeb/box86 /tmp/box86 && \
-            cd /tmp/box86 && \
-            if [ "$BOX86_VERSION" != "latest" ]; then \
-                git checkout tags/v${BOX86_VERSION} -b v${BOX86_VERSION}; \
-            fi && \
-            mkdir build && cd build && \
-            cmake .. -DADLINK=1 -DNOGIT=1 -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
-            make -j$(nproc) && make install; \
-        fi; \
-    fi
 
 # ======================================================================================================
 # Wine Builder - Only if COMPAT_LAYER is wine
@@ -291,6 +242,9 @@ RUN apt-get update && \
 FROM base AS base-arm64
 ARG DEBIAN_FRONTEND
 ARG PACKAGES_ARM_ONLY
+ARG PACKAGES_ARM_BUILD
+ARG BOX86_VERSION
+ARG BOX64_VERSION
 
 # Box86/Box64 environment variables
 ENV BOX86_LOG=1
@@ -304,16 +258,42 @@ ENV BOX64_TRACE_FILE="/var/log/box64.log"
 RUN apt-get update && \
     dpkg --add-architecture armhf && \
     apt-get update && \
-    apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY && \
-    rm -rf /var/lib/apt/lists/*
-
-# Copy Box86/Box64 binaries (only on ARM64)
-COPY --from=box-builder /usr/local/bin/box64 /usr/local/bin/box64
-COPY --from=box-builder /usr/local/bin/box86 /usr/local/bin/box86
-COPY --from=box-builder /usr/local/lib/box64 /usr/local/lib/box64
-COPY --from=box-builder /usr/local/lib/box86 /usr/local/lib/box86
-
-RUN chmod +x /usr/local/bin/box64 /usr/local/bin/box86
+    apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY $PACKAGES_ARM_BUILD && \
+    \
+    # Download and install precompiled Box86/Box64 based on version
+    mkdir -p /usr/local/bin /usr/local/lib/box64 /usr/local/lib/box86 && \
+    \
+    # Download and install Box86 if version is specified
+    if [ -n "$BOX86_VERSION" ]; then \
+        mkdir -p /tmp/box86 && \
+        BOX86_URL="https://github.com/Teriyakidactyl/box-builds/releases/download/box86-v${BOX86_VERSION}/box86-${BOX86_VERSION}-aarch64.tar.gz" && \
+        echo "Downloading Box86 from: $BOX86_URL" && \
+        curl -L "$BOX86_URL" -o /tmp/box86.tar.gz && \
+        tar -xzf /tmp/box86.tar.gz -C /tmp/box86 && \
+        cp -a /tmp/box86/usr/local/bin/box86 /usr/local/bin/ && \
+        cp -a /tmp/box86/usr/local/lib/box86/* /usr/local/lib/box86/ && \
+        rm -rf /tmp/box86 /tmp/box86.tar.gz; \
+    fi && \
+    \
+    # Download and install Box64 if version is specified
+    if [ -n "$BOX64_VERSION" ]; then \
+        mkdir -p /tmp/box64 && \
+        BOX64_URL="https://github.com/Teriyakidactyl/box-builds/releases/download/box64-v${BOX64_VERSION}/box64-${BOX64_VERSION}-aarch64.tar.gz" && \
+        echo "Downloading Box64 from: $BOX64_URL" && \
+        curl -L "$BOX64_URL" -o /tmp/box64.tar.gz && \
+        tar -xzf /tmp/box64.tar.gz -C /tmp/box64 && \
+        cp -a /tmp/box64/usr/local/bin/box64 /usr/local/bin/ && \
+        cp -a /tmp/box64/usr/local/lib/box64/* /usr/local/lib/box64/ && \
+        rm -rf /tmp/box64 /tmp/box64.tar.gz; \
+    fi && \
+    \
+    # Ensure executables have proper permissions
+    chmod +x /usr/local/bin/box64 /usr/local/bin/box86 && \
+    \
+    # Clean up
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get autoremove --purge -y $PACKAGES_ARM_BUILD
 
 # ======================================================================================================
 # Compatibility layer stages

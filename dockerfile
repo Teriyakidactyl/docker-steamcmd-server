@@ -24,18 +24,10 @@ ARG PACKAGES_AMD64_ONLY="\
 
 ARG PACKAGES_ARM_ONLY="\
     # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
-    libc6:armhf \
-    # Required for extracting archives
-    tar"
+    libc6:armhf"
     
-ARG PACKAGES_ARM_BUILD="\
-    # Required for adding repository keys
-    gnupg \
-    # Required for secure connections
-    ca-certificates \
-    # Required for downloading and extracting files
-    curl"
-    
+ARG PACKAGES_ARM_BUILD=""
+
 ARG PACKAGES_BASE_BUILD=""
     
 ARG PACKAGES_WINE="\
@@ -50,7 +42,9 @@ ARG PACKAGES_BASE="\
     # curl, steamcmd, https://packages.debian.org/bookworm/ca-certificates
     ca-certificates \
     # timezones, https://packages.debian.org/bookworm/tzdata
-    tzdata"
+    tzdata \
+    # Required for extracting archives
+    tar"
     
 ARG PACKAGES_DEV="\
     # disk space analyzer: https://packages.debian.org/trixie/ncdu
@@ -220,7 +214,7 @@ RUN set -eux; \
     # Final cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*; \
-    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
+    # apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
 # Copy SteamCMD - needed in all configurations
 COPY --from=steamcmd-builder /opt/steamcmd /opt/steamcmd
@@ -246,6 +240,7 @@ ARG BOX86_VERSION
 ARG BOX64_VERSION
 
 # Box86/Box64 environment variables
+ENV DEBUGGER="box86"
 ENV BOX86_LOG=1
 ENV BOX86_TRACE_FILE="/var/log/box86.log"
 ENV BOX64_LOG=1
@@ -285,7 +280,7 @@ RUN dpkg --add-architecture armhf && \
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    apt-get autoremove --purge -y $PACKAGES_ARM_BUILD
+    # apt-get autoremove --purge -y $PACKAGES_ARM_BUILD
 
 # ======================================================================================================
 # Compatibility layer stages

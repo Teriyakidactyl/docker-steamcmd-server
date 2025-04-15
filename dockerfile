@@ -53,9 +53,11 @@ ENV CONTAINER_USER="container" \
     PACKAGES_AMD64_ONLY="\
         # required for steamcmd
         lib32gcc-s1" \
+        \
     PACKAGES_ARM_ONLY="\
         # required for Box86 > steamcmd
         libc6:armhf" \
+        \
     PACKAGES_ARM_BUILD="" \
     PACKAGES_BASE_BUILD="" \
     PACKAGES_WINE="\
@@ -63,6 +65,7 @@ ENV CONTAINER_USER="container" \
         # xauth needed with --no-install-recommends with wine
         xvfb \
         xauth" \
+        \
     PACKAGES_BASE="\
         # curl needed for api calls
         curl \
@@ -72,6 +75,7 @@ ENV CONTAINER_USER="container" \
         tzdata \
         # Required for extracting archives
         tar" \
+        \
     PACKAGES_DEV="\
         # disk space analyzer
         ncdu \
@@ -200,7 +204,7 @@ RUN set -eux && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
-            ## $WINE_PATH/wine \
+        \
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
         # ======================================================================================================
         # Proton compatibility layer
@@ -223,6 +227,7 @@ RUN set -eux && \
     # ======================================================================================================
     mkdir -p ${STEAMCMD_PATH} && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
+    echo "DEBUG: DEBUGGER=$DEBUGGER, ARCH:$(uname -m)" && \
     ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
     \
     # ======================================================================================================

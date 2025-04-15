@@ -30,6 +30,7 @@
       - [Environment Variables](#environment-variables-5)
   - [File Structure](#file-structure)
     - [Directory Purposes](#directory-purposes)
+    - [Build Diagram](#build-diagram)
 
 ## Introduction
 This Docker image serves as a base for creating Steam-based dedicated game servers. It provides a common foundation for managing SteamCMD, emulation layers (Wine, Proton, Box86, Box64), and server operations, simplifying the process of setting up and maintaining game servers across different architectures.
@@ -189,3 +190,70 @@ This section shows probable variables that will be defined by derivitive contain
 
 
 This structure separates application files, persistent data, tools, scripts, logs, and user-specific content, promoting organization and making it easier to manage volumes and updates. The use of environment variables for these paths allows for easier configuration and maintenance across different deployments.
+
+
+### Build Diagram
+
+```mermaid
+flowchart TD
+    %% Define starting point
+    start[["Dockerfile Build Process"]]
+    
+    %% First-level selection
+    start --> platforms["Platform Selection\nTARGETPLATFORM"]
+    start --> compat["Compatibility Layer Selection\nCOMPAT_LAYER"]
+    
+    %% Platform branches
+    platforms --> amd64["AMD64"]
+    platforms --> arm64["ARM64"]
+    
+    %% Compatibility layer branches
+    compat --> wine["Wine"]
+    compat --> proton["Proton"]
+    compat --> none["None"]
+    
+    %% Platform-specific builders
+    amd64 --> amd64_base["base-amd64\n(lib32gcc-s1)"]
+    arm64 --> arm64_base["base-arm64\n(Box86/Box64)"]
+    
+    %% Compatibility layer builders
+    wine --> wine_builder["wine-builder"]
+    proton --> proton_builder["proton-builder"]
+    
+    %% Connect platform bases to compatibility layers
+    amd64_base --> compat_wine["compat-wine"]
+    amd64_base --> compat_proton["compat-proton"]
+    amd64_base --> compat_none["compat-none"]
+    
+    arm64_base --> compat_wine
+    arm64_base --> compat_proton
+    arm64_base --> compat_none
+    
+    %% Connect compatibility builders to their respective compat stages
+    wine_builder --> compat_wine
+    proton_builder --> compat_proton
+    
+    %% Final image selection based on COMPAT_LAYER
+    compat_wine --> |"if COMPAT_LAYER=wine"| final["Final Image\n(FROM compat-${COMPAT_LAYER})"]
+    compat_proton --> |"if COMPAT_LAYER=proton"| final
+    compat_none --> |"if COMPAT_LAYER=none or unset"| final
+    
+    %% Common component for all configurations
+    steamcmd["steamcmd-builder\n(Always on amd64)"] --> final
+    
+    classDef startClass fill:#f5f5f5,stroke:#333,stroke-width:2px
+    classDef platformClass fill:#d5e8d4,stroke:#333,stroke-width:1px
+    classDef compatClass fill:#ffe6cc,stroke:#333,stroke-width:1px
+    classDef baseClass fill:#dae8fc,stroke:#333,stroke-width:1px
+    classDef builderClass fill:#e1d5e7,stroke:#333,stroke-width:1px
+    classDef compatStageClass fill:#d4e1f5,stroke:#333,stroke-width:1px
+    classDef finalClass fill:#f8cecc,stroke:#333,stroke-width:2px
+    
+    class start startClass
+    class platforms,amd64,arm64 platformClass
+    class compat,wine,proton,none compatClass
+    class amd64_base,arm64_base baseClass
+    class wine_builder,proton_builder,steamcmd builderClass
+    class compat_wine,compat_proton,compat_none compatStageClass
+    class final finalClass
+    ```

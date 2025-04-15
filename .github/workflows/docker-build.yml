@@ -67,10 +67,11 @@ env:
   PROTON_VERSION: "9.0-4"
   
   # Box86/Box64 versions (for ARM compatibility)
-  BOX86_VERSION: "0.3.9"
+  BOX86_VERSION: "0.3.8"
       # https://github.com/ptitSeb/box86/releases
-  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/refs/heads/master/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/9432ba5260adcf5296f8a79d19eb7f0b8f5cda32/debian/box86-generic-arm_0.3.8+20250105.ee0c949-1_armhf.deb"
       # https://github.com/ryanfortner/box86-debs/tree/master/debian
+      # History: https://github.com/ryanfortner/box86-debs/commits/master/debian
 
   BOX64_VERSION: "0.3.5"
       # Source: https://github.com/ptitSeb/box64/releases

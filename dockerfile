@@ -83,6 +83,7 @@ ENV CONTAINER_USER="container" \
         btop" \
     \
     # Define additional environment variables
+    DEBUGGER="" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
     DISPLAY=":0" \

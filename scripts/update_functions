@@ -63,6 +63,7 @@ server_update () {
     # Refference: https://developer.valvesoftware.com/wiki/SteamCMD
     log "SteamCMD begining download of $APP_NAME"
 
+    # TODO move to $STEAM_LIBRARY\$APP_NAME?
     $STEAMCMD_PATH/steamcmd.sh \
     +@sSteamCmdForcePlatformType windows \
     +force_install_dir $APP_FILES \

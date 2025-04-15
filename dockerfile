@@ -35,18 +35,25 @@ ENV CONTAINER_USER="container" \
     PUID="1000" \
     LOGS="/var/log" \
     SCRIPTS="/usr/local/bin" \
-    WORLD_FILES="/home/container/world" \
-    WORLD_DIRECTORIES="/home/container/world/States" \
-    APP_FILES="/home/container/app" \
+    \
+    # Define additional environment variables
+    DEBUGGER="" \
+    DEBIAN_FRONTEND=noninteractive \
+    TERM="xterm-256color" \
+    DISPLAY=":0"
+
+ENV WORLD_FILES="/var/lib/docker/volume/world" \
+    WORLD_DIRECTORIES="/var/lib/docker/volume/worldStates" \
+    APP_FILES="/var/lib/docker/volume/app" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \
-    STEAMCMD_PROFILE="/home/container/Steam" \
-    STEAMCMD_LOGS="/home/container/Steam/logs" \
-    STEAM_LIBRARY="/home/container/app/Steam" \
+    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \ 
+    STEAMCMD_LOGS="/home/$CONTAINER_USER/Steam/logs" \
+    STEAM_LIBRARY="/home/$CONTAINER_USER/.local/share/Steam" \
     \
     # Wine
-    WINEPREFIX="/home/container/app/Wine" \
+    WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
     WINEARCH="win64" \
     \
     # Package definitions with detailed comments for maintainers
@@ -80,16 +87,7 @@ ENV CONTAINER_USER="container" \
         # disk space analyzer
         ncdu \
         # top replacement
-        btop" \
-    \
-    # Define additional environment variables
-    DEBUGGER="" \
-    DEBIAN_FRONTEND=noninteractive \
-    TERM="xterm-256color" \
-    DISPLAY=":0" \
-    APP_COMMAND_PREFIX="${APP_COMMAND_PREFIX}" \
-    HOME="${STEAMCMD_PATH}"
-
+        btop"
 
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
@@ -252,6 +250,11 @@ RUN set -eux && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
+    # ======================================================================================================
+    # Create Softlinks
+    # ======================================================================================================
+    ln -sf ${APP_FILES} /app && \
+    ln -sf ${WORLD_FILES} /world && \
     \
     # ======================================================================================================
     # Final cleanup
@@ -263,7 +266,7 @@ RUN set -eux && \
 USER ${CONTAINER_USER}
 
 # Expose application volumes
-VOLUME ["${APP_FILES}"]
-VOLUME ["${WORLD_FILES}"]
+VOLUME ["/app"]
+VOLUME ["/world"]
 
 # CMD ["up.sh"]

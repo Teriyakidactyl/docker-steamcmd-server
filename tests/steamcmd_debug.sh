@@ -36,7 +36,14 @@ opt/steamcmd/steamcmd.sh +login anonymous +quit
 
 opt/steamcmd/steamcmd.sh \
     +@sSteamCmdForcePlatformType windows \
-    +force_install_dir /root \
+    +force_install_dir "$APP_FILES\232330" \
     +login anonymous \
     +app_update 232330 validate \
+    +quit
+
+opt/steamcmd/steamcmd.sh \
+    +@sSteamCmdForcePlatformType windows \
+    +force_install_dir "$APP_FILES\740" \
+    +login anonymous \
+    +app_update 740 validate \
     +quit

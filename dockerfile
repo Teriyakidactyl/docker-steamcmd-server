@@ -12,8 +12,24 @@ ARG DEBIAN_VERSION_CODENAME
 
 # Compatibility layer ARGs
 ARG COMPAT_LAYER
-ARG DEBUGGER
 ARG APP_COMMAND_PREFIX
+
+# ======================================================================================================
+# Path ARGs - common paths used across build stages
+# ======================================================================================================
+ARG CONTAINER_USER="container"
+ARG PUID="1000"
+ARG LOGS="/var/log"
+ARG SCRIPTS="/usr/local/bin"
+ARG WORLD_FILES="/world"
+ARG WORLD_DIRECTORIES="/world/States"
+ARG APP_FILES="/app"
+ARG STEAMCMD_PATH="/opt/steamcmd"
+ARG STEAMCMD_PROFILE="/home/container/Steam"
+ARG STEAMCMD_LOGS="/home/container/Steam/logs"
+ARG STEAM_LIBRARY="/app/Steam"
+ARG WINEPREFIX="/app/Wine"
+ARG WINEARCH="win64"
 
 # ======================================================================================================
 # Package ARGs with detailed comments for maintainers
@@ -23,7 +39,7 @@ ARG PACKAGES_AMD64_ONLY="\
     lib32gcc-s1"
 
 ARG PACKAGES_ARM_ONLY="\
-    # required for Box86 > steamcmd, https://packages.debian.org/bookworm/libc6
+    # required for Box86 on arm64 > steamcmd, https://packages.debian.org/bookworm/libc6
     libc6:armhf"
     
 ARG PACKAGES_ARM_BUILD=""
@@ -73,12 +89,13 @@ FROM --platform=linux/amd64 debian:${DEBIAN_TAG} AS steamcmd-builder
 ARG DEBIAN_FRONTEND
 ARG PACKAGES_BASE
 ARG PACKAGES_AMD64_ONLY
+ARG STEAMCMD_PATH
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_AMD64_ONLY && \
-    mkdir -p /opt/steamcmd && \
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C /opt/steamcmd && \
-    /opt/steamcmd/steamcmd.sh +login anonymous +quit && \
+    mkdir -p ${STEAMCMD_PATH} && \
+    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
+    ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
     rm -rf /var/lib/apt/lists/*
 
 # ======================================================================================================
@@ -95,8 +112,10 @@ ARG WINE_DIST
 ARG WINE_TAG
 ARG COMPAT_LAYER
 
+ENV WINE_PATH="/opt/wine-${WINE_BRANCH}/bin"
+
 RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
-        mkdir -p /opt/wine-$WINE_BRANCH/bin && \
+        mkdir -p $WINE_PATH && \
         apt-get update && \
         apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_WINE && \
         \
@@ -125,12 +144,11 @@ RUN if [ "$COMPAT_LAYER" = "wine" ]; then \
             #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" /; \
         # Cleanup temp directory \
         rm -rf "$TEMP_DIR"; \
-        chmod +x /opt/wine-$WINE_BRANCH/bin/wine64 \
-                /opt/wine-$WINE_BRANCH/bin/wineboot \
-                /opt/wine-$WINE_BRANCH/bin/winecfg \
-                /opt/wine-$WINE_BRANCH/bin/wineserver; \
+        chmod +x $WINE_PATH/wine64 \
+                $WINE_PATH/wineboot \
+                $WINE_PATH/winecfg \
+                $WINE_PATH/wineserver; \
             ## $WINE_PATH/wine \
-        rm -rf /var/lib/apt/lists/*; \
     fi
 
 # ======================================================================================================
@@ -145,7 +163,7 @@ ARG COMPAT_LAYER
 RUN if [ "$COMPAT_LAYER" = "proton" ]; then \
         mkdir -p /opt/proton && \
         apt-get update && \
-        apt-get install -y --no-install-recommends $PACKAGES_BASE curl && \
+        apt-get install -y --no-install-recommends $PACKAGES_BASE && \
         # https://github.com/ValveSoftware/Proton \
         # Download Proton from GitHub releases if version is specified \
         if [ -n "$PROTON_VERSION" ]; then \
@@ -155,8 +173,7 @@ RUN if [ "$COMPAT_LAYER" = "proton" ]; then \
             rm /tmp/proton.tar.gz; \
         else \
             echo "No Proton version specified" > /opt/proton/README.txt; \
-        fi && \
-        rm -rf /var/lib/apt/lists/*; \
+        fi \
     fi
 
 # ======================================================================================================
@@ -166,25 +183,45 @@ FROM --platform=$TARGETPLATFORM debian:${DEBIAN_TAG} AS base
 ARG DEBIAN_FRONTEND
 ARG PACKAGES_BASE
 ARG PACKAGES_BASE_BUILD
-ARG DEBUGGER
+ARG APP_COMMAND_PREFIX
+
+# Use ARG values for environment variables
+ARG CONTAINER_USER
+ARG PUID
+ARG LOGS
+ARG SCRIPTS
+ARG WORLD_FILES
+ARG WORLD_DIRECTORIES
+ARG APP_FILES
+ARG STEAMCMD_PATH
+ARG STEAMCMD_PROFILE
+ARG STEAMCMD_LOGS
+ARG STEAM_LIBRARY
 
 # Define environment variables (common for all variants)
-ENV CONTAINER_USER="container"
-ENV PUID="1000"
-ENV TERM="xterm-256color"
-ENV DISPLAY=":0"
-ENV DEBUGGER="${DEBUGGER}"
-ENV LOGS="/var/log"
-ENV SCRIPTS="/usr/local/bin"
-ENV WORLD_FILES="/world"
-ENV WORLD_DIRECTORIES="$WORLD_FILES/States"
-ENV APP_FILES="/app"
-ENV APP_COMMAND_PREFIX="${APP_COMMAND_PREFIX}"
-ENV STEAMCMD_PATH="/opt/steamcmd"
-ENV STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam"
-ENV STEAMCMD_LOGS="$STEAMCMD_PROFILE/logs"
-ENV HOME=$STEAMCMD_PATH
-ENV STEAM_LIBRARY="$APP_FILES/Steam"
+ENV CONTAINER_USER="${CONTAINER_USER}" \
+    PUID="${PUID}" \
+    TERM="xterm-256color" \
+    DISPLAY=":0" \
+    \
+    # Log and script locations
+    LOGS="${LOGS}" \
+    SCRIPTS="${SCRIPTS}" \
+    \
+    # World data directories
+    WORLD_FILES="${WORLD_FILES}" \
+    WORLD_DIRECTORIES="${WORLD_DIRECTORIES}" \
+    \
+    # Application directories
+    APP_FILES="${APP_FILES}" \
+    APP_COMMAND_PREFIX="${APP_COMMAND_PREFIX}" \
+    \
+    # SteamCMD locations
+    STEAMCMD_PATH="${STEAMCMD_PATH}" \
+    STEAMCMD_PROFILE="${STEAMCMD_PROFILE}" \
+    STEAMCMD_LOGS="${STEAMCMD_LOGS}" \
+    HOME="${STEAMCMD_PATH}" \
+    STEAM_LIBRARY="${STEAM_LIBRARY}"
 
 # Setup base directories and install common packages
 RUN set -eux; \
@@ -195,29 +232,13 @@ RUN set -eux; \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER; \
     mkdir -p $STEAMCMD_PATH $STEAMCMD_LOGS $WORLD_FILES $WORLD_DIRECTORIES $APP_FILES $STEAM_LIBRARY $LOGS $SCRIPTS; \
     \
-    # Create steamcmd validation script for runtime
-    echo '#!/bin/bash' > /usr/local/bin/validate-steamcmd.sh; \
-    echo 'if [ ! -f "$STEAMCMD_PATH/.validated" ]; then' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '    echo "First run - validating SteamCMD installation"' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '    if [ -f /usr/local/bin/box86 ] && [ "$(uname -m)" = "aarch64" ]; then' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '        box86 $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '    else' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '        $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '    fi' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo '    touch "$STEAMCMD_PATH/.validated"' >> /usr/local/bin/validate-steamcmd.sh; \
-    echo 'fi' >> /usr/local/bin/validate-steamcmd.sh; \
-    chmod +x /usr/local/bin/validate-steamcmd.sh; \
-    \
-    # SteamCMD is needed in all configurations
-    mkdir -p /opt/steamcmd; \
-    \
     # Final cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*;
     # apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
 # Copy SteamCMD - needed in all configurations
-COPY --from=steamcmd-builder /opt/steamcmd /opt/steamcmd
+COPY --from=steamcmd-builder ${STEAMCMD_PATH} ${STEAMCMD_PATH}
 
 # ======================================================================================================
 # Architecture-specific stages
@@ -240,16 +261,21 @@ ARG BOX86_VERSION
 ARG BOX86_DEB_URL
 ARG BOX64_VERSION
 ARG BOX64_DEB_URL
+ARG LOGS
 
 # Box86/Box64 environment variables
-ENV DEBUGGER="box86"
-ENV BOX86_LOG=1
-ENV BOX86_TRACE_FILE="/var/log/box86.log"
-ENV BOX64_LOG=1
-ENV BOX64_DYNAREC_BLEEDING_EDGE=0
-ENV BOX64_DYNAREC_BIGBLOCK=0
-ENV BOX64_DYNAREC_STRONGMEM=2
-ENV BOX64_TRACE_FILE="/var/log/box64.log"
+ENV DEBUGGER="box86" \
+    \
+    # Box86 configuration
+    BOX86_LOG=1 \
+    BOX86_TRACE_FILE="${LOGS}/box86.log" \
+    \
+    # Box64 configuration
+    BOX64_LOG=1 \
+    BOX64_DYNAREC_BLEEDING_EDGE=0 \
+    BOX64_DYNAREC_BIGBLOCK=0 \
+    BOX64_DYNAREC_STRONGMEM=2 \
+    BOX64_TRACE_FILE="${LOGS}/box64.log"
 
 RUN dpkg --add-architecture armhf && \
     apt-get update && \
@@ -273,10 +299,6 @@ RUN dpkg --add-architecture armhf && \
         rm -f /tmp/box64.deb; \
     fi && \
     \
-    # TODO is this an issue? "/var/lib/dpkg/info/box64.postinst: line 3: systemctl: command not found"
-    # Ensure executables have proper permissions
-    chmod +x /usr/local/bin/box64 /usr/local/bin/box86 && \
-    \
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -290,12 +312,14 @@ FROM base-${TARGETARCH} AS compat-wine
 ARG DEBIAN_FRONTEND
 ARG PACKAGES_WINE
 ARG WINE_BRANCH
+ARG WINEPREFIX
+ARG WINEARCH
 
 # Wine-specific environment variables
-ENV WINE_PATH="/opt/wine-$WINE_BRANCH/bin"
-ENV WINEPREFIX="/app/Wine"
-ENV WINEARCH="win64"
-ENV WINEDEBUG="fixme-all"
+ENV WINE_PATH="/opt/wine-${WINE_BRANCH}/bin" \
+    WINEPREFIX="${WINEPREFIX}" \
+    WINEARCH="${WINEARCH}" \
+    WINEDEBUG="fixme-all"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends $PACKAGES_WINE && \
@@ -330,6 +354,15 @@ FROM base-${TARGETARCH} AS compat-none
 # Final image selection
 # ======================================================================================================
 FROM compat-${COMPAT_LAYER:-none} AS final
+ARG CONTAINER_USER
+ARG STEAMCMD_PATH
+ARG STEAMCMD_LOGS
+ARG WORLD_FILES
+ARG WORLD_DIRECTORIES
+ARG APP_FILES
+ARG STEAM_LIBRARY
+ARG LOGS
+ARG SCRIPTS
 
 # Copy scripts and set up user/permissions
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}

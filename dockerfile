@@ -42,9 +42,9 @@ ENV CONTAINER_USER="container" \
     TERM="xterm-256color" \
     DISPLAY=":0"
 
-ENV WORLD_FILES="/var/lib/docker/volumes/world" \
-    WORLD_DIRECTORIES="/var/lib/docker/volumes/world/States" \
-    APP_FILES="/var/lib/docker/volumes/app" \
+ENV WORLD_FILES="/home/$CONTAINER_USER/world" \
+    WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
+    APP_FILES="/home/$CONTAINER_USER/app" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \

@@ -239,7 +239,7 @@ RUN set -eux && \
     # Create user and directories
     # ======================================================================================================
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
-    mkdir -p $STEAMCMD_PATH $STEAMCMD_LOGS $WORLD_FILES $WORLD_DIRECTORIES $APP_FILES $STEAM_LIBRARY $LOGS $SCRIPTS && \
+    su - $CONTAINER_USER -c "mkdir -p $STEAMCMD_PATH $STEAMCMD_LOGS $WORLD_FILES $WORLD_DIRECTORIES $APP_FILES $STEAM_LIBRARY $LOGS $SCRIPTS" && \
     \
     # ======================================================================================================
     # Set permissions for directories

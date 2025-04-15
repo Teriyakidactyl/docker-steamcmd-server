@@ -187,6 +187,76 @@ test_directories() {
     return $?
 }
 
+test_directory_permissions() {
+    local image=$1
+    echo -e "\n${YELLOW}====== Directory Permissions Tests ======${NC}"
+    
+    run_test "Directory Permissions" "
+        # Check if important directories are owned by container user
+        CONTAINER_USER=\$(whoami)
+        CONTAINER_GROUP=\$(id -gn)
+        
+        echo \"Current user: \$CONTAINER_USER\"
+        echo \"Current group: \$CONTAINER_GROUP\"
+        
+        # Create an array of all the directories that should be checked
+        # Extract these directly from the environment variables
+        DIRS_TO_CHECK=(
+            \"\$APP_FILES\"
+            \"\$STEAMCMD_PATH\"
+            \"\$WORLD_FILES\"
+            \"\$WORLD_DIRECTORIES\"
+            \"\$STEAM_LIBRARY\"
+            \"\$LOGS\"
+            \"\$SCRIPTS\"
+            \"\$WINEPREFIX\"
+        )
+        
+        # Remove any empty entries
+        DIRS_TO_CHECK=(\${DIRS_TO_CHECK[@]})
+        
+        # Print all directories that will be checked
+        echo -e \"\\nChecking the following directories:\"
+        printf '%s\\n' \"\${DIRS_TO_CHECK[@]}\"
+        
+        # Check each directory
+        for dir in \"\${DIRS_TO_CHECK[@]}\"; do
+            if [ -d \"\$dir\" ]; then
+                echo -e \"\\nChecking directory: \$dir\"
+                ls -la \"\$dir\"
+                
+                DIR_OWNER=\$(stat -c '%U' \"\$dir\")
+                if [ \"\$DIR_OWNER\" != \"\$CONTAINER_USER\" ]; then
+                    echo \"Directory \$dir is owned by \$DIR_OWNER, should be owned by \$CONTAINER_USER\"
+                    PERM_ERRORS=true
+                fi
+                
+                # Test write permissions
+                if touch \"\$dir/test_perm_file\" 2>/dev/null; then
+                    echo \"✓ Can write to \$dir\"
+                    rm \"\$dir/test_perm_file\"
+                else
+                    echo \"✗ Cannot write to \$dir\"
+                    PERM_ERRORS=true
+                fi
+            else
+                echo \"Warning: Directory \$dir does not exist, skipping\"
+            fi
+        done
+        
+        if [ \"\$PERM_ERRORS\" = true ]; then
+            echo \"One or more directories have permission issues!\"
+            exit 1
+        else
+            echo \"All directories have correct permissions\"
+        fi
+        
+        echo 'Directory permissions verified'
+    " "$image"
+    
+    return $?
+}
+
 test_environment_vars() {
     local image=$1
     echo -e "\n${YELLOW}====== Environment Variable Tests ======${NC}"
@@ -490,6 +560,7 @@ test_container() {
     
     # Run the base tests that all containers should pass
     test_directories "$image" || failed_tests+=("Directory Structure")
+    test_directory_permissions "$image" || failed_tests+=("Directory Permissions")
     test_environment_vars "$image" || failed_tests+=("Environment Variables")
     test_logging_functions "$image" || failed_tests+=("Logging Functions")
     test_update_functions "$image" || failed_tests+=("Update Functions")

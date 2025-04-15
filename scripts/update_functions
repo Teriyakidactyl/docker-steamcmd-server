@@ -41,9 +41,9 @@ wine_setup (){
         # https://wiki.winehq.org/Wineboot
         log "First run detected, wait 15 seconds for wine config creation."
         if echo "$ARCH" | grep -q "arm"; then
-            box64 wine64 wineboot -iuf | log_stdout
+            box64 wine wineboot -iuf | log_stdout
         else
-            wine64 wineboot -iuf | log_stdout
+            wine wineboot -iuf | log_stdout
         fi
     fi
 }

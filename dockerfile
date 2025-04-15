@@ -228,8 +228,8 @@ RUN set -eux && \
     # ======================================================================================================
     mkdir -p ${STEAMCMD_PATH} && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
-    echo "DEBUG: DEBUGGER=$DEBUGGER, ARCH:$(uname -m)" && \
-    ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
+    # echo "DEBUG: DEBUGGER=$DEBUGGER, ARCH:$(uname -m)" && \
+    # ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
     \
     # ======================================================================================================
     # Create user and directories

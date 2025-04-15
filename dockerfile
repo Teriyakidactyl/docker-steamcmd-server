@@ -195,8 +195,8 @@ RUN set -eux && \
                 $WINE_PATH/wineboot \
                 $WINE_PATH/winecfg \
                 $WINE_PATH/wineserver && \
-        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64 && \
-        ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine && \
+        # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64 && \
+        ln -sf "$WINE_PATH/wine" /usr/local/bin/wine && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \

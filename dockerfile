@@ -46,7 +46,7 @@ ENV CONTAINER_USER="container" \
     STEAM_LIBRARY="/app/Steam" \
     \
     # Wine
-    WINEPREFIX="/app/Wine" \
+    WINEPREFIX="/home/container/app/Wine" \
     WINEARCH="win64" \
     \
     # Package definitions with detailed comments for maintainers

@@ -239,29 +239,22 @@ RUN set -eux && \
     # Create user and directories
     # ======================================================================================================
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
-    su - $CONTAINER_USER -c "mkdir -p $STEAMCMD_PATH $STEAMCMD_LOGS $WORLD_FILES $WORLD_DIRECTORIES $APP_FILES $STEAM_LIBRARY $LOGS $SCRIPTS" && \
-    \
-    # ======================================================================================================
-    # Set permissions for directories
-    # ======================================================================================================
-    chown -R ${CONTAINER_USER}:${CONTAINER_USER} \
-        ${STEAMCMD_PATH} \
-        ${STEAMCMD_LOGS} \
-        ${WORLD_FILES} \
-        ${WORLD_DIRECTORIES} \
-        ${APP_FILES} \
-        ${STEAM_LIBRARY} \
-        ${LOGS} \
-        ${SCRIPTS} && \
-    chmod 755 \
-        ${STEAMCMD_PATH} \
-        ${STEAMCMD_LOGS} \
-        ${WORLD_FILES} \
-        ${WORLD_DIRECTORIES} \
-        ${APP_FILES} \
-        ${STEAM_LIBRARY} \
-        ${LOGS} \
-        ${SCRIPTS} && \
+    declare -a directories=( \
+    "$STEAMCMD_PATH" \
+    "$STEAMCMD_LOGS" \
+    "$WORLD_FILES" \
+    "$WORLD_DIRECTORIES" \
+    "$APP_FILES" \
+    "$STEAM_LIBRARY" \
+    "$LOGS" \
+    "$SCRIPTS" \
+    ) && \
+    for dir in "${directories[@]}"; do \
+      mkdir -p "$dir"; \
+    done && \
+    chown -R "${CONTAINER_USER}:${CONTAINER_USER}" "${directories[@]}" && \
+    chmod 755 "${directories[@]}" \
+    ls -la / && \
     \
     # ======================================================================================================
     # Final cleanup

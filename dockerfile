@@ -1,10 +1,11 @@
+ARG DEBIAN_TAG
+
 FROM debian:${DEBIAN_TAG}
 
 # ======================================================================================================
 # Global ARGs - these will be available to all build stages
 # ======================================================================================================
-ARG DEBIAN_TAG \
-    TARGETARCH \
+ARG TARGETARCH \
     TARGETPLATFORM \
     DEBIAN_VERSION_CODENAME \
     \

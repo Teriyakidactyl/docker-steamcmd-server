@@ -43,7 +43,7 @@ ENV CONTAINER_USER="container" \
     DISPLAY=":0"
 
 ENV WORLD_FILES="/var/lib/docker/volume/world" \
-    WORLD_DIRECTORIES="/var/lib/docker/volume/worldStates" \
+    WORLD_DIRECTORIES="/var/lib/docker/volume/world/States" \
     APP_FILES="/var/lib/docker/volume/app" \
     \
     # Steamcmd

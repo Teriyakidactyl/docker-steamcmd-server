@@ -43,7 +43,7 @@ ENV CONTAINER_USER="container" \
     STEAMCMD_PATH="/opt/steamcmd" \
     STEAMCMD_PROFILE="/home/container/Steam" \
     STEAMCMD_LOGS="/home/container/Steam/logs" \
-    STEAM_LIBRARY="/app/Steam" \
+    STEAM_LIBRARY="/home/container/app/Steam" \
     \
     # Wine
     WINEPREFIX="/home/container/app/Wine" \

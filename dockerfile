@@ -239,21 +239,10 @@ RUN set -eux && \
     # Create user and directories
     # ======================================================================================================
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
-    declare -a directories=( \
-    "$STEAMCMD_PATH" \
-    "$STEAMCMD_LOGS" \
-    "$WORLD_FILES" \
-    "$WORLD_DIRECTORIES" \
-    "$APP_FILES" \
-    "$STEAM_LIBRARY" \
-    "$LOGS" \
-    "$SCRIPTS" \
-    ) && \
-    for dir in "${directories[@]}"; do \
-      mkdir -p "$dir"; \
-    done && \
-    chown -R "${CONTAINER_USER}:${CONTAINER_USER}" "${directories[@]}" && \
-    chmod 755 "${directories[@]}" \
+    DIR_LIST="${STEAMCMD_PATH} ${STEAMCMD_LOGS} ${WORLD_FILES} ${WORLD_DIRECTORIES} ${APP_FILES} ${STEAM_LIBRARY} ${LOGS} ${SCRIPTS}" && \
+    mkdir -p $DIR_LIST && \
+    chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
+    chmod 755 $DIR_LIST && \
     ls -la / && \
     \
     # ======================================================================================================

@@ -35,9 +35,9 @@ ENV CONTAINER_USER="container" \
     PUID="1000" \
     LOGS="/var/log" \
     SCRIPTS="/usr/local/bin" \
-    WORLD_FILES="/world" \
-    WORLD_DIRECTORIES="/world/States" \
-    APP_FILES="/app" \
+    WORLD_FILES="/home/container/world" \
+    WORLD_DIRECTORIES="/home/container/world/States" \
+    APP_FILES="/home/container/app" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \
@@ -239,7 +239,15 @@ RUN set -eux && \
     # Create user and directories
     # ======================================================================================================
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
-    DIR_LIST="${STEAMCMD_PATH} ${STEAMCMD_LOGS} ${WORLD_FILES} ${WORLD_DIRECTORIES} ${APP_FILES} ${STEAM_LIBRARY} ${LOGS} ${SCRIPTS}" && \
+    DIR_LIST="\
+        ${STEAMCMD_PATH} \
+        ${STEAMCMD_LOGS} \
+        ${WORLD_FILES} \
+        ${WORLD_DIRECTORIES} \
+        ${APP_FILES} \
+        ${STEAM_LIBRARY} \
+        ${LOGS} \
+        ${SCRIPTS}" && \
     mkdir -p $DIR_LIST && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \

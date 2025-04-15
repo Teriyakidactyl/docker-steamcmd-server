@@ -191,11 +191,11 @@ RUN set -eux && \
         rm -rf "$TEMP_DIR" && \
         \
         # Setup Wine symlinks \
-        chmod +x $WINE_PATH/wine64 \
+        chmod +x \
+                $WINE_PATH/wine \
                 $WINE_PATH/wineboot \
                 $WINE_PATH/winecfg \
                 $WINE_PATH/wineserver && \
-        # ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64 && \
         ln -sf "$WINE_PATH/wine" /usr/local/bin/wine && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \

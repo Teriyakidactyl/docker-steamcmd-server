@@ -90,6 +90,9 @@ ENV CONTAINER_USER="container" \
     APP_COMMAND_PREFIX="${APP_COMMAND_PREFIX}" \
     HOME="${STEAMCMD_PATH}"
 
+
+COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
+
 # ======================================================================================================
 # Combined RUN statement - integrates all previous build stages
 # ======================================================================================================
@@ -228,6 +231,7 @@ RUN set -eux && \
     # ======================================================================================================
     mkdir -p ${STEAMCMD_PATH} && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
+    # NOTE due to box86 not running in github docker build, first run should be in container.
     # echo "DEBUG: DEBUGGER=$DEBUGGER, ARCH:$(uname -m)" && \
     # ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
     \

@@ -318,6 +318,7 @@ jobs:
             WINE_VERSION=${{ env.WINE_VERSION }}
             WINE_DIST=${{ env.DEBIAN_VERSION_CODENAME }}
             WINE_BRANCH=${{ env.WINE_BRANCH }}
+            WINE_ID=${{ env.WINE_ID }}
             WINE_TAG=${{ env.WINE_TAG }}
 
             # Proton configuration

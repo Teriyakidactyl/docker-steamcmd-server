@@ -327,7 +327,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy Wine files
-COPY --from=wine-builder /opt/wine-$WINE_BRANCH /opt/wine-$WINE_BRANCH
+COPY --from=wine-builder ${WINE_PATH} ${WINE_PATH}
 
 # Setup Wine symlinks
 RUN if [ -f "$WINE_PATH/wine64" ]; then \

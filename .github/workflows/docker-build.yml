@@ -305,6 +305,7 @@ jobs:
             # Build information
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ env.BUILD_DATE }}
+            BUILD_VERSION=${{ env.TAG_VERSIONED }}
             TARGETPLATFORM=${{ matrix.platform }}
 
             # Debian configuration

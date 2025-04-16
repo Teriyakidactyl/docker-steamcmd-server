@@ -99,8 +99,9 @@ ENV WORLD_FILES="/world" \
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 RUN set -eux && \
-    # Create environment file with header
-    echo "# Container environment variables" > /etc/environment && \
+    # Create environment file with header and build fingerprint
+    echo "# Build: ${SOURCE_COMMIT:0:7}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER:+-$COMPAT_LAYER}-${TARGETARCH}" >> /etc/environment && \
+    echo "BUILD_ID=${SOURCE_COMMIT:0:7}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER:+-$COMPAT_LAYER}-${TARGETARCH}" >> /etc/environment && \
     \
     apt-get update && \
     apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_BASE_BUILD && \

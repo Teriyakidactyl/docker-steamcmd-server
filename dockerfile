@@ -125,7 +125,7 @@ RUN set -eux && \
     # Conditionally add COMPAT_LAYER
     COMPAT_LAYER_STR="" && \
     if [ -n "${COMPAT_LAYER}" ]; then \
-        COMPAT_LAYER_STR="-${COMPAT_LAYER}" \
+        COMPAT_LAYER_STR="-${COMPAT_LAYER}"; \
     fi && \
     # Create environment file with header and build fingerprint
     echo "# Build: ${COMMIT_SHORT}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER_STR}-${TARGETARCH}" >> /etc/environment && \

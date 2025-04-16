@@ -37,6 +37,9 @@ ENV CONTAINER_USER="container" \
     SCRIPTS="/usr/local/bin" \
     \
     # Define additional environment variables
+    # For storing wine, box64
+    APP_COMMAND_PREFIX="" \
+    # For holding box86 for steamcmd
     DEBUGGER="" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
@@ -55,6 +58,10 @@ ENV WORLD_FILES="/world" \
     # Wine
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
     WINEARCH="win64" \
+    #  https://wiki.winehq.org/Mono
+    #WINE_MONO_VERSION=4.9.4 
+    # https://wiki.winehq.org/Debug_Channels
+    WINEDEBUG=fixme-all \
     \
     # Package definitions with detailed comments for maintainers
     PACKAGES_AMD64_ONLY="\
@@ -122,11 +129,16 @@ RUN set -eux && \
         export BOX86_TRACE_FILE="${LOGS}/box86.log" && \
         \
         # Box64 configuration
+        # Refference: https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md
         export BOX64_LOG=1 && \
         export BOX64_DYNAREC_BLEEDING_EDGE=0 && \
         export BOX64_DYNAREC_BIGBLOCK=0 && \
         export BOX64_DYNAREC_STRONGMEM=2 && \
         export BOX64_TRACE_FILE="${LOGS}/box64.log" && \
+        # export BOX64_NOPULSE=1
+        \
+        # Gameserver command prefix
+        export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX box64" \
         \
         # Add ARM architecture and install ARM-specific packages
         dpkg --add-architecture armhf && \
@@ -165,6 +177,9 @@ RUN set -eux && \
         export WINEARCH="${WINEARCH}" && \
         export WINEDEBUG="fixme-all" && \
         \
+        # Gameserver command prefix
+        export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX wine" \
+        \
         # Install Wine packages
         apt-get install -y --no-install-recommends $PACKAGES_WINE && \
         mkdir -p $WINE_PATH && \
@@ -202,7 +217,12 @@ RUN set -eux && \
                 $WINE_PATH/wineboot \
                 $WINE_PATH/winecfg \
                 $WINE_PATH/wineserver && \
-        ln -sf "$WINE_PATH/wine" /usr/local/bin/wine && \
+        if [ "$TARGETARCH" = "arm64" ]; then \
+            echo 'box64 $WINE_PATH/wine "$@"' > /usr/local/bin/wine; \
+            chmod +x /usr/local/bin/wine; \
+        else \
+            ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
+        fi && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
@@ -215,6 +235,7 @@ RUN set -eux && \
         # https://github.com/ValveSoftware/Proton \
         # Download Proton from GitHub releases if version is specified \
         if [ -n "$PROTON_VERSION" ]; then \
+            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX proton" \
             PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz" && \
             curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz && \
             tar -xzf /tmp/proton.tar.gz -C /opt/proton --strip-components=1 && \

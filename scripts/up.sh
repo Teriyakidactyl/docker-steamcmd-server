@@ -1,6 +1,7 @@
 #!/bin/bash
-source $SCRIPTS/logging_functions
-source $SCRIPTS/updates_functions
+source $SCRIPTS/logging_functions.sh
+source $SCRIPTS/updates_functions.sh
+source $SCRIPTS/server_functions.sh
 
 # TODO create bash wrappers during docker build that handle box86 box64 prefixes? Then this script can be simplified.
 # TODO check for updates at 3am (ENV default configurable)
@@ -46,10 +47,13 @@ main() {
 
     # TODO if APP_PID empty, then exit.
 
-    check_env
-    wine_setup
+    # baseimage
     log_clean
+    wine_setup
     server_update
+    
+    # gameserver specific
+    check_env
     check_whitelist
     mod_updates
     server_start

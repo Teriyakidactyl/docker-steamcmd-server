@@ -57,8 +57,9 @@ env:
   # ===== Software Versions =====
   # Wine configuration
   # Source: https://gitlab.winehq.org/wine/wine/-/releases
-  WINE_VERSION: "10.5"
-  WINE_BRANCH: "staging"
+  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
+  WINE_VERSION: "10.0.0.0"
+  WINE_BRANCH: "stable"
   WINE_ID: "debian"
   WINE_TAG: "-1"
 

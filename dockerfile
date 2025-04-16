@@ -138,7 +138,7 @@ RUN set -eux && \
         # export BOX64_NOPULSE=1
         \
         # Gameserver command prefix
-        export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX box64" \
+        export APP_COMMAND_PREFIX="box64" \
         \
         # Add ARM architecture and install ARM-specific packages
         dpkg --add-architecture armhf && \

@@ -1,7 +1,6 @@
 #!/bin/bash
 source $SCRIPTS/logging_functions.sh
-source $SCRIPTS/updates_functions.sh
-source $SCRIPTS/server_functions.sh
+source $SCRIPTS/gameserver_functions.sh
 
 # TODO create bash wrappers during docker build that handle box86 box64 prefixes? Then this script can be simplified.
 # TODO check for updates at 3am (ENV default configurable)

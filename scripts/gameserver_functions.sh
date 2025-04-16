@@ -59,8 +59,8 @@ gameserver_start() {
     # Set command to execute the server with APP_ARGS
     # The base COMMAND includes just the executable path
     # Architecture-specific prefixes will be handled by the caller (up.sh)
-    # FIXME COMMAND_PREFIX should be generated in DOCKER build, like COMMAND_PREFIX="box64 wine" or "box64" or "wine"
-    APP_COMMAND="$APP_FILES/$APP_EXE"
+    # APP_COMMAND_PREFIX should be generated in DOCKER build, like APP_COMMAND_PREFIX="box64 wine" or "box64" or "wine"
+    APP_COMMAND="$APP_COMMAND_PREFIX $APP_FILES/$APP_EXE"
     
     # Log the server startup
     log "Starting $APP_NAME server..." "server"

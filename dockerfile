@@ -138,7 +138,11 @@ RUN set -eux && \
         # export BOX64_NOPULSE=1
         \
         # Gameserver command prefix
-        export APP_COMMAND_PREFIX="box64" \
+        if [ -z "$APP_COMMAND_PREFIX" ]; then \
+            export APP_COMMAND_PREFIX="box64"; \
+        else \
+            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX box64"; \
+        fi && \
         \
         # Add ARM architecture and install ARM-specific packages
         dpkg --add-architecture armhf && \
@@ -178,7 +182,11 @@ RUN set -eux && \
         export WINEDEBUG="fixme-all" && \
         \
         # Gameserver command prefix
-        export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX wine" \
+        if [ -z "$APP_COMMAND_PREFIX" ]; then \
+            export APP_COMMAND_PREFIX="wine"; \
+        else \
+            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX wine"; \
+        fi && \
         \
         # Install Wine packages
         apt-get install -y --no-install-recommends $PACKAGES_WINE && \

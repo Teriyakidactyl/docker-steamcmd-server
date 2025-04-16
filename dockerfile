@@ -318,7 +318,8 @@ RUN set -eux && \
         ${APP_FILES} \
         ${STEAM_LIBRARY} \
         ${LOGS} \
-        ${SCRIPTS}" && \
+        ${SCRIPTS}\
+        ${HOME}" && \
     mkdir -p $DIR_LIST && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \

@@ -98,26 +98,22 @@ ENV WORLD_FILES="/world" \
 
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
-# ======================================================================================================
-# Combined RUN statement - integrates all previous build stages
-# ======================================================================================================
 RUN set -eux && \
     # Create environment file with header
     echo "# Container environment variables" > /etc/environment && \
     \
-    echo "===============================================================================================================" && \
-    echo "====================================== SETUP BASE DIRECTORIES AND PACKAGES =====================================" && \
-    echo "===============================================================================================================" && \
     apt-get update && \
     apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_BASE_BUILD && \
     \
-    echo "===============================================================================================================" && \
-    echo "=================================== ARCHITECTURE-SPECIFIC CONFIGURATIONS =======================================" && \
-    echo "===============================================================================================================" && \
+    # =======================================================================
+    # ARCHITECTURE-SPECIFIC CONFIGURATIONS
+    # =======================================================================
     if [ "$TARGETARCH" = "amd64" ]; then \
+        # --- AMD64 Architecture Setup ---
         apt-get install -y --no-install-recommends $PACKAGES_AMD64_ONLY; \
         \
     elif [ "$TARGETARCH" = "arm64" ]; then \
+        # --- ARM64 Architecture Setup ---
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# ARM64 Box86/Box64 configuration" >> /etc/environment && \
@@ -142,7 +138,7 @@ RUN set -eux && \
         if [ -z "$APP_COMMAND_PREFIX" ]; then \
             echo "APP_COMMAND_PREFIX=box64" >> /etc/environment; \
         else \
-            echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX box64" >> /etc/environment; \
+            echo 'APP_COMMAND_PREFIX="'$APP_COMMAND_PREFIX' box64"' >> /etc/environment; \
         fi && \
         \
         # Add ARM architecture and install packages
@@ -171,10 +167,11 @@ RUN set -eux && \
         fi; \
     fi && \
     \
-    echo "===============================================================================================================" && \
-    echo "====================================== COMPATIBILITY LAYER SETUP =============================================" && \
-    echo "===============================================================================================================" && \
+    # =======================================================================
+    # COMPATIBILITY LAYER SETUP
+    # =======================================================================
     if [ "$COMPAT_LAYER" = "wine" ]; then \
+        # --- Wine Compatibility Layer Setup ---
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# Wine compatibility layer configuration" >> /etc/environment && \
@@ -191,7 +188,7 @@ RUN set -eux && \
         if [ -z "$APP_COMMAND_PREFIX" ]; then \
             echo "APP_COMMAND_PREFIX=wine" >> /etc/environment; \
         else \
-            echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX wine" >> /etc/environment; \
+            echo 'APP_COMMAND_PREFIX="'$APP_COMMAND_PREFIX' wine"' >> /etc/environment; \
         fi && \
         \
         # Re-source environment after updating the prefix
@@ -245,6 +242,7 @@ RUN set -eux && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
         \
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
+        # --- Proton Compatibility Layer Setup ---
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# Proton compatibility layer configuration" >> /etc/environment && \
@@ -267,17 +265,17 @@ RUN set -eux && \
         fi; \
     fi && \
     \
-    echo "===============================================================================================================" && \
-    echo "=========================================== STEAMCMD SETUP =====================================================" && \
-    echo "===============================================================================================================" && \
+    # =======================================================================
+    # STEAMCMD SETUP
+    # =======================================================================
     mkdir -p ${STEAMCMD_PATH} && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
     # NOTE due to box86 not running in github docker build, first run should be in container.
     # ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
     \
-    echo "===============================================================================================================" && \
-    echo "========================================= USER AND DIRECTORIES SETUP ===========================================" && \
-    echo "===============================================================================================================" && \
+    # =======================================================================
+    # USER AND DIRECTORIES SETUP
+    # =======================================================================
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
     DIR_LIST="\
         ${STEAMCMD_PATH} \
@@ -293,15 +291,15 @@ RUN set -eux && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
     \
-    echo "===============================================================================================================" && \
-    echo "============================================== FINAL CLEANUP ==================================================" && \
-    echo "===============================================================================================================" && \
+    # =======================================================================
+    # FINAL CLEANUP
+    # =======================================================================
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     \
-    echo "===============================================================================================================" && \
-    echo "========================================= ENVIRONMENT VARIABLES ================================================" && \
-    echo "===============================================================================================================" && \
+    # =======================================================================
+    # ENVIRONMENT VARIABLES
+    # =======================================================================
     echo "Contents of /etc/environment:" && \
     cat /etc/environment && \
     \

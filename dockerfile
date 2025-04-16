@@ -26,6 +26,9 @@ FROM debian:${DEBIAN_TAG}
 ARG TARGETARCH \
     TARGETPLATFORM \
     DEBIAN_VERSION_CODENAME \
+    SOURCE_COMMIT \
+    BUILD_DATE \
+    BUILD_VERSION \
     \
     # Compatibility layer ARGs
     COMPAT_LAYER \

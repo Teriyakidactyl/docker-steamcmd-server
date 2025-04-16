@@ -42,9 +42,9 @@ ENV CONTAINER_USER="container" \
     TERM="xterm-256color" \
     DISPLAY=":0"
 
-ENV WORLD_FILES="/home/$CONTAINER_USER/world" \
+ENV WORLD_FILES="/world" \
     WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
-    APP_FILES="/home/$CONTAINER_USER/app" \
+    APP_FILES="/app" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \
@@ -247,8 +247,6 @@ RUN set -eux && \
         ${LOGS} \
         ${SCRIPTS}" && \
     mkdir -p $DIR_LIST && \
-    ln -sf ${APP_FILES} /app && \
-    ln -sf ${WORLD_FILES} /world && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
@@ -261,8 +259,10 @@ RUN set -eux && \
 # Switch to the container user
 USER ${CONTAINER_USER}
 
+# TODO insert derivative container examples
+
 # Expose application volumes
-VOLUME ["/app"]
-VOLUME ["/world"]
+# VOLUME ["${APP_FILES}"]
+# VOLUME ["${WORLD_FILES}"]
 
 # CMD ["up.sh"]

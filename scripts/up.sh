@@ -44,6 +44,8 @@ main() {
     trap 'down SIGINT' SIGINT
     trap 'down EXIT' EXIT
 
+    # TODO if APP_PID empty, then exit.
+
     check_env
     wine_setup
     log_clean

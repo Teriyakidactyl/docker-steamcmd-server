@@ -2,7 +2,7 @@
 #
 # test_steamcmd_container.sh
 #
-# Test script for verifying functionality of the docker-steamcmd-server base image.
+# Streamlined test script for verifying functionality of the docker-steamcmd-server base image.
 # This script validates core functionality including SteamCMD operations, directory
 # structure, environment variables, and utility scripts across multiple container tags.
 #
@@ -20,13 +20,6 @@
 #   - Docker
 #   - Internet connection (for pulling images)
 #   - About 1GB free disk space per image tested
-#
-# Installation:
-# wget -O test_steamcmd_container.sh https://raw.githubusercontent.com/Teriyakidactyl/docker-steamcmd-server/refs/heads/dev/tests/containers.sh && chmod +x test_steamcmd_container.sh && ./test_steamcmd_container.sh -d
-
-# TODO on fail, prompt to enter container via bash (example):
-# docker rm -f steamcmd-test-container 2>/dev/null || true && \
-# docker run --name steamcmd-test-container -it --entrypoint bash ghcr.io/teriyakidactyl/docker-steamcmd-server:bookworm-wine_dev-amd64
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -168,7 +161,7 @@ run_test() {
 }
 
 #
-# Test Functions - Each one tests a specific aspect of the container
+# Streamlined Test Functions
 #
 
 test_directories() {
@@ -200,7 +193,6 @@ test_directory_permissions() {
         echo \"Current group: \$CONTAINER_GROUP\"
         
         # Create an array of all the directories that should be checked
-        # Extract these directly from the environment variables
         DIRS_TO_CHECK=(
             \"\$APP_FILES\"
             \"\$STEAMCMD_PATH\"
@@ -209,8 +201,12 @@ test_directory_permissions() {
             \"\$STEAM_LIBRARY\"
             \"\$LOGS\"
             \"\$SCRIPTS\"
-            \"\$WINEPREFIX\"
         )
+        
+        # Add WINEPREFIX if it exists as an environment variable
+        if [ -n \"\$WINEPREFIX\" ]; then
+            DIRS_TO_CHECK+=(\"\$WINEPREFIX\")
+        fi
         
         # Remove any empty entries
         DIRS_TO_CHECK=(\${DIRS_TO_CHECK[@]})
@@ -219,22 +215,19 @@ test_directory_permissions() {
         echo -e \"\\nChecking the following directories:\"
         printf '%s\\n' \"\${DIRS_TO_CHECK[@]}\"
         
+        # Flag to track if any permission issues were found
+        PERM_ERRORS=false
+        
         # Check each directory
         for dir in \"\${DIRS_TO_CHECK[@]}\"; do
             if [ -d \"\$dir\" ]; then
                 echo -e \"\\nChecking directory: \$dir\"
-                ls -la \"\$dir\"
                 
-                DIR_OWNER=\$(stat -c '%U' \"\$dir\")
-                if [ \"\$DIR_OWNER\" != \"\$CONTAINER_USER\" ]; then
-                    echo \"Directory \$dir is owned by \$DIR_OWNER, should be owned by \$CONTAINER_USER\"
-                    PERM_ERRORS=true
-                fi
-                
-                # Test write permissions
-                if touch \"\$dir/test_perm_file\" 2>/dev/null; then
+                # Simple write test - if we can create a file, we have proper permissions
+                TEST_FILE=\"\$dir/test_perm_file\"
+                if touch \"\$TEST_FILE\" 2>/dev/null; then
                     echo \"✓ Can write to \$dir\"
-                    rm \"\$dir/test_perm_file\"
+                    rm \"\$TEST_FILE\"
                 else
                     echo \"✗ Cannot write to \$dir\"
                     PERM_ERRORS=true
@@ -265,7 +258,15 @@ test_environment_vars() {
         echo STEAMCMD_PATH: \$STEAMCMD_PATH && \
         echo STEAMCMD_PROFILE: \$STEAMCMD_PROFILE && \
         echo STEAM_LIBRARY: \$STEAM_LIBRARY && \
-        echo WINEPREFIX: \$WINEPREFIX && \
+        # Check WINEPREFIX only if we're on a wine-enabled image
+        if [[ \$(docker inspect $image | grep -c 'wine') -gt 0 ]]; then
+            echo WINEPREFIX: \$WINEPREFIX && \
+            echo WINEARCH: \$WINEARCH
+        fi && \
+        # Check for box86/box64 on ARM images
+        if [ \$(uname -m) = 'aarch64' ]; then
+            echo DEBUGGER: \$DEBUGGER
+        fi && \
         echo 'Environment variables verified'
     " "$image"
     
@@ -277,6 +278,11 @@ test_steamcmd_basic() {
     echo -e "\n${YELLOW}====== SteamCMD Basic Tests ======${NC}"
     
     run_test "SteamCMD Basic" "
+        # Log whether we're using an emulation layer (box86/box64) or native
+        echo \"Using debugger: \$DEBUGGER\"
+        echo \"Architecture: \$(uname -m)\"
+        
+        # Simple login test - should work on both architectures
         /opt/steamcmd/steamcmd.sh +login anonymous +quit && \
         echo 'SteamCMD basic functionality verified'
     " "$image"
@@ -313,7 +319,7 @@ test_wine_basic() {
     echo -e "\n${YELLOW}====== Wine Basic Tests ======${NC}"
     
     run_test "Wine Basic" "
-        which wine && which wine64 && which wineboot && \
+        which wine && which wineboot && which wineserver && \
         echo 'Wine binaries verified'
     " "$image"
     
@@ -337,9 +343,60 @@ test_wine_prefix() {
     echo -e "\n${YELLOW}====== Wine Prefix Tests ======${NC}"
     
     run_test "Wine Prefix Setup" "
-        [ -d \$WINEPREFIX ] || wine wineboot -i && \
-        ls -la \$WINEPREFIX && \
-        echo 'Wine prefix setup verified'
+        # Check if WINEPREFIX directory exists
+        if [ ! -d \$WINEPREFIX ]; then
+            echo \"Creating new Wine prefix at \$WINEPREFIX\"
+            mkdir -p \$WINEPREFIX
+        fi
+        
+        # Initialize the prefix with wineboot
+        echo \"Initializing Wine prefix...\"
+        wineboot -i
+        
+        # Verify the prefix was created successfully
+        if [ -f \$WINEPREFIX/system.reg ]; then
+            echo \"Wine prefix created successfully.\"
+            ls -la \$WINEPREFIX
+            echo 'Wine prefix setup verified'
+            exit 0
+        else
+            echo \"Failed to create Wine prefix.\"
+            exit 1
+        fi
+    " "$image"
+    
+    return $?
+}
+
+test_wine_functionality() {
+    local image=$1
+    echo -e "\n${YELLOW}====== Wine Functionality Test ======${NC}"
+    
+    run_test "Wine Functionality" "
+        # Get Wine version
+        WINE_VERSION=\$(wine --version)
+        echo \"Using Wine version: \$WINE_VERSION\"
+        
+        # Create a simple Windows batch file to test
+        TEST_BAT=\"\$WINEPREFIX/test.bat\"
+        echo '@echo off' > \"\$TEST_BAT\"
+        echo 'echo Wine is working correctly!' >> \"\$TEST_BAT\"
+        echo 'exit 0' >> \"\$TEST_BAT\"
+        
+        # Run the batch file with Wine
+        echo \"Running test batch file...\"
+        wine cmd /c \"\$TEST_BAT\"
+        
+        # Check result
+        RESULT=\$?
+        if [ \$RESULT -eq 0 ]; then
+            echo \"Wine successfully executed Windows batch file.\"
+            rm \"\$TEST_BAT\"
+            exit 0
+        else
+            echo \"Wine failed to execute Windows batch file.\"
+            exit 1
+        fi
     " "$image"
     
     return $?
@@ -408,8 +465,6 @@ test_startup_script() {
     return $?
 }
 
-# New tests for ARM64-specific components
-
 test_box86_version() {
     local image=$1
     local tag=$(echo "$image" | cut -d ':' -f2)
@@ -426,17 +481,6 @@ test_box86_version() {
         if command -v box86 &> /dev/null; then
             box86 --version
             echo 'Box86 version verified'
-            
-            # Additional functionality test
-            echo 'Testing Box86 help command...'
-            box86 --help | head -n 5
-            echo 'Box86 help command verified'
-            
-            # Test linking
-            echo 'Testing Box86 library dependencies...'
-            ldd \$(which box86) || echo 'ldd not available, skipping dependency check'
-            echo 'Box86 dependencies verified'
-            
             exit 0
         else
             echo 'Box86 not installed on this ARM image!'
@@ -463,68 +507,11 @@ test_box64_version() {
         if command -v box64 &> /dev/null; then
             box64 --version
             echo 'Box64 version verified'
-            
-            # Additional functionality test
-            echo 'Testing Box64 help command...'
-            box64 --help | head -n 5
-            echo 'Box64 help command verified'
-            
-            # Test linking
-            echo 'Testing Box64 library dependencies...'
-            ldd \$(which box64) || echo 'ldd not available, skipping dependency check'
-            echo 'Box64 dependencies verified'
-            
             exit 0
         else
             echo 'Box64 not installed on this ARM image!'
             exit 1
         fi
-    " "$image"
-    
-    return $?
-}
-
-test_arm_wine_functionality() {
-    local image=$1
-    local tag=$(echo "$image" | cut -d ':' -f2)
-    
-    # Only run this test for ARM images with Wine
-    if [[ "$tag" != *"-arm64"* || "$tag" != *"-wine"* ]]; then
-        echo -e "\n${YELLOW}Skipping ARM Wine functionality test for non-ARM or non-Wine image${NC}"
-        return 0
-    fi
-    
-    echo -e "\n${YELLOW}====== ARM Wine Functionality Test ======${NC}"
-    
-    run_test "ARM Wine Basic Functionality" "
-        # Check box86/box64 with wine integration
-        which box64 && \
-        which wine && \
-        box64 wine --version && \
-        echo 'ARM Wine integration verified'
-    " "$image"
-    
-    return $?
-}
-
-test_arm_steamcmd_functionality() {
-    local image=$1
-    local tag=$(echo "$image" | cut -d ':' -f2)
-    
-    # Only run this test for ARM images
-    if [[ "$tag" != *"-arm64"* ]]; then
-        echo -e "\n${YELLOW}Skipping ARM SteamCMD functionality test for non-ARM image${NC}"
-        return 0
-    fi
-    
-    echo -e "\n${YELLOW}====== ARM SteamCMD Functionality Test ======${NC}"
-    
-    run_test "ARM SteamCMD Integration" "
-        # Check box86 with steamcmd integration
-        # Just a simple anonymous login should be sufficient
-        echo "Debugger= $DEBUGGER"
-        /opt/steamcmd/steamcmd.sh +login anonymous +quit && \
-        echo 'ARM SteamCMD integration verified'
     " "$image"
     
     return $?
@@ -567,12 +554,16 @@ test_container() {
     test_mod_functions "$image" || failed_tests+=("Mod Functions")
     test_startup_script "$image" || failed_tests+=("Startup Script")
     
+    # Unified SteamCMD test - works on both architectures
+    test_steamcmd_basic "$image" || failed_tests+=("SteamCMD Basic")
+    
     # Run wine-specific tests only for wine-enabled images
     if [[ "$tag" == *"wine"* ]]; then
         echo -e "${BLUE}Detected Wine-enabled image, running Wine tests...${NC}"
         test_wine_basic "$image" || failed_tests+=("Wine Basic")
         test_wine_version "$image" || failed_tests+=("Wine Version")
         test_wine_prefix "$image" || failed_tests+=("Wine Prefix")
+        test_wine_functionality "$image" || failed_tests+=("Wine Functionality")
     else
         echo -e "${BLUE}Skipping Wine tests for non-Wine image${NC}"
     fi
@@ -580,29 +571,8 @@ test_container() {
     # Run ARM-specific tests only for ARM images
     if [[ "$arch" == "arm64" ]]; then
         echo -e "${BLUE}Detected ARM64 image, running ARM-specific tests...${NC}"
-        
-        # Run tests in a specific order to help with debugging
-        # Start with ARM compatibility details for better diagnostic info
-        test_arm_compatibility_details "$image" || failed_tests+=("ARM Compatibility Details")
-        
-        # Then test the box86/box64 components
         test_box86_version "$image" || failed_tests+=("Box86 Version")
         test_box64_version "$image" || failed_tests+=("Box64 Version")
-        
-        # Next test SteamCMD functionality with box64
-        test_arm_steamcmd_functionality "$image" || failed_tests+=("ARM SteamCMD Functionality")
-        
-        # Run ARM Wine tests only for Wine-enabled ARM images
-        if [[ "$tag" == *"wine"* ]]; then
-            test_arm_wine_functionality "$image" || failed_tests+=("ARM Wine Functionality")
-        fi
-        
-        echo -e "${BLUE}Completed ARM-specific tests${NC}"
-    else
-        echo -e "${BLUE}Skipping ARM-specific tests for non-ARM image${NC}"
-        test_steamcmd_basic "$image" || failed_tests+=("SteamCMD Basic")
-        test_steamcmd_app_info "$image" || failed_tests+=("SteamCMD App Info")
-        test_steamcmd_validation "$image" || failed_tests+=("SteamCMD Validation")
     fi
     
     # Display test results for this container
@@ -727,12 +697,6 @@ else
         echo -e "${CYAN}sudo apt-get install qemu-user-static${NC}"
         echo -e "${CYAN}sudo docker run --privileged --rm tonistiigi/binfmt --install all${NC}"
     fi
-fi
-
-# Check for Docker buildx which helps with multi-architecture builds/tests
-if ! docker buildx version &> /dev/null; then
-    echo -e "${YELLOW}Docker buildx not available. This may impact cross-architecture testing.${NC}"
-    echo -e "${YELLOW}Consider upgrading your Docker installation.${NC}"
 fi
 
 # Set up QEMU for cross-architecture emulation

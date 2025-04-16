@@ -258,10 +258,10 @@ RUN set -eux && \
             echo '#!/bin/bash' > /usr/local/bin/wine && \
             echo 'box64 $WINE_PATH/wine64 "$@"' > /usr/local/bin/wine64 && \
             chmod +x /usr/local/bin/wine /usr/local/bin/wine64 && \
-            ln -sf /usr/local/bin/wine64 /usr/local/bin/wine \
+            ln -sf /usr/local/bin/wine64 /usr/local/bin/wine; \
         else \
             ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64 && \
-            ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine \
+            ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
         fi && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \

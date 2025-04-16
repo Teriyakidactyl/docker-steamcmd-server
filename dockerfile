@@ -319,11 +319,12 @@ RUN set -eux && \
         ${STEAM_LIBRARY} \
         ${LOGS} \
         ${SCRIPTS}\
-        ${HOME}" && \
+        /home/${CONTAINER_USER}" && \
     mkdir -p $DIR_LIST && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
+    find ~ -type d -exec ls -ld {} \; && \
     \
     echo "=======================================================================================================================================================================" && \
     echo "                                                  FINAL CLEANUP                                                                                                       " && \

@@ -67,6 +67,7 @@ env:
   PROTON_VERSION: "9.0-4"
   
   # Box86/Box64 versions (for ARM compatibility)
+  # NOTE browse files by commit to get more permanent link!
   BOX86_VERSION: "0.3.8"
       # https://github.com/ptitSeb/box86/releases
   BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/9432ba5260adcf5296f8a79d19eb7f0b8f5cda32/debian/box86-generic-arm_0.3.8+20250105.ee0c949-1_armhf.deb"
@@ -75,7 +76,7 @@ env:
 
   BOX64_VERSION: "0.3.5"
       # Source: https://github.com/ptitSeb/box64/releases
-  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/refs/heads/master/debian/box64_0.3.5+20250414.2191162-1_arm64.deb"
+  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/a6c4fb3f1a4773b6318d3f66e56c119f40f17a87/debian/box64_0.3.5+20250416.96080e4-1_arm64.deb"
       # https://github.com/ryanfortner/box64-debs/tree/master/debian
 
   # Runner architecture (will be set in jobs)

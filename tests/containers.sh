@@ -324,7 +324,7 @@ test_wine_basic() {
     echo -e "\n${YELLOW}====== Wine Basic Tests ======${NC}"
     
     run_test "Wine Basic" "
-        which wine && which wineboot && which wineserver && \
+        which wine && which wineboot && which wineserver && which wine64 && \
         echo 'Wine binaries verified'
     " "$image"
     
@@ -336,7 +336,7 @@ test_wine_version() {
     echo -e "\n${YELLOW}====== Wine Version Tests ======${NC}"
     
     run_test "Wine Version" "
-        wine --version && \
+        wine64 --version && \
         echo 'Wine version verified'
     " "$image"
     
@@ -356,7 +356,7 @@ test_wine_prefix() {
         
         # Initialize the prefix with wineboot
         echo \"Initializing Wine prefix...\"
-        wineboot -i
+        wine64 wineboot -iuf
         
         # Verify the prefix was created successfully
         if [ -f \$WINEPREFIX/system.reg ]; then

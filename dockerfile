@@ -205,6 +205,11 @@ RUN set -eux && \
     echo "=======================================================================================================================================================================" && \
     if [ "$COMPAT_LAYER" = "wine" ]; then \
         echo "------------------------------------------------------- Wine Compatibility Layer Setup -----------------------------------------------------------------------" && \
+        \
+        # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian, https://www.winehq.org/news/
+        # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
+        # Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
+        \
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# Wine compatibility layer configuration" >> /etc/environment && \
@@ -229,48 +234,41 @@ RUN set -eux && \
         \
         # Install Wine packages
         apt-get install -y --no-install-recommends $PACKAGES_WINE && \
-        mkdir -p $WINE_PATH $WINEPREFIX && \
+        TEMP_DIR="/tmp/wine_debs" && \
+        mkdir -p $WINE_PATH $WINEPREFIX $TEMP_DIR && \
         \
         # Download and install Wine
         WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/" && \
-        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" && \
-        # (required for wine64 / can work alongside wine_i386 main bin)
-        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" && \
-        WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/" && \
-        WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" && \
-        # wine_i386 support files (required for wine_i386 if no wine64 / CONFLICTS WITH wine64 support files)
-        WINE_32_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb" && \    
         \
-        # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian, https://www.winehq.org/news/
-        # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
-        # Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
-        TEMP_DIR="/tmp/wine_debs" && \
-        mkdir -p "$TEMP_DIR" && \
+        # WINE_64_MAIN_BIN - The AMD64-specific Wine package containing the 64-bit Wine binary executables (wine64)
+        WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" && \
         curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_64_MAIN_BIN}" && \
-        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" && \
-        # NOTE Skipping wine32 i386
-        #curl -sL "${WINEHQ_LINK_I386}${WINE_32_MAIN_BIN}" -o "${TEMP_DIR}/${WINE_32_MAIN_BIN}" && \
-        #curl -sL "${WINEHQ_LINK_I386}${WINE_32_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" && \
         dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" / && \
+        \
+        # WINE_64_SUPPORT_BIN - The architecture-independent Wine package containing shared components, DLLs, and resources
+        WINE_64_SUPPORT_BIN="wine-${WINE_BRANCH}_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb" && \
+        curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" && \
         dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" / && \
-        #dpkg-deb -x "${TEMP_DIR}/${WINE_32_MAIN_BIN}" / && \
-        #dpkg-deb -x "${TEMP_DIR}/${WINE_32_SUPPORT_BIN}" / && \
+        \
         # Cleanup temp directory
         rm -rf "$TEMP_DIR" && \
         \
         # Setup Wine symlinks
         chmod +x \
                 $WINE_PATH/wine \
+                $WINE_PATH/wine64 \
                 $WINE_PATH/wineboot \
                 $WINE_PATH/winecfg \
                 $WINE_PATH/wineserver && \
+        \
         if [ "$TARGETARCH" = "arm64" ]; then \
             echo '#!/bin/bash' > /usr/local/bin/wine && \
-            echo 'box64 $WINE_PATH/wine "$@"' >> /usr/local/bin/wine && \
-            chmod +x /usr/local/bin/wine; \
+            echo 'box64 $WINE_PATH/wine64 "$@"' >> /usr/local/bin/wine64 && \
+            chmod +x /usr/local/bin/wine64; \
         else \
-            ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
+            ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64; \
         fi && \
+        ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \

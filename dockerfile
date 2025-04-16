@@ -3,6 +3,24 @@ ARG DEBIAN_TAG
 FROM debian:${DEBIAN_TAG}
 
 # ======================================================================================================
+# ECHO BLOCK FORMATTING GUIDELINES
+# ======================================================================================================
+# This Dockerfile uses two levels of section headers implemented as echo statements:
+#
+# 1. H1 (Main Section Headers): 150 characters wide with centered text
+#    Format:
+#    echo "=======================================================================================================================================================================" && \
+#    echo "                                                  SECTION NAME                                                                                                       " && \
+#    echo "=======================================================================================================================================================================" && \
+#
+# 2. H2 (Subsection Headers): 150 characters wide with text surrounded by dashes
+#    Format:
+#    echo "------------------------------------------------------- Subsection Name -----------------------------------------------------------------------" && \
+#
+# These echo statements create visual separation between logical sections in the build output
+# and make debugging and troubleshooting easier by providing clear visual markers in logs.
+
+# ======================================================================================================
 # Global ARGs - these will be available to all build stages
 # ======================================================================================================
 ARG TARGETARCH \
@@ -99,22 +117,32 @@ ENV WORLD_FILES="/world" \
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 RUN set -eux && \
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  ARCHITECTURE-SPECIFIC CONFIGURATIONS                                                                                " && \
+    echo "=======================================================================================================================================================================" && \
+    # Extract first 7 characters of commit hash
+    COMMIT_SHORT=$(echo "${SOURCE_COMMIT}" | cut -c1-7) && \
+    # Conditionally add COMPAT_LAYER
+    COMPAT_LAYER_STR="" && \
+    if [ -n "${COMPAT_LAYER}" ]; then \
+        COMPAT_LAYER_STR="-${COMPAT_LAYER}" \
+    fi && \
     # Create environment file with header and build fingerprint
-    echo "# Build: ${SOURCE_COMMIT:0:7}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER:+-$COMPAT_LAYER}-${TARGETARCH}" >> /etc/environment && \
-    echo "BUILD_ID=${SOURCE_COMMIT:0:7}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER:+-$COMPAT_LAYER}-${TARGETARCH}" >> /etc/environment && \
+    echo "# Build: ${COMMIT_SHORT}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER_STR}-${TARGETARCH}" >> /etc/environment && \
+    echo "BUILD_ID=${COMMIT_SHORT}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER_STR}-${TARGETARCH}" >> /etc/environment && \
     \
     apt-get update && \
     apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_BASE_BUILD && \
     \
-    # =======================================================================
-    # ARCHITECTURE-SPECIFIC CONFIGURATIONS
-    # =======================================================================
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  ARCHITECTURE-SPECIFIC CONFIGURATIONS                                                                                " && \
+    echo "=======================================================================================================================================================================" && \
     if [ "$TARGETARCH" = "amd64" ]; then \
         # --- AMD64 Architecture Setup ---
         apt-get install -y --no-install-recommends $PACKAGES_AMD64_ONLY; \
         \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-        # --- ARM64 Architecture Setup ---
+        echo "------------------------------------------------------- ARM64 Architecture Setup -----------------------------------------------------------------------" && \
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# ARM64 Box86/Box64 configuration" >> /etc/environment && \
@@ -168,11 +196,11 @@ RUN set -eux && \
         fi; \
     fi && \
     \
-    # =======================================================================
-    # COMPATIBILITY LAYER SETUP
-    # =======================================================================
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  COMPATIBILITY LAYER SETUP                                                                                           " && \
+    echo "=======================================================================================================================================================================" && \
     if [ "$COMPAT_LAYER" = "wine" ]; then \
-        # --- Wine Compatibility Layer Setup ---
+        echo "------------------------------------------------------- Wine Compatibility Layer Setup -----------------------------------------------------------------------" && \
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# Wine compatibility layer configuration" >> /etc/environment && \
@@ -243,7 +271,7 @@ RUN set -eux && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
         \
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
-        # --- Proton Compatibility Layer Setup ---
+        echo "------------------------------------------------------- Proton Compatibility Layer Setup --------------------------------------------------------------------" && \
         # Add section header to environment file
         echo "" >> /etc/environment && \
         echo "# Proton compatibility layer configuration" >> /etc/environment && \
@@ -266,17 +294,17 @@ RUN set -eux && \
         fi; \
     fi && \
     \
-    # =======================================================================
-    # STEAMCMD SETUP
-    # =======================================================================
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  STEAMCMD SETUP                                                                                                      " && \
+    echo "=======================================================================================================================================================================" && \
     mkdir -p ${STEAMCMD_PATH} && \
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
     # NOTE due to box86 not running in github docker build, first run should be in container.
     # ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
     \
-    # =======================================================================
-    # USER AND DIRECTORIES SETUP
-    # =======================================================================
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  USER AND DIRECTORIES SETUP                                                                                          " && \
+    echo "=======================================================================================================================================================================" && \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
     DIR_LIST="\
         ${STEAMCMD_PATH} \
@@ -292,15 +320,15 @@ RUN set -eux && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
     \
-    # =======================================================================
-    # FINAL CLEANUP
-    # =======================================================================
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  FINAL CLEANUP                                                                                                       " && \
+    echo "=======================================================================================================================================================================" && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     \
-    # =======================================================================
-    # ENVIRONMENT VARIABLES
-    # =======================================================================
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  ENVIRONMENT VARIABLES                                                                                               " && \
+    echo "=======================================================================================================================================================================" && \
     echo "Contents of /etc/environment:" && \
     cat /etc/environment && \
     \

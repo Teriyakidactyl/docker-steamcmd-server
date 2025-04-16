@@ -228,7 +228,7 @@ RUN set -eux && \
         \
         # Install Wine packages
         apt-get install -y --no-install-recommends $PACKAGES_WINE && \
-        mkdir -p $WINE_PATH && \
+        mkdir -p $WINE_PATH $WINEPREFIX && \
         \
         # Download and install Wine
         WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/" && \

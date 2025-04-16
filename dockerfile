@@ -115,7 +115,8 @@ RUN set -eux && \
         # ======================================================================================================
         # AMD64 setup
         # ======================================================================================================
-        apt-get install -y --no-install-recommends $PACKAGES_AMD64_ONLY; \
+        apt-get install -y --no-install-recommends $PACKAGES_AMD64_ONLY && \
+        echo "AMD64 setup complete - installed $PACKAGES_AMD64_ONLY"; \
         \
     elif [ "$TARGETARCH" = "arm64" ]; then \
         # ======================================================================================================
@@ -139,9 +140,11 @@ RUN set -eux && \
         \
         # Gameserver command prefix
         if [ -z "$APP_COMMAND_PREFIX" ]; then \
-            export APP_COMMAND_PREFIX="box64"; \
+            export APP_COMMAND_PREFIX="box64" && \
+            echo "Box64 setup: APP_COMMAND_PREFIX set to: $APP_COMMAND_PREFIX"; \
         else \
-            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX box64"; \
+            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX box64" && \
+            echo "Box64 setup: APP_COMMAND_PREFIX appended to: $APP_COMMAND_PREFIX"; \
         fi && \
         \
         # Add ARM architecture and install ARM-specific packages
@@ -158,6 +161,7 @@ RUN set -eux && \
             curl -L "$BOX86_DEB_URL" -o /tmp/box86.deb && \
             dpkg -i /tmp/box86.deb || apt-get -f install -y && \
             rm -f /tmp/box86.deb; \
+            echo "Box86 installed from $BOX86_DEB_URL"; \
         fi && \
         \
         if [ -n "$BOX64_DEB_URL" ]; then \
@@ -165,7 +169,19 @@ RUN set -eux && \
             curl -L "$BOX64_DEB_URL" -o /tmp/box64.deb && \
             dpkg -i /tmp/box64.deb || apt-get -f install -y && \
             rm -f /tmp/box64.deb; \
-        fi; \
+            echo "Box64 installed from $BOX64_DEB_URL"; \
+        fi && \
+        \
+        echo "ARM64 setup complete with following exports:" && \
+        echo "  DEBUGGER=$DEBUGGER" && \
+        echo "  BOX86_LOG=$BOX86_LOG" && \
+        echo "  BOX86_TRACE_FILE=$BOX86_TRACE_FILE" && \
+        echo "  BOX64_LOG=$BOX64_LOG" && \
+        echo "  BOX64_DYNAREC_BLEEDING_EDGE=$BOX64_DYNAREC_BLEEDING_EDGE" && \
+        echo "  BOX64_DYNAREC_BIGBLOCK=$BOX64_DYNAREC_BIGBLOCK" && \
+        echo "  BOX64_DYNAREC_STRONGMEM=$BOX64_DYNAREC_STRONGMEM" && \
+        echo "  BOX64_TRACE_FILE=$BOX64_TRACE_FILE" && \
+        echo "  APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX"; \
     fi && \
     \
     # ======================================================================================================
@@ -183,9 +199,11 @@ RUN set -eux && \
         \
         # Gameserver command prefix
         if [ -z "$APP_COMMAND_PREFIX" ]; then \
-            export APP_COMMAND_PREFIX="wine"; \
+            export APP_COMMAND_PREFIX="wine" && \
+            echo "Wine setup: APP_COMMAND_PREFIX set to: $APP_COMMAND_PREFIX"; \
         else \
-            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX wine"; \
+            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX wine" && \
+            echo "Wine setup: APP_COMMAND_PREFIX appended to: $APP_COMMAND_PREFIX"; \
         fi && \
         \
         # Install Wine packages
@@ -226,14 +244,23 @@ RUN set -eux && \
                 $WINE_PATH/winecfg \
                 $WINE_PATH/wineserver && \
         if [ "$TARGETARCH" = "arm64" ]; then \
-            echo 'box64 $WINE_PATH/wine "$@"' > /usr/local/bin/wine; \
-            chmod +x /usr/local/bin/wine; \
+            echo 'box64 $WINE_PATH/wine "$@"' > /usr/local/bin/wine && \
+            chmod +x /usr/local/bin/wine && \
+            echo "Created ARM64-specific wine script using box64"; \
         else \
-            ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
+            ln -sf "$WINE_PATH/wine" /usr/local/bin/wine && \
+            echo "Created symlink for wine"; \
         fi && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \
-        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver; \
+        ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver && \
+        \
+        echo "Wine compatibility layer setup complete with following exports:" && \
+        echo "  WINE_PATH=$WINE_PATH" && \
+        echo "  WINEPREFIX=$WINEPREFIX" && \
+        echo "  WINEARCH=$WINEARCH" && \
+        echo "  WINEDEBUG=$WINEDEBUG" && \
+        echo "  APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX"; \
         \
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
         # ======================================================================================================
@@ -243,13 +270,16 @@ RUN set -eux && \
         # https://github.com/ValveSoftware/Proton \
         # Download Proton from GitHub releases if version is specified \
         if [ -n "$PROTON_VERSION" ]; then \
-            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX proton" \
+            export APP_COMMAND_PREFIX="$APP_COMMAND_PREFIX proton" && \
             PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz" && \
             curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz && \
             tar -xzf /tmp/proton.tar.gz -C /opt/proton --strip-components=1 && \
-            rm /tmp/proton.tar.gz; \
+            rm /tmp/proton.tar.gz && \
+            echo "Proton compatibility layer setup complete with version: $PROTON_VERSION" && \
+            echo "  APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX"; \
         else \
-            echo "No Proton version specified" > /opt/proton/README.txt; \
+            echo "No Proton version specified" > /opt/proton/README.txt && \
+            echo "Proton compatibility layer not setup - No version specified"; \
         fi; \
     fi && \
     \
@@ -261,6 +291,7 @@ RUN set -eux && \
     # NOTE due to box86 not running in github docker build, first run should be in container.
     # echo "DEBUG: DEBUGGER=$DEBUGGER, ARCH:$(uname -m)" && \
     # ${STEAMCMD_PATH}/steamcmd.sh +login anonymous +quit && \
+    echo "SteamCMD setup complete at ${STEAMCMD_PATH}" && \
     \
     # ======================================================================================================
     # Create user and directories
@@ -279,11 +310,18 @@ RUN set -eux && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
+    echo "User setup complete for ${CONTAINER_USER} with UID ${PUID}" && \
+    echo "Created and configured directories: ${DIR_LIST}" && \
+    \
     # ======================================================================================================
     # Final cleanup
     # ======================================================================================================
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    echo "Dockerfile build completed successfully with the following environment variables:" && \
+    echo "  CONTAINER_USER=$CONTAINER_USER" && \
+    echo "  APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX" && \
+    echo "  DEBUGGER=$DEBUGGER" 
 
 # Switch to the container user
 USER ${CONTAINER_USER}

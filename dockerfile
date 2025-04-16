@@ -186,9 +186,6 @@ RUN set -eux && \
         # https://wiki.winehq.org/Debug_Channels
         echo "WINEDEBUG=fixme-all" >> /etc/environment && \
         \
-        # Source the environment to get the updated variables
-        . /etc/environment && \
-        \
         # Gameserver command prefix
         # For running Windows executables
         if [ -z "$APP_COMMAND_PREFIX" ]; then \

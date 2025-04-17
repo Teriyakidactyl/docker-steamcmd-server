@@ -272,7 +272,7 @@ RUN set -eux && \
             $WINE_PATH/wine64 \
             $WINE_PATH/wineboot \
             $WINE_PATH/winecfg \
-            $WINE_PATH/wineserver && \
+            $WINE_PATH/wineserver; && \
         \
     elif [ "$COMPAT_LAYER" = "proton" ]; then \
         echo "------------------------------------------------------- Proton Compatibility Layer Setup --------------------------------------------------------------------" && \

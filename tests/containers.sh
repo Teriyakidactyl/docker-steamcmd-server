@@ -313,7 +313,7 @@ test_steamcmd_basic() {
         echo \"Architecture: \$(uname -m)\"
         
         # Simple login test - should work on both architectures
-        /opt/steamcmd/steamcmd.sh +login anonymous +quit && \
+        steamcmd +login anonymous +quit && \
         echo 'SteamCMD basic functionality verified'
     " "$image"
     
@@ -325,7 +325,7 @@ test_steamcmd_app_info() {
     echo -e "\n${YELLOW}====== SteamCMD App Info Tests ======${NC}"
     
     run_test "SteamCMD App Info" "
-        /opt/steamcmd/steamcmd.sh +login anonymous +app_info_print $CS_GO_SERVER_APPID +quit && \
+        steamcmd +login anonymous +app_info_print $CS_GO_SERVER_APPID +quit && \
         echo 'SteamCMD app info functionality verified'
     " "$image"
     

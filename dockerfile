@@ -91,7 +91,8 @@ ENV WORLD_FILES="/world" \
         # disk space analyzer
         ncdu \
         # top replacement
-        btop" \
+        btop \
+        nano" \
     \
     # Package definitions with detailed comments for maintainers
     PACKAGES_AMD64_ONLY="\

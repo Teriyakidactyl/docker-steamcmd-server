@@ -140,9 +140,7 @@ if [ -n "$BOX86_DEB_URL" ]; then
     echo "Installing Box86..."
     dpkg -i /tmp/box86.deb || apt-get -f install -y
     rm -f /tmp/box86.deb
-
-    # TODO update export LD_LIBRARY_PATH="$STEAMCMD_PATH/linux32/:$LD_LIBRARY_PATH"
-    
+   
     # Verify installation
     if command -v box86 >/dev/null 2>&1; then
         echo "Box86 installation successful!"

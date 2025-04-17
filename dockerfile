@@ -103,25 +103,6 @@ COPY installers /tmp/installers
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 RUN set -eux && \
-    echo "=======================================================================================================================================================================" && \
-    echo "                                                  USER AND DIRECTORIES SETUP                                                                                          " && \
-    echo "=======================================================================================================================================================================" && \
-    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
-    DIR_LIST="\
-        ${STEAMCMD_PATH} \
-        ${STEAMCMD_LOGS} \
-        ${WORLD_FILES} \
-        ${WORLD_DIRECTORIES} \
-        ${APP_FILES} \
-        ${STEAM_LIBRARY} \
-        ${LOGS} \
-        ${SCRIPTS}\
-        /home/${CONTAINER_USER}" && \
-    mkdir -p $DIR_LIST && \
-    chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
-    chmod 755 $DIR_LIST && \
-    ls -la / && \
-    find ~ -type d -exec ls -ld {} \; && \
     \
     # BUILD TAGS
     # Extract first 7 characters of commit hash
@@ -189,7 +170,27 @@ RUN set -eux && \
     cat /etc/environment && \
     \
     echo '# Source environment variables' >> /home/${CONTAINER_USER}/.bashrc && \
-    echo '. /etc/environment' >> /home/${CONTAINER_USER}/.bashrc
+    echo '. /etc/environment' >> /home/${CONTAINER_USER}/.bashrc && \
+    \
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  USER AND DIRECTORIES SETUP                                                                                          " && \
+    echo "=======================================================================================================================================================================" && \
+    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
+    DIR_LIST="\
+        ${STEAMCMD_PATH} \
+        ${STEAMCMD_LOGS} \
+        ${WORLD_FILES} \
+        ${WORLD_DIRECTORIES} \
+        ${APP_FILES} \
+        ${STEAM_LIBRARY} \
+        ${LOGS} \
+        ${SCRIPTS}\
+        /home/${CONTAINER_USER}" && \
+    mkdir -p $DIR_LIST && \
+    chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
+    chmod 755 $DIR_LIST && \
+    ls -la / && \
+    find ~ -type d -exec ls -ld {} \;
 
 # Switch to the container user
 USER ${CONTAINER_USER}

@@ -50,15 +50,39 @@ done
 # Define the tags to test - use _dev suffix for dev branch
 # Each tag will be tested in sequence
 TAGS_TO_TEST=(
-    "bookworm_dev-amd64"
-    "bookworm-wine_dev-amd64"
-    "trixie_dev-amd64"
-    "trixie-wine_dev-amd64"
-    "bookworm_dev-arm64"
-    "bookworm-wine_dev-arm64"
-    "trixie_dev-arm64"
-    "trixie-wine_dev-arm64"
-    # Add more tags as needed
+    # Bookworm - Native - Development
+    "bookworm-20250407-slim_dev-amd64"
+    "bookworm-20250407-slim_dev-arm64"
+    
+    # Bookworm - Wine Staging - Development
+    "bookworm-20250407-slim_wine-staging-10.5_dev-amd64"
+    "bookworm-20250407-slim_wine-staging-10.5_dev-arm64"
+    
+    # Bookworm - Wine Stable - Development
+    "bookworm-20250407-slim_wine-stable-10.0.0.0_dev-amd64"
+    "bookworm-20250407-slim_wine-stable-10.0.0.0_dev-arm64"
+    
+    # Trixie - Native - Development
+    "trixie-20250407-slim_dev-amd64"
+    "trixie-20250407-slim_dev-arm64"
+    
+    # Trixie - Wine Staging - Development
+    "trixie-20250407-slim_wine-staging-10.5_dev-amd64"
+    "trixie-20250407-slim_wine-staging-10.5_dev-arm64"
+    
+    # Trixie - Wine Stable - Development
+    "trixie-20250407-slim_wine-stable-10.0.0.0_dev-amd64"
+    "trixie-20250407-slim_wine-stable-10.0.0.0_dev-arm64"
+    
+    # Codename tags - if you need to test these as well
+    "bookworm-dev-amd64"
+    "bookworm-dev-arm64"
+    "bookworm-wine-staging-dev-amd64"
+    "bookworm-wine-staging-dev-arm64"
+    "trixie-dev-amd64"
+    "trixie-dev-arm64"
+    "trixie-wine-staging-dev-amd64"
+    "trixie-wine-staging-dev-arm64"
 )
 
 # Create test directories
@@ -324,7 +348,7 @@ test_wine_basic() {
     echo -e "\n${YELLOW}====== Wine Basic Tests ======${NC}"
     
     run_test "Wine Basic" "
-        which wine && which wineboot && which wineserver && which wine64 && \
+        which wine && which wineboot && which wineserver && \
         echo 'Wine binaries verified'
     " "$image"
     
@@ -336,7 +360,7 @@ test_wine_version() {
     echo -e "\n${YELLOW}====== Wine Version Tests ======${NC}"
     
     run_test "Wine Version" "
-        wine64 --version && \
+        wine --version && \
         echo 'Wine version verified'
     " "$image"
     

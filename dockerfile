@@ -103,6 +103,10 @@ COPY installers /tmp/installers
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 RUN set -eux && \
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  USER SETUP                                                                                                          " && \
+    echo "=======================================================================================================================================================================" && \
+    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
     \
     # BUILD TAGS
     # Extract first 7 characters of commit hash
@@ -173,9 +177,8 @@ RUN set -eux && \
     echo '. /etc/environment' >> /home/${CONTAINER_USER}/.bashrc && \
     \
     echo "=======================================================================================================================================================================" && \
-    echo "                                                  USER AND DIRECTORIES SETUP                                                                                          " && \
+    echo "                                                  Final Permission                                                                                                    " && \
     echo "=======================================================================================================================================================================" && \
-    useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
     DIR_LIST="\
         ${STEAMCMD_PATH} \
         ${STEAMCMD_LOGS} \

@@ -30,13 +30,13 @@ PACKAGES_ARM_ONLY="\
     `# required for Box86 > steamcmd`
     libc6:armhf"
 
-PACKAGES_ARM_BUILD="\
-    `# tools for ARM builds`
-    gcc-arm-linux-gnueabihf \
-    `# compression tools`
-    bzip2 \
-    `# build essentials if needed`
-    build-essential"
+# PACKAGES_ARM_BUILD="\
+#     `# tools for ARM builds`
+#     gcc-arm-linux-gnueabihf \
+#     `# compression tools`
+#     bzip2 \
+#     `# build essentials if needed`
+#     build-essential"
 
 # Box86 configuration
 BOX86_VERSION="${BOX86_VERSION:-0.3.8}"
@@ -122,8 +122,8 @@ fi
 echo "Installing ARM-specific packages: $PACKAGES_ARM_ONLY"
 apt-get install -y --no-install-recommends $PACKAGES_ARM_ONLY
 
-echo "Installing ARM build packages: $PACKAGES_ARM_BUILD"
-apt-get install -y --no-install-recommends $PACKAGES_ARM_BUILD
+# echo "Installing ARM build packages: $PACKAGES_ARM_BUILD"
+# apt-get install -y --no-install-recommends $PACKAGES_ARM_BUILD
 
 # ===== Step 3: Create required directories =====
 echo "Creating required directories..."

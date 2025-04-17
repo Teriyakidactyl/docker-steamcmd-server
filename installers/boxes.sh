@@ -140,6 +140,8 @@ if [ -n "$BOX86_DEB_URL" ]; then
     echo "Installing Box86..."
     dpkg -i /tmp/box86.deb || apt-get -f install -y
     rm -f /tmp/box86.deb
+
+    # TODO update export LD_LIBRARY_PATH="$STEAMCMD_PATH/linux32/:$LD_LIBRARY_PATH"
     
     # Verify installation
     if command -v box86 >/dev/null 2>&1; then
@@ -175,16 +177,8 @@ fi
 echo "Creating helper scripts..."
 
 # Create a backup of the original file (optional but recommended)
-cp /installers/steamcmd.sh /usr/local/bin/steamcmd
+cp /tmp/installers/steamcmd.sh /usr/local/bin/steamcmd
 chmod +x "/usr/local/bin/steamcmd"
-
-# Helper script for running steamcmd with Box86
-# cat > /usr/local/bin/box86-steamcmd << 'EOF'
-# #!/bin/bash
-# # Helper script to run steamcmd with Box86
-# exec box86 ${STEAMCMD_PATH}/steamcmd.sh "$@"
-# EOF
-# chmod +x /usr/local/bin/box86-steamcmd
 
 # ===== Step 7: Log installation results =====
 echo "Box86/Box64 installation completed!"

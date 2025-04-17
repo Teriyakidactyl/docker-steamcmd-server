@@ -259,7 +259,7 @@ RUN set -eux && \
         # NOTE !! Presumes WINE_VERSION > 10.2 where wine64 no longer exists.
         if [ "$TARGETARCH" = "arm64" ]; then \
             echo '#!/bin/bash' > /usr/local/bin/wine && \
-            echo 'box64 $WINE_PATH/wine "$@"' >> /usr/local/bin/wine && \
+            echo 'box64 $WINE_PATH/wine "$@"' >> /usr/local/bin/wine; \
         else \
             ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
         fi && \

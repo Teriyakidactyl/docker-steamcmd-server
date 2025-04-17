@@ -175,17 +175,15 @@ fi
 echo "Creating helper scripts..."
 
 # Helper script for running steamcmd with Box86
-cat > /usr/local/bin/box86-steamcmd << 'EOF'
-#!/bin/bash
-# Helper script to run steamcmd with Box86
-exec box86 ${STEAMCMD_PATH}/steamcmd.sh "$@"
-EOF
-chmod +x /usr/local/bin/box86-steamcmd
+# cat > /usr/local/bin/box86-steamcmd << 'EOF'
+# #!/bin/bash
+# # Helper script to run steamcmd with Box86
+# exec box86 ${STEAMCMD_PATH}/steamcmd.sh "$@"
+# EOF
+# chmod +x /usr/local/bin/box86-steamcmd
 
 # ===== Step 7: Log installation results =====
 echo "Box86/Box64 installation completed!"
-echo "  Box86 Version: ${BOX86_VERSION}"
-echo "  Box64 Version: ${BOX64_VERSION}"
 
 # Re-source environment for current script
 . /etc/environment

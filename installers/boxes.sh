@@ -174,6 +174,10 @@ fi
 # ===== Step 6: Create helpers and convenience scripts =====
 echo "Creating helper scripts..."
 
+# Create a backup of the original file (optional but recommended)
+cp /installers/steamcmd.sh /usr/local/bin/steamcmd
+chmod +x "/usr/local/bin/steamcmd"
+
 # Helper script for running steamcmd with Box86
 # cat > /usr/local/bin/box86-steamcmd << 'EOF'
 # #!/bin/bash

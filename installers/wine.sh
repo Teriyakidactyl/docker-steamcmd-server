@@ -69,10 +69,11 @@ echo "  Wine i386 Packages: ${PACKAGES_WINE_I386}"
 WINE_VER_MAJOR=$(echo "$WINE_VERSION" | cut -d. -f1)
 WINE_VER_MINOR=$(echo "$WINE_VERSION" | cut -d. -f2)
 
-# Determine WINEARCH based on Wine version
+# Determine WINEARCH and WINE_EXECUTABLE based on Wine version
 if [ "$WINE_VER_MAJOR" -gt 10 ] || ([ "$WINE_VER_MAJOR" -eq 10 ] && [ "$WINE_VER_MINOR" -ge 2 ]); then
     echo "Wine version >= 10.2, using wow64 architecture"
     WINEARCH="wow64"
+    WINE_EXECUTABLE="wine"
     
     # Check for potential conflicts with i386 support on newer Wine versions
     if [ "$INSTALL_I386" = "true" ]; then
@@ -82,8 +83,8 @@ if [ "$WINE_VER_MAJOR" -gt 10 ] || ([ "$WINE_VER_MAJOR" -eq 10 ] && [ "$WINE_VER
 else
     echo "Wine version < 10.2, using win64 architecture"
     WINEARCH="win64"
+    WINE_EXECUTABLE="wine64"
 fi
-
 # Add i386 architecture if requested and not on ARM
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     echo "Adding i386 architecture support..."
@@ -184,9 +185,11 @@ echo "Setting up Wine symlinks..."
 if [ "$TARGETARCH" = "arm64" ]; then
     # For ARM64, create a wrapper script that uses box64
     echo "Creating ARM64-specific wine wrapper using box64"
-    cat > /usr/local/bin/wine << 'EOF'
+    cat > /usr/local/bin/wine << EOF
 #!/bin/bash
-box64 $WINE_PATH/wine "$@"
+box64 $WINE_PATH/$WINE_EXECUTABLE "\$@"
+EOF
+chmod +x /usr/local/bin/wine
 EOF
     chmod +x /usr/local/bin/wine
     
@@ -202,8 +205,8 @@ EOF
 else
     # For AMD64, create direct symlinks
     echo "Creating AMD64 wine symlinks"
-    ln -sf "$WINE_PATH/wine" /usr/local/bin/wine
-    
+    ln -sf "$WINE_PATH/$WINE_EXECUTABLE" /usr/local/bin/wine
+
     # Add wine32 symlink if i386 support is installed
     if [ "$INSTALL_I386" = "true" ] && [ -f "$WINE_PATH/wine32" ]; then
         ln -sf "$WINE_PATH/wine32" /usr/local/bin/wine32

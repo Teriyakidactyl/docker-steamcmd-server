@@ -189,8 +189,6 @@ if [ "$TARGETARCH" = "arm64" ]; then
 #!/bin/bash
 box64 $WINE_PATH/$WINE_EXECUTABLE "\$@"
 EOF
-chmod +x /usr/local/bin/wine
-EOF
     chmod +x /usr/local/bin/wine
     
     # Add additional wrapper for wine32 if i386 support is installed

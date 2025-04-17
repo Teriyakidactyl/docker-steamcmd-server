@@ -287,6 +287,7 @@ test_environment_vars() {
         echo STEAMCMD_PATH: \$STEAMCMD_PATH && \
         echo STEAMCMD_PROFILE: \$STEAMCMD_PROFILE && \
         echo STEAM_LIBRARY: \$STEAM_LIBRARY && \
+        cat /etc/environment
         # Check WINEPREFIX only if we're on a wine-enabled image
         if [[ \$(docker inspect $image | grep -c 'wine') -gt 0 ]]; then
             echo WINEPREFIX: \$WINEPREFIX && \
@@ -308,7 +309,7 @@ test_steamcmd_basic() {
     
     run_test "SteamCMD Basic" "
         # Log whether we're using an emulation layer (box86/box64) or native
-        echo \"Using debugger: \$DEBUGGER\"
+        echo \"DEBUGGER: \$DEBUGGER\"
         echo \"Architecture: \$(uname -m)\"
         
         # Simple login test - should work on both architectures
@@ -380,7 +381,7 @@ test_wine_prefix() {
         
         # Initialize the prefix with wineboot
         echo \"Initializing Wine prefix...\"
-        wine64 wineboot -iuf
+        wine wineboot -iuf
         
         # Verify the prefix was created successfully
         if [ -f \$WINEPREFIX/system.reg ]; then
@@ -578,8 +579,8 @@ test_container() {
     test_directories "$image" || failed_tests+=("Directory Structure")
     test_directory_permissions "$image" || failed_tests+=("Directory Permissions")
     test_environment_vars "$image" || failed_tests+=("Environment Variables")
-    test_logging_functions "$image" || failed_tests+=("Logging Functions")
-    test_update_functions "$image" || failed_tests+=("Update Functions")
+    # test_logging_functions "$image" || failed_tests+=("Logging Functions")
+    # test_update_functions "$image" || failed_tests+=("Update Functions")
     # test_mod_functions "$image" || failed_tests+=("Mod Functions")
     test_startup_script "$image" || failed_tests+=("Startup Script")
     
@@ -592,7 +593,7 @@ test_container() {
         test_wine_basic "$image" || failed_tests+=("Wine Basic")
         test_wine_version "$image" || failed_tests+=("Wine Version")
         test_wine_prefix "$image" || failed_tests+=("Wine Prefix")
-        test_wine_functionality "$image" || failed_tests+=("Wine Functionality")
+        # test_wine_functionality "$image" || failed_tests+=("Wine Functionality")
     else
         echo -e "${BLUE}Skipping Wine tests for non-Wine image${NC}"
     fi

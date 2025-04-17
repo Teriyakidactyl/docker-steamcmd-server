@@ -28,10 +28,7 @@ LOGS="${LOGS:-/var/log}"
 # Package definitions with detailed comments for maintainers
 PACKAGES_ARM_ONLY="\
     `# required for Box86 > steamcmd`
-    libc6:armhf \
-    `# additional arm-specific libraries`
-    libstdc++6:armhf \
-    libgcc-s1:armhf"
+    libc6:armhf"
 
 PACKAGES_ARM_BUILD="\
     `# tools for ARM builds`

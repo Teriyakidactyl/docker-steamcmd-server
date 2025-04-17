@@ -78,7 +78,8 @@ ENV WORLD_FILES="/world" \
     \
     # Wine
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
-    WINEARCH="win64" \
+    # win64 when less thant WINE_VERSION 10.2
+    WINEARCH="wow64" \
     #  https://wiki.winehq.org/Mono
     #WINE_MONO_VERSION=4.9.4 
     # https://wiki.winehq.org/Debug_Channels
@@ -208,6 +209,7 @@ RUN set -eux && \
         \
         # Wine, Windows Emulator, https://packages.debian.org/bookworm/wine, https://wiki.winehq.org/Debian, https://www.winehq.org/news/
         # Install wine amd64 in arm64 manually, needed for box64, https://github.com/ptitSeb/box64/blob/main/docs/X64WINE.md
+        ## ^ beging 10.2, wow64 may invalidate instructions: https://gitlab.winehq.org/wine/wine/-/releases/wine-10.2, https://gitlab.winehq.org/wine/wine/-/wikis/Man-Pages/wine
         # Wine only translates windows apps, but not arch. Windows apps are almost all x86, so wine:arm doesn't really help.
         \
         # Add section header to environment file
@@ -254,14 +256,13 @@ RUN set -eux && \
         rm -rf "$TEMP_DIR" && \
         \
         # Setup Wine symlinks
+        # NOTE !! Presumes WINE_VERSION > 10.2 where wine64 no longer exists.
         if [ "$TARGETARCH" = "arm64" ]; then \
             echo '#!/bin/bash' > /usr/local/bin/wine && \
-            echo 'box64 $WINE_PATH/wine64 "$@"' >> /usr/local/bin/wine64 && \
-            chmod +x /usr/local/bin/wine /usr/local/bin/wine64 && \
-            ln -sf /usr/local/bin/wine64 /usr/local/bin/wine; \
+            echo 'box64 $WINE_PATH/wine "$@"' >> /usr/local/bin/wine && \
+            chmod +x /usr/local/bin/wine && \
         else \
-            ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine64 && \
-            ln -sf "$WINE_PATH/wine64" /usr/local/bin/wine; \
+            ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
         fi && \
         ln -sf "$WINE_PATH/wineboot" /usr/local/bin/wineboot && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \

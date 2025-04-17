@@ -260,7 +260,6 @@ RUN set -eux && \
         if [ "$TARGETARCH" = "arm64" ]; then \
             echo '#!/bin/bash' > /usr/local/bin/wine && \
             echo 'box64 $WINE_PATH/wine "$@"' >> /usr/local/bin/wine && \
-            chmod +x /usr/local/bin/wine; \
         else \
             ln -sf "$WINE_PATH/wine" /usr/local/bin/wine; \
         fi && \
@@ -268,9 +267,7 @@ RUN set -eux && \
         ln -sf "$WINE_PATH/winecfg" /usr/local/bin/winecfg && \
         ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver && \
         chmod +x \
-            /usr/local/bin/wine64 \
             /usr/local/bin/wine \
-            $WINE_PATH/wine64 \
             $WINE_PATH/wineboot \
             $WINE_PATH/winecfg \
             $WINE_PATH/wineserver; \

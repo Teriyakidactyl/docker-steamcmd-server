@@ -73,8 +73,9 @@ env:
   # NOTE browse files by commit to get more permanent link!
   BOX86_VERSION: "0.3.9"
       # https://github.com/ptitSeb/box86/releases
-  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
-      # "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+      # "https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
+      # 
       # https://github.com/ryanfortner/box86-debs/tree/master/debian
       # History: https://github.com/ryanfortner/box86-debs/commits/master/debian
 

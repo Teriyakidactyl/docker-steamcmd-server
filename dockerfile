@@ -156,9 +156,6 @@ RUN set -eux && \
         /tmp/installers/boxes.sh;\
     fi && \
     \
-    # Re-source environment to make variables available in this build stage
-    . /etc/environment; \
-    \
     echo "=======================================================================================================================================================================" && \
     echo "                                                  COMPATIBILITY LAYER SETUP                                                                                           " && \
     echo "=======================================================================================================================================================================" && \
@@ -167,9 +164,6 @@ RUN set -eux && \
     elif [ "$COMPAT_LAYER" = "proton" ]; then \ 
         /tmp/installers/proton.sh; \
     fi && \
-    \
-    # Re-source the environment file to load updated variables
-    . /etc/environment && \
     \
     # Clean up installers after all installations are complete    
     rm -rf /tmp/installers && \

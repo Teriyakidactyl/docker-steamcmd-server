@@ -3,7 +3,7 @@
 # 
 # This workflow builds Docker images with various combinations of:
 # - Debian base images (trixie, bookworm)
-# - Compatibility layers (native, wine, proton [future])
+# - Compatibility layers (native, wine-staging-10.5, wine-staging-10.4, proton [future])
 # - Architectures (amd64, arm64)
 
 name: Build Docker Images
@@ -45,10 +45,14 @@ env:
     trixie-20250407-slim
     bookworm-20250407-slim
   
-  # Compatibility layers (empty string for native)
+  # Compatibility layers with specific versions
   MATRIX_COMPAT_LAYERS: |
     native
-    wine
+    wine-staging-10.5
+    wine-stable-10.0.0.0
+  # Wine configurations
+  # Source: https://gitlab.winehq.org/wine/wine/-/releases
+  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
   # TODO: Add "proton" to MATRIX_COMPAT_LAYERS when ready (no ARM support yet)
   
   # Target platforms
@@ -57,11 +61,7 @@ env:
     linux/arm64
   
   # ===== Software Versions =====
-  # Wine configuration
-  # Source: https://gitlab.winehq.org/wine/wine/-/releases
-  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
-  WINE_VERSION: "10.5"
-  WINE_BRANCH: "staging"
+  # Wine configuration (defaults, may be overridden by matrix values)
   WINE_ID: "debian"
   WINE_TAG: "-1"
 
@@ -172,6 +172,20 @@ jobs:
           # Get codename from image tag (e.g., "bookworm" from "bookworm-20250407-slim")
           DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
           echo "DEBIAN_VERSION_CODENAME=$DEBIAN_VERSION_CODENAME" >> $GITHUB_ENV
+          
+          # ===== Parse Wine configuration from compat_layer =====
+          # Extract wine branch and version if specified in compatibility layer
+          if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
+            WINE_BRANCH="${BASH_REMATCH[1]}"
+            WINE_VERSION="${BASH_REMATCH[2]}"
+            echo "WINE_BRANCH=$WINE_BRANCH" >> $GITHUB_ENV
+            echo "WINE_VERSION=$WINE_VERSION" >> $GITHUB_ENV
+            echo "COMPAT_LAYER=wine" >> $GITHUB_ENV
+          elif [[ "${{ matrix.compat_layer }}" == "native" ]]; then
+            echo "COMPAT_LAYER=" >> $GITHUB_ENV
+          else
+            echo "COMPAT_LAYER=${{ matrix.compat_layer }}" >> $GITHUB_ENV
+          fi
       
           # ===== Build Version Tags =====
           # Format: <image>[-compat_layer][-version][_branch]
@@ -181,8 +195,9 @@ jobs:
           
           # Add compatibility layer and version if present (only for non-native)
           if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
-            if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
-              TAG_VERSIONED="${TAG_VERSIONED}_wine-${{ env.WINE_VERSION }}"
+            if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
+              # Use the full compat_layer string with branch and version
+              TAG_VERSIONED="${TAG_VERSIONED}_${{ matrix.compat_layer }}"
             elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
               TAG_VERSIONED="${TAG_VERSIONED}_proton-${{ env.PROTON_VERSION }}"
             fi
@@ -202,7 +217,13 @@ jobs:
           
           # Add compatibility layer if present (only for non-native)
           if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
-            TAG_CODENAME="${TAG_CODENAME}-${{ matrix.compat_layer }}"
+            if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
+              # For wine, add both the layer and branch
+              WINE_BRANCH="${BASH_REMATCH[1]}"
+              TAG_CODENAME="${TAG_CODENAME}-wine-${WINE_BRANCH}"
+            elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
+              TAG_CODENAME="${TAG_CODENAME}-proton"
+            fi
           fi
           
           # Add dev suffix if not on main branch
@@ -213,7 +234,7 @@ jobs:
       
           # ===== Build Latest Tag =====
           # Only used for main branch - native builds
-          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ matrix.compat_layer }}" == "" ]]; then
+          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ matrix.compat_layer }}" == "native" ]]; then
             TAG_LATEST="latest-$ARCHITECTURE"
             echo "TAG_LATEST=$TAG_LATEST" >> $GITHUB_ENV
             echo "HAS_LATEST_TAG=true" >> $GITHUB_ENV
@@ -234,7 +255,7 @@ jobs:
           if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
             APP_COMMAND_PREFIX="box64 "
           fi
-          if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
+          if [[ "${{ matrix.compat_layer }}" =~ ^wine ]]; then
             APP_COMMAND_PREFIX="wine $APP_COMMAND_PREFIX"
           elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
             APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"
@@ -258,6 +279,11 @@ jobs:
           echo "Build metadata:"
           echo "  Date: $BUILD_DATE"
           echo "  Debian codename: $DEBIAN_VERSION_CODENAME"
+          if [[ "${{ matrix.compat_layer }}" =~ ^wine ]]; then
+            echo "Wine configuration:"
+            echo "  Branch: $WINE_BRANCH"
+            echo "  Version: $WINE_VERSION"
+          fi
 
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
@@ -267,11 +293,11 @@ jobs:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
             # Version Tag: Combines image name and compatibility layer with version
-            # Example: 'trixie-20250407-slim_wine-10.0' 
+            # Example: 'trixie-20250407-slim_wine-staging-10.5' 
             ${{ env.TAG_VERSIONED }}
 
             # Codename Tag: Combines Debian version codename with compatibility layer
-            # Example: 'bookworm-wine'
+            # Example: 'bookworm-wine-staging'
             ${{ env.TAG_CODENAME }}
             
             # Latest Tag: Only for main branch and native builds
@@ -316,8 +342,8 @@ jobs:
             DEBIAN_TAG=${{ matrix.image }}
             DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}
             
-            # Compatibility Layer (wine, proton, empty for native)
-            COMPAT_LAYER=${{ matrix.compat_layer != 'native' && matrix.compat_layer || '' }}
+            # Compatibility Layer
+            COMPAT_LAYER=${{ env.COMPAT_LAYER }}
 
             # Wine configuration
             WINE_VERSION=${{ env.WINE_VERSION }}
@@ -453,9 +479,13 @@ jobs:
           
           # Add compatibility layer and version if present (only for non-native)
           if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
-            if [[ "${{ matrix.compat_layer }}" == "wine" ]]; then
-              BASE_VERSION_TAG="${BASE_VERSION_TAG}_wine-${{ env.WINE_VERSION }}"
-              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-wine"
+            if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
+              # Use the full wine string with branch and version for version tag
+              BASE_VERSION_TAG="${BASE_VERSION_TAG}_${{ matrix.compat_layer }}"
+              
+              # Extract wine branch for codename tag
+              WINE_BRANCH="${BASH_REMATCH[1]}"
+              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-wine-${WINE_BRANCH}"
             elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
               BASE_VERSION_TAG="${BASE_VERSION_TAG}_proton-${{ env.PROTON_VERSION }}"
               BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-proton"

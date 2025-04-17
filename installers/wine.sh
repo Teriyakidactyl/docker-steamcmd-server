@@ -34,24 +34,23 @@ INSTALL_I386="${INSTALL_I386:-false}"
 # These can be overridden by setting environment variables before calling the script
 
 PACKAGES_WINE="\
-    # Fake X-Server desktop for Wine
+    `# Fake X-Server desktop for Wine`
     xvfb \
-    # xauth needed with --no-install-recommends with wine
+    `# xauth needed with --no-install-recommends with wine`
     xauth \
-    # Font configuration needed by many Windows applications
+    `# Font configuration needed by many Windows applications`
     fontconfig \
-    # Libraries frequently needed by Windows applications
+    `# Libraries frequently needed by Windows applications`
     libfreetype6 \
     libpng16-16 \
     libjpeg62-turbo"
 
-# Additional i386 packages needed when i386 support is enabled
 PACKAGES_WINE_I386="\
-    # 32-bit libraries needed for i386 Wine
+    `# 32-bit libraries needed for i386 Wine`
     libfreetype6:i386 \
     libpng16-16:i386 \
     libjpeg62-turbo:i386 \
-    # Additional dependencies for 32-bit applications
+    `# Additional dependencies for 32-bit applications`
     libglib2.0-0:i386 \
     libgstreamer1.0-0:i386"
 

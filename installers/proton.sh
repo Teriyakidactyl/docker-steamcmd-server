@@ -28,28 +28,28 @@ WINEPREFIX="${WINEPREFIX:-/home/$CONTAINER_USER/app/Proton}"
 # These can be overridden by setting environment variables before calling the script
 
 PACKAGES_PROTON="\
-    # Fake X-Server desktop for Wine/Proton
+    `# Fake X-Server desktop for Wine/Proton`
     xvfb \
-    # xauth needed with --no-install-recommends
+    `# xauth needed with --no-install-recommends`
     xauth \
-    # Python is needed for some Proton scripts
+    `# Python is needed for some Proton scripts`
     python3 \
     python3-pip \
-    # Graphics-related dependencies
+    `# Graphics-related dependencies`
     libvulkan1 \
     mesa-vulkan-drivers \
-    # Font configuration needed by many games
+    `# Font configuration needed by many games`
     fontconfig \
-    # Common libraries needed by games
+    `# Common libraries needed by games`
     libfreetype6 \
     libpng16-16 \
     libjpeg62-turbo \
-    # Audio support
+    `# Audio support`
     libasound2 \
-    # Common dependencies for Steam and Proton
+    `# Common dependencies for Steam and Proton`
     libglib2.0-0 \
     libdbus-1-3 \
-    # Additional libraries commonly needed
+    `# Additional libraries commonly needed`
     libnss3 \
     libx11-6 \
     libxss1 \
@@ -57,19 +57,19 @@ PACKAGES_PROTON="\
 
 # Additional i386 packages needed for 32-bit game support
 PACKAGES_PROTON_I386="\
-    # 32-bit graphics libraries
+    `# 32-bit graphics libraries`
     libvulkan1:i386 \
     mesa-vulkan-drivers:i386 \
-    # 32-bit common libraries
+    `# 32-bit common libraries`
     libfreetype6:i386 \
     libpng16-16:i386 \
     libjpeg62-turbo:i386 \
-    # 32-bit audio support
+    `# 32-bit audio support`
     libasound2:i386 \
-    # 32-bit common dependencies
+    `# 32-bit common dependencies`
     libglib2.0-0:i386 \
     libdbus-1-3:i386 \
-    # 32-bit additional libraries
+    `# 32-bit additional libraries`
     libnss3:i386 \
     libx11-6:i386 \
     libxss1:i386 \

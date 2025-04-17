@@ -256,7 +256,7 @@ RUN set -eux && \
         # Setup Wine symlinks
         if [ "$TARGETARCH" = "arm64" ]; then \
             echo '#!/bin/bash' > /usr/local/bin/wine && \
-            echo 'box64 $WINE_PATH/wine64 "$@"' > /usr/local/bin/wine64 && \
+            echo 'box64 $WINE_PATH/wine64 "$@"' >> /usr/local/bin/wine64 && \
             chmod +x /usr/local/bin/wine /usr/local/bin/wine64 && \
             ln -sf /usr/local/bin/wine64 /usr/local/bin/wine; \
         else \

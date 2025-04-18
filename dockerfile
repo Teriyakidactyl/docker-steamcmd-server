@@ -57,6 +57,7 @@ ARG TARGETARCH \
 ENV CONTAINER_USER="container" \
     PUID="1000" \
     LOGS="/var/log" \
+    LANG_LOCALE="en_US.UTF-8" \
     SCRIPTS="/usr/local/bin" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
@@ -132,7 +133,7 @@ RUN set -eux && \
     fi && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
-    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    sed -i "s/^# $LANG_LOCALE UTF-8/$LANG_LOCALE UTF-8/" /etc/locale.gen && \
     locale-gen && \
     echo "" >> /etc/environment && \
     echo "# Localization" >> /etc/environment && \

@@ -59,6 +59,8 @@ ENV CONTAINER_USER="container" \
     LOGS="/var/log" \
     LANG="en_US.UTF-8" \
     LC_ALL="en_US.UTF-8" \
+    LANGUAGE="en_US.UTF-8" \
+    TZ="America/Vancouver" \
     SCRIPTS="/usr/local/bin" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
@@ -134,16 +136,8 @@ RUN set -eux && \
     fi && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
-    sed -i "s/^# $LANG UTF-8/$LANG UTF-8/" /etc/locale.gen && \
-    # FIXME localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias $LANG && \
-    # FIXME locale-gen && \
+    sed -i '/$LANG/s/^# //g' /etc/locale.gen && \
     locale-gen $LANG && \
-    dpkg-reconfigure locales && \
-    echo "" >> /etc/environment && \
-    echo "# Localization" >> /etc/environment && \
-    echo "LANG=$LANG" >> /etc/environment && \
-    echo "LC_ALL=$LC_ALL" >> /etc/environment && \
-    # FIXME in container locale; LANG=, LC_ALL=
     locale && \
     \
     echo "=======================================================================================================================================================================" && \

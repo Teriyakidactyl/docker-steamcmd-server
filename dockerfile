@@ -83,6 +83,7 @@ ENV WORLD_FILES="/world" \
     PACKAGES_BUILD="\
         # localization stops some steamcmd warnings.
         locales" \
+        # TODO localpurge? https://packages.debian.org/search?keywords=localepurge
     \
     # Package definitions with minimal base packages
     PACKAGES_BASE="\
@@ -138,6 +139,7 @@ RUN set -eux && \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i '/$LANG/s/^# //g' /etc/locale.gen && \
     locale-gen $LANG && \
+    update-locale LANG=$LANG && \
     locale && \
     \
     echo "=======================================================================================================================================================================" && \

@@ -277,29 +277,36 @@ test_steamcmd_basic() {
     local image=$1
     echo -e "\n${YELLOW}====== SteamCMD Basic Tests ======${NC}"
     
-    # Use array of allowed exit codes: 0 and 42
-    local allowed_exit_codes=(0 42)
-    
     run_test "SteamCMD Basic" "
         # Log whether we're using an emulation layer (box86/box64) or native
         echo \"DEBUGGER: \$DEBUGGER\"
         echo \"Architecture: \$(uname -m)\"
         
-        # Simple login test - should work on both architectures
-        # Exit code 42 is also acceptable (SteamCMD often exits with this code normally)
-        steamcmd +login anonymous +quit
-        EXIT_CODE=\$?
+        # Run SteamCMD with anonymous login and app update
+        steamcmd +login anonymous +quit | tee /tmp/steamcmd_output.log
         
-        echo \"SteamCMD exited with code: \$EXIT_CODE\"
-        
-        if [ \$EXIT_CODE -eq 0 ] || [ \$EXIT_CODE -eq 42 ]; then
-            echo 'SteamCMD basic functionality verified'
-            exit \$EXIT_CODE  # Return the original exit code
+        # Check if the output contains 'Update complete'
+        if grep -q 'Update complete' /tmp/steamcmd_output.log; then
+            echo 'SteamCMD successfully updated - test passed'
+            exit 0
         else
-            echo 'SteamCMD test failed'
-            exit \$EXIT_CODE  # Return the original exit code
+            # If we didn't find 'Update complete', check for other success indicators
+            if grep -q 'Success! App '\\''\$STEAM_SERVER_APPID'\\'\\'' already up to date' /tmp/steamcmd_output.log; then
+                echo 'SteamCMD reports app already up to date - test passed'
+                exit 0
+            fi
+            
+            if grep -q 'Logging in user' /tmp/steamcmd_output.log && grep -q 'Logged in OK' /tmp/steamcmd_output.log; then
+                echo 'SteamCMD logged in successfully - test passed'
+                exit 0
+            fi
+            
+            echo 'SteamCMD did not complete successfully'
+            echo 'Output from SteamCMD:'
+            cat /tmp/steamcmd_output.log
+            exit 1
         fi
-    " "$image" "allowed_exit_codes[@]"  # Pass the array of allowed exit codes
+    " "$image"
     
     return $?
 }

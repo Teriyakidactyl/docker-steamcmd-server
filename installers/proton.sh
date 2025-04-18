@@ -15,17 +15,19 @@ if [ -f /etc/environment ]; then
 fi
 
 # Display header
-echo "------------------------------------------------------- Proton Compatibility Layer Setup --------------------------------------------------------------------" && \
+echo "------------------------------------------------------- Proton Compatibility Layer Setup --------------------------------------------------------------------"
 
-# Get parameters from environment or use defaults
-TARGETARCH="${TARGETARCH:-amd64}"
-CONTAINER_USER="${CONTAINER_USER:-container}"
-PROTON_VERSION="${PROTON_VERSION:-9.0-4}"
+# Verify required parameters are provided
+if [ -z "$TARGETARCH" ]; then
+    echo "✗ ERROR: TARGETARCH is required but not set"
+    exit 1
+fi
+
+# Get parameters from environment
 PROTON_PATH="/opt/proton"
-WINEPREFIX="${WINEPREFIX:-/home/$CONTAINER_USER/app/Proton}"
+WINEPREFIX="/home/$CONTAINER_USER/app/Proton"
 
 # ===== Package Variables =====
-# These can be overridden by setting environment variables before calling the script
 
 PACKAGES_PROTON="\
     `# Fake X-Server desktop for Wine/Proton`
@@ -75,8 +77,7 @@ PACKAGES_PROTON_I386="\
     libxss1:i386 \
     libegl1:i386"
 
-# Should we install i386 support?
-INSTALL_I386="${INSTALL_I386:-true}"
+# Flag to control i386 installation
 
 # Log configuration
 echo "Proton Configuration:"
@@ -86,15 +87,28 @@ echo "  Target Architecture: ${TARGETARCH}"
 echo "  Install i386 support: ${INSTALL_I386}"
 echo "  Proton Packages: ${PACKAGES_PROTON}"
 
-# Skip i386 on ARM64 (unless box86 is installed and configured)
+# ===== Step 1: Check for Box86/Box64 on ARM64 =====
 if [ "$TARGETARCH" = "arm64" ]; then
-    if ! command -v box86 >/dev/null 2>&1; then
-        echo "Box86 is not installed. Disabling i386 support on ARM64."
-        INSTALL_I386="false"
+    # Check if box64 is installed
+    if ! command -v box64 >/dev/null 2>&1; then
+        echo "✗ ERROR: box64 is not installed but required for Proton on ARM64"
+        exit 1
+    else
+        echo "✓ box64 is installed"
+    fi
+    
+    # Check for box86 if i386 support is requested
+    if [ "$INSTALL_I386" = "true" ]; then
+        if ! command -v box86 >/dev/null 2>&1; then
+            echo "! Warning: box86 is not installed. Disabling i386 support on ARM64."
+            INSTALL_I386="false"
+        else
+            echo "✓ box86 is installed"
+        fi
     fi
 fi
 
-# ===== Step 1: Setup environment variables =====
+# ===== Step 2: Setup environment variables =====
 echo "Setting up environment variables..."
 
 # Add Proton configuration to environment file
@@ -112,6 +126,8 @@ export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}
 # Enable Steam Play debug logging
 export PROTON_LOG=1
 export PROTON_DUMP_DEBUG_COMMANDS=1
+export PROTON_LOG_DIR=/var/log/proton
+export PROTON_CRASH_REPORT_DIR=/var/log/proton/crash_reports
 
 # Performance optimizations
 export PROTON_NO_ESYNC=0
@@ -127,39 +143,66 @@ if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
         # If prefix exists but is empty, set it to proton run
         sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="proton run"/' /etc/environment
     else
-        # If prefix exists, append proton run
-        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="'"$EXISTING_PREFIX"' proton run"/' /etc/environment
+        # Check if proton run is already in the prefix to avoid duplication
+        if [[ "$EXISTING_PREFIX" != *"proton run"* ]]; then
+            # If prefix exists, append proton run
+            sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="'"$EXISTING_PREFIX"' proton run"/' /etc/environment
+        fi
     fi
 else
     # If no prefix exists, create one with proton run
     echo 'export APP_COMMAND_PREFIX="proton run"' >> /etc/environment
 fi
 
-# ===== Step 2: Install dependencies =====
-echo "Installing Proton dependencies..."
+# ===== Step 3: Setup architecture support =====
+echo "Setting up architecture support..."
 
 # Add i386 architecture if requested
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     echo "Adding i386 architecture support..."
-    dpkg --add-architecture i386 || echo "i386 architecture already added or not supported"
-    apt-get update
+    dpkg --add-architecture i386 || {
+        echo "✗ ERROR: Failed to add i386 architecture"
+        exit 1
+    }
+    apt-get update || {
+        echo "✗ ERROR: Failed to update package lists"
+        exit 1
+    }
+    echo "✓ i386 architecture support added"
+else
+    echo "✓ Skipping i386 architecture setup"
 fi
+
+# ===== Step 4: Install base packages =====
+echo "Installing Proton dependencies..."
 
 # Install base packages
 echo "Installing Proton packages: $PACKAGES_PROTON"
-apt-get install -y --no-install-recommends $PACKAGES_PROTON
+apt-get install -y --no-install-recommends $PACKAGES_PROTON || {
+    echo "✗ ERROR: Failed to install Proton packages"
+    exit 1
+}
+echo "✓ Proton packages installed successfully"
 
 # Install i386 packages if requested
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     echo "Installing Proton i386 packages: $PACKAGES_PROTON_I386"
-    apt-get install -y --no-install-recommends $PACKAGES_PROTON_I386
+    apt-get install -y --no-install-recommends $PACKAGES_PROTON_I386 || {
+        echo "✗ ERROR: Failed to install Proton i386 packages"
+        exit 1
+    }
+    echo "✓ Proton i386 packages installed successfully"
 fi
 
-# ===== Step 3: Create required directories =====
+# ===== Step 5: Create required directories =====
 echo "Creating required directories..."
-mkdir -p "${PROTON_PATH}" "${WINEPREFIX}"
+mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton/crash_reports" || {
+    echo "✗ ERROR: Failed to create required directories"
+    exit 1
+}
+echo "✓ Required directories created"
 
-# ===== Step 4: Download and install Proton =====
+# ===== Step 6: Download and install Proton =====
 if [ -n "$PROTON_VERSION" ]; then
     echo "Downloading Proton ${PROTON_VERSION}..."
     
@@ -167,23 +210,33 @@ if [ -n "$PROTON_VERSION" ]; then
     PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz"
     
     echo "Download URL: ${PROTON_URL}"
-    curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz
+    curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz || {
+        echo "✗ ERROR: Failed to download Proton"
+        exit 1
+    }
     
     # Extract Proton
     echo "Extracting Proton to ${PROTON_PATH}..."
-    tar -xzf /tmp/proton.tar.gz -C "${PROTON_PATH}" --strip-components=1
+    tar -xzf /tmp/proton.tar.gz -C "${PROTON_PATH}" --strip-components=1 || {
+        echo "✗ ERROR: Failed to extract Proton"
+        exit 1
+    }
     rm -f /tmp/proton.tar.gz
     
     # Verify installation
     if [ -f "${PROTON_PATH}/proton" ]; then
-        echo "Proton installation successful!"
+        echo "✓ Proton installation successful"
     else
-        echo "Proton installation may have failed. proton executable not found."
+        echo "✗ ERROR: Proton installation failed. proton executable not found."
         ls -la "${PROTON_PATH}"
+        exit 1
     fi
+else
+    echo "✗ ERROR: PROTON_VERSION is not set"
+    exit 1
 fi
 
-# ===== Step 5: Create helper scripts and wrappers =====
+# ===== Step 7: Create helper scripts and wrappers =====
 echo "Creating Proton helper scripts..."
 
 # Create a wrapper script for proton
@@ -195,9 +248,11 @@ PROTON_BINARY="\${PROTON_PATH}/proton"
 # Check if valid command
 if [[ "\$1" == "run" ]]; then
     # Run a Windows executable through Proton
+    shift
     exec "\$PROTON_BINARY" run "\$@"
 elif [[ "\$1" == "waitforexitandrun" ]]; then
     # Wait for a process to finish and then run
+    shift
     exec "\$PROTON_BINARY" waitforexitandrun "\$@"
 else
     # Just pass all arguments to Proton
@@ -205,7 +260,10 @@ else
 fi
 EOF
 
-chmod +x /usr/local/bin/proton
+chmod +x /usr/local/bin/proton || {
+    echo "✗ ERROR: Failed to make proton wrapper executable"
+    exit 1
+}
 
 # Create a proton-run helper script
 cat > /usr/local/bin/proton-run << EOF
@@ -214,9 +272,13 @@ cat > /usr/local/bin/proton-run << EOF
 exec proton run "\$@"
 EOF
 
-chmod +x /usr/local/bin/proton-run
+chmod +x /usr/local/bin/proton-run || {
+    echo "✗ ERROR: Failed to make proton-run wrapper executable"
+    exit 1
+}
+echo "✓ Proton helper scripts created"
 
-# ===== Step 6: Setup on ARM64 if needed =====
+# ===== Step 8: Setup on ARM64 if needed =====
 if [ "$TARGETARCH" = "arm64" ]; then
     echo "Setting up Proton for ARM64..."
     
@@ -243,23 +305,21 @@ else
     exec box64 "\$PROTON_BINARY" "\$@"
 fi
 EOF
-        chmod +x /usr/local/bin/proton
+        chmod +x /usr/local/bin/proton || {
+            echo "✗ ERROR: Failed to make ARM64 proton wrapper executable"
+            exit 1
+        }
+        echo "✓ ARM64-specific proton wrapper created"
     else
-        echo "Warning: box64 is not installed, Proton may not function correctly on ARM64."
+        echo "✗ ERROR: box64 is not installed, Proton will not function correctly on ARM64."
+        exit 1
     fi
 fi
 
-# ===== Step 7: Finalize installation =====
-echo "Proton installation completed!"
-echo "  Proton Version: ${PROTON_VERSION}"
-echo "  Proton Path: ${PROTON_PATH}"
-echo "  Proton Prefix: ${WINEPREFIX}"
+# ===== Step 9: Tests ==========================================
+echo "Running verification tests..."
 
-# Re-source environment for current script
-. /etc/environment
-
-# Show final environment configuration
-echo "Final environment configuration:"
-grep -E "^(PROTON|STEAM_COMPAT|APP_COMMAND_PREFIX)" /etc/environment
-
-exit 0
+# Test Proton installation
+if command -v proton >/dev/null 2>&1; then
+    echo "✓ Pro
+    

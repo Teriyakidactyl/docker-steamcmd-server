@@ -202,7 +202,7 @@ RUN set -eux && \
     echo "=======================================================================================================================================================================" && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
+    apt-get autoremove --purge -y $PACKAGES_BUILD
 
 # Switch to the container user
 USER ${CONTAINER_USER}

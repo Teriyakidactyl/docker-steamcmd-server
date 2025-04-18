@@ -135,8 +135,10 @@ RUN set -eux && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i "s/^# $LANG UTF-8/$LANG UTF-8/" /etc/locale.gen && \
-    localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias $LANG && \
-    locale-gen && \
+    # FIXME localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias $LANG && \
+    # FIXME locale-gen && \
+    locale-gen $LANG && \
+    dpkg-reconfigure locales && \
     echo "" >> /etc/environment && \
     echo "# Localization" >> /etc/environment && \
     echo "LANG=$LANG" >> /etc/environment && \

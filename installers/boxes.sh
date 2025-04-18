@@ -172,11 +172,7 @@ if [ -n "$BOX64_DEB_URL" ]; then
 fi
 
 # ===== Step 6: Create helpers and convenience scripts =====
-echo "Creating helper scripts..."
-
-# Create a backup of the original file (optional but recommended)
-echo "box86 \"$STEAMCMD_PATH/linux32/steamcmd\" \"\$@\"" > /usr/local/bin/steamcmd
-chmod +x "/usr/local/bin/steamcmd"
+# echo "Creating helper scripts..."
 
 # ===== Step 7: Log installation results =====
 echo "Box86/Box64 installation completed!"

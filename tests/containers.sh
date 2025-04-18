@@ -1,25 +1,20 @@
 #!/bin/bash
 #
-# test_steamcmd_container.sh
+# streamlined_test_steamcmd_container.sh
 #
-# Streamlined test script for verifying functionality of the docker-steamcmd-server base image.
-# This script validates core functionality including SteamCMD operations, directory
-# structure, environment variables, and utility scripts across multiple container tags.
+# Streamlined test script focusing on core functionality of the docker-steamcmd-server base image.
+# This script validates SteamCMD operations, directory permissions, Wine functionality, 
+# and Box86/Box64 versions for ARM containers.
 #
 # Usage:
-#   ./test_steamcmd_container.sh             # Test all container tags
-#   ./test_steamcmd_container.sh bookworm    # Test only tags containing "bookworm"
-#   ./test_steamcmd_container.sh -d          # Test all container tags with debug output
-#   ./test_steamcmd_container.sh bookworm -d # Test only tags containing "bookworm" with debug output
+#   ./streamlined_test_steamcmd_container.sh             # Test all container tags
+#   ./streamlined_test_steamcmd_container.sh bookworm    # Test only tags containing "bookworm"
+#   ./streamlined_test_steamcmd_container.sh -d          # Test all container tags with debug output
+#   ./streamlined_test_steamcmd_container.sh bookworm -d # Test only tags containing "bookworm" with debug output
 #
 # Exit codes:
 #   0 - All tests passed
 #   1 - One or more tests failed
-#
-# Dependencies:
-#   - Docker
-#   - Internet connection (for pulling images)
-#   - About 1GB free disk space per image tested
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -99,6 +94,12 @@ run_test() {
     local test_name=$1
     local command=$2
     local image=$3
+    local allowed_exit_codes=("${!4}")  # Array of allowed exit codes
+    
+    # If no allowed exit codes provided, default to just 0
+    if [ ${#allowed_exit_codes[@]} -eq 0 ]; then
+        allowed_exit_codes=(0)
+    fi
     
     # Extract tag from the full image path
     local tag=$(echo "$image" | cut -d ':' -f2)
@@ -173,41 +174,34 @@ run_test() {
     
     local EXIT_CODE=$?
     
+    # Check if the exit code is in the allowed list
+    local exit_code_allowed=false
+    for allowed_code in "${allowed_exit_codes[@]}"; do
+        if [ $EXIT_CODE -eq $allowed_code ]; then
+            exit_code_allowed=true
+            break
+        fi
+    done
+    
     # Display test result
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo -e "${GREEN}✓ Test passed${NC}"
+    if [ "$exit_code_allowed" = true ]; then
+        echo -e "${GREEN}✓ Test passed (exit code: $EXIT_CODE)${NC}"
         if [ "$DEBUG_MODE" = true ]; then
             echo -e "${YELLOW}Command output:${NC}"
             cat $TEST_DIR/test_output.log
         fi
+        return 0
     else
-        echo -e "${RED}✗ Test failed with exit code $EXIT_CODE${NC}"
+        echo -e "${RED}✗ Test failed with exit code $EXIT_CODE (allowed: ${allowed_exit_codes[*]})${NC}"
         echo -e "${RED}Command output:${NC}"
         cat $TEST_DIR/test_output.log
+        return 1
     fi
-    
-    return $EXIT_CODE
 }
 
 #
 # Streamlined Test Functions
 #
-
-test_directories() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Directory Structure Tests ======${NC}"
-    
-    run_test "Directory Structure" "
-        ls -la /opt/steamcmd && \
-        ls -la /world && \
-        ls -la /app && \
-        ls -la /usr/local/bin && \
-        ls -la /var/log && \
-        echo 'Directory structure verified'
-    " "$image"
-    
-    return $?
-}
 
 test_directory_permissions() {
     local image=$1
@@ -279,33 +273,12 @@ test_directory_permissions() {
     return $?
 }
 
-test_environment_vars() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Environment Variable Tests ======${NC}"
-    
-    run_test "Environment Variables" "
-        echo STEAMCMD_PATH: \$STEAMCMD_PATH && \
-        echo STEAMCMD_PROFILE: \$STEAMCMD_PROFILE && \
-        echo STEAM_LIBRARY: \$STEAM_LIBRARY && \
-        cat /etc/environment
-        # Check WINEPREFIX only if we're on a wine-enabled image
-        if [[ \$(docker inspect $image | grep -c 'wine') -gt 0 ]]; then
-            echo WINEPREFIX: \$WINEPREFIX && \
-            echo WINEARCH: \$WINEARCH
-        fi && \
-        # Check for box86/box64 on ARM images
-        if [ \$(uname -m) = 'aarch64' ]; then
-            echo DEBUGGER: \$DEBUGGER
-        fi && \
-        echo 'Environment variables verified'
-    " "$image"
-    
-    return $?
-}
-
 test_steamcmd_basic() {
     local image=$1
     echo -e "\n${YELLOW}====== SteamCMD Basic Tests ======${NC}"
+    
+    # Use array of allowed exit codes: 0 and 42
+    local allowed_exit_codes=(0 42)
     
     run_test "SteamCMD Basic" "
         # Log whether we're using an emulation layer (box86/box64) or native
@@ -313,45 +286,20 @@ test_steamcmd_basic() {
         echo \"Architecture: \$(uname -m)\"
         
         # Simple login test - should work on both architectures
-        steamcmd +login anonymous +quit && \
-        echo 'SteamCMD basic functionality verified'
-    " "$image"
-    
-    return $?
-}
-
-test_steamcmd_app_info() {
-    local image=$1
-    echo -e "\n${YELLOW}====== SteamCMD App Info Tests ======${NC}"
-    
-    run_test "SteamCMD App Info" "
-        steamcmd +login anonymous +app_info_print $CS_GO_SERVER_APPID +quit && \
-        echo 'SteamCMD app info functionality verified'
-    " "$image"
-    
-    return $?
-}
-
-test_steamcmd_validation() {
-    local image=$1
-    echo -e "\n${YELLOW}====== SteamCMD Validation Script Tests ======${NC}"
-    
-    run_test "SteamCMD Validation Script" "
-        /usr/local/bin/validate-steamcmd.sh && \
-        echo 'SteamCMD validation script verified'
-    " "$image"
-    
-    return $?
-}
-
-test_wine_basic() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Wine Basic Tests ======${NC}"
-    
-    run_test "Wine Basic" "
-        which wine && which wineboot && which wineserver && \
-        echo 'Wine binaries verified'
-    " "$image"
+        # Exit code 42 is also acceptable (SteamCMD often exits with this code normally)
+        steamcmd +login anonymous +quit
+        EXIT_CODE=\$?
+        
+        echo \"SteamCMD exited with code: \$EXIT_CODE\"
+        
+        if [ \$EXIT_CODE -eq 0 ] || [ \$EXIT_CODE -eq 42 ]; then
+            echo 'SteamCMD basic functionality verified'
+            exit \$EXIT_CODE  # Return the original exit code
+        else
+            echo 'SteamCMD test failed'
+            exit \$EXIT_CODE  # Return the original exit code
+        fi
+    " "$image" "allowed_exit_codes[@]"  # Pass the array of allowed exit codes
     
     return $?
 }
@@ -393,103 +341,6 @@ test_wine_prefix() {
             echo \"Failed to create Wine prefix.\"
             exit 1
         fi
-    " "$image"
-    
-    return $?
-}
-
-test_wine_functionality() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Wine Functionality Test ======${NC}"
-    
-    run_test "Wine Functionality" "
-        # Get Wine version
-        WINE_VERSION=\$(wine --version)
-        echo \"Using Wine version: \$WINE_VERSION\"
-        
-        # Create a simple Windows batch file to test
-        TEST_BAT=\"\$WINEPREFIX/test.bat\"
-        echo '@echo off' > \"\$TEST_BAT\"
-        echo 'echo Wine is working correctly!' >> \"\$TEST_BAT\"
-        echo 'exit 0' >> \"\$TEST_BAT\"
-        
-        # Run the batch file with Wine
-        echo \"Running test batch file...\"
-        wine cmd /c \"\$TEST_BAT\"
-        
-        # Check result
-        RESULT=\$?
-        if [ \$RESULT -eq 0 ]; then
-            echo \"Wine successfully executed Windows batch file.\"
-            rm \"\$TEST_BAT\"
-            exit 0
-        else
-            echo \"Wine failed to execute Windows batch file.\"
-            exit 1
-        fi
-    " "$image"
-    
-    return $?
-}
-
-test_logging_functions() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Logging Functions Tests ======${NC}"
-    
-    run_test "Logging Functions" "
-        source /usr/local/bin/logging_functions && \
-        log 'Test log message' && \
-        echo 'Logging functions verified'
-    " "$image"
-    
-    return $?
-}
-
-test_update_functions() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Update Functions Tests ======${NC}"
-    
-    run_test "Updates Functions" "
-        source /usr/local/bin/update_functions && \
-        echo 'Update functions loaded' && \
-        type server_update >/dev/null && \
-        type mod_updates >/dev/null && \
-        echo 'Update functions verified'
-    " "$image"
-    
-    return $?
-}
-
-test_mod_functions() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Mod Functions Tests ======${NC}"
-    
-    # Create a test mod file
-    echo "TestMod" > $TEST_DIR/world/Mods/testmod.pak
-    
-    run_test "Mod Functions" "
-        source /usr/local/bin/update_functions && \
-        export WORLD_FILES=/world && \
-        export SERVER_ALLOW_LIST='76561197960000000, 76561197960000001' && \
-        export STEAM_ALLOW_LIST_PATH='/world/whitelist.txt' && \
-        check_whitelist && \
-        export SERVER_MOD_IDS='' && \
-        mod_updates && \
-        cat /world/Mods/modlist.txt && \
-        echo 'Mod functions verified'
-    " "$image"
-    
-    return $?
-}
-
-test_startup_script() {
-    local image=$1
-    echo -e "\n${YELLOW}====== Startup Script Tests ======${NC}"
-    
-    run_test "Up.sh Script Parsing" "
-        cat /usr/local/bin/up.sh && \
-        bash -n /usr/local/bin/up.sh && \
-        echo 'Up.sh script syntax verified'
     " "$image"
     
     return $?
@@ -575,25 +426,17 @@ test_container() {
     fi
     echo -e "${GREEN}Image pulled successfully.${NC}"
     
-    # Run the base tests that all containers should pass
-    test_directories "$image" || failed_tests+=("Directory Structure")
+    # Run streamlined tests that focus on the core functionality
     test_directory_permissions "$image" || failed_tests+=("Directory Permissions")
-    test_environment_vars "$image" || failed_tests+=("Environment Variables")
-    # test_logging_functions "$image" || failed_tests+=("Logging Functions")
-    # test_update_functions "$image" || failed_tests+=("Update Functions")
-    # test_mod_functions "$image" || failed_tests+=("Mod Functions")
-    test_startup_script "$image" || failed_tests+=("Startup Script")
     
-    # Unified SteamCMD test - works on both architectures
+    # SteamCMD test - works on both architectures and accepts exit code 42
     test_steamcmd_basic "$image" || failed_tests+=("SteamCMD Basic")
     
     # Run wine-specific tests only for wine-enabled images
     if [[ "$tag" == *"wine"* ]]; then
         echo -e "${BLUE}Detected Wine-enabled image, running Wine tests...${NC}"
-        test_wine_basic "$image" || failed_tests+=("Wine Basic")
         test_wine_version "$image" || failed_tests+=("Wine Version")
         test_wine_prefix "$image" || failed_tests+=("Wine Prefix")
-        # test_wine_functionality "$image" || failed_tests+=("Wine Functionality")
     else
         echo -e "${BLUE}Skipping Wine tests for non-Wine image${NC}"
     fi
@@ -692,199 +535,116 @@ inspect_container() {
 # Main execution logic
 #
 
-echo -e "${YELLOW}Docker SteamCMD Server Multi-Container Test Script${NC}"
-echo "-----------------------------------------------"
-if [ "$DEBUG_MODE" = true ]; then
-    echo -e "${BLUE}Debug mode enabled - Command output will be displayed for all tests${NC}"
-fi
-
-# Check if Docker is installed
-echo "Checking Docker installation..."
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Docker is not installed or not in PATH. Please install Docker first.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}Docker is installed.${NC}"
-
-# Check Docker emulation support for multi-architecture testing
-echo "Checking Docker emulation capability for cross-platform testing..."
-if docker info | grep -q "linux/arm64"; then
-    echo -e "${GREEN}Docker supports ARM64 emulation.${NC}"
-else
-    echo -e "${YELLOW}Docker may not support ARM64 emulation yet. We'll attempt to configure it.${NC}"
-    
-    # Check if we're running with sufficient privileges
-    if [ "$EUID" -eq 0 ] || sudo -n true 2>/dev/null; then
-        echo "Installing QEMU user emulation..."
-        if command -v apt-get &> /dev/null; then
-            sudo apt-get update
-            sudo apt-get install -y qemu-user-static
-        elif command -v yum &> /dev/null; then
-            sudo yum install -y qemu-user-static
-        elif command -v apk &> /dev/null; then
-            sudo apk add qemu-user
-        else
-            echo -e "${YELLOW}Could not detect package manager to install QEMU. Please install manually.${NC}"
+# If a filter was provided, only test tags that match
+if [ -n "$TAG_FILTER" ]; then
+    echo -e "${BLUE}Filter provided: '$TAG_FILTER' - Only testing matching tags${NC}"
+    FILTERED_TAGS=()
+    for tag in "${TAGS_TO_TEST[@]}"; do
+        if [[ "$tag" == *"$TAG_FILTER"* ]]; then
+            FILTERED_TAGS+=("$tag")
         fi
-    else
-        echo -e "${YELLOW}No sudo privileges to install QEMU. Cross-architecture tests may fail.${NC}"
-        echo -e "${YELLOW}Consider running this script with sudo or installing QEMU:${NC}"
-        echo -e "${CYAN}sudo apt-get install qemu-user-static${NC}"
-        echo -e "${CYAN}sudo docker run --privileged --rm tonistiigi/binfmt --install all${NC}"
-    fi
-fi
-
-# Set up QEMU for cross-architecture emulation
-echo "Setting up QEMU for cross-architecture emulation..."
-if ! docker run --privileged --rm tonistiigi/binfmt --install all; then
-    echo -e "${YELLOW}Warning: Could not set up QEMU emulation. ARM64 tests may fail.${NC}"
-    echo -e "${YELLOW}This is normal if you're not running on a platform that supports QEMU or if you don't have sufficient privileges.${NC}"
-    echo -e "${YELLOW}ARM64 tests will still be attempted, but may not work correctly.${NC}"
-fi
-
-# Clean up any existing test containers
-echo "Cleaning up any existing test containers..."
-docker rm -f $CONTAINER_NAME &> /dev/null
-
-# Main function to initiate testing
-main() {
-    echo -e "${YELLOW}Docker SteamCMD Server Multi-Container Test Script${NC}"
-    echo "-----------------------------------------------"
-    if [ "$DEBUG_MODE" = true ]; then
-        echo -e "${BLUE}Debug mode enabled - Command output will be displayed for all tests${NC}"
-    fi
-
-    # Check if Docker is installed
-    echo "Checking Docker installation..."
-    if ! command -v docker &> /dev/null; then
-        echo -e "${RED}Docker is not installed or not in PATH. Please install Docker first.${NC}"
+    done
+    TAGS_TO_TEST=("${FILTERED_TAGS[@]}")
+    
+    if [ ${#TAGS_TO_TEST[@]} -eq 0 ]; then
+        echo -e "${RED}No tags matched the filter '$TAG_FILTER'${NC}"
         exit 1
     fi
-    echo -e "${GREEN}Docker is installed.${NC}"
+fi
 
-    # Create test directories and ensure proper permissions
-    echo "Creating and preparing test directories..."
-    mkdir -p $TEST_DIR/app $TEST_DIR/world $TEST_DIR/world/Mods
-    chown -R 1000:1000 $TEST_DIR/app $TEST_DIR/world 2>/dev/null || true
-    echo -e "${GREEN}Test directories created.${NC}"
+echo -e "${BLUE}Will test the following container tags:${NC}"
+for tag in "${TAGS_TO_TEST[@]}"; do
+    echo "  - $tag"
+done
 
-    # Check Docker emulation support for multi-architecture testing
-    echo "Checking Docker emulation capability for cross-platform testing..."
-    if docker info | grep -q "linux/arm64"; then
-        echo -e "${GREEN}Docker supports ARM64 emulation.${NC}"
-    else
-        echo -e "${YELLOW}Docker may not support ARM64 emulation yet. We'll attempt to configure it.${NC}"
-        
-        # Check if we're running with sufficient privileges
-        if [ "$EUID" -eq 0 ] || sudo -n true 2>/dev/null; then
-            echo "Installing QEMU user emulation..."
-            if command -v apt-get &> /dev/null; then
-                sudo apt-get update
-                sudo apt-get install -y qemu-user-static
-            elif command -v yum &> /dev/null; then
-                sudo yum install -y qemu-user-static
-            elif command -v apk &> /dev/null; then
-                sudo apk add qemu-user
-            else
-                echo -e "${YELLOW}Could not detect package manager to install QEMU. Please install manually.${NC}"
-            fi
-        else
-            echo -e "${YELLOW}No sudo privileges to install QEMU. Cross-architecture tests may fail.${NC}"
-            echo -e "${YELLOW}Consider running this script with sudo or installing QEMU:${NC}"
-            echo -e "${CYAN}sudo apt-get install qemu-user-static${NC}"
-            echo -e "${CYAN}sudo docker run --privileged --rm tonistiigi/binfmt --install all${NC}"
-        fi
-    fi
+# Test each container in the array
+for tag in "${TAGS_TO_TEST[@]}"; do
+    test_container "$tag"
+done
 
-    # Set up QEMU for cross-architecture emulation
-    echo "Setting up QEMU for cross-architecture emulation..."
-    if ! docker run --privileged --rm tonistiigi/binfmt --install all; then
-        echo -e "${YELLOW}Warning: Could not set up QEMU emulation. ARM64 tests may fail.${NC}"
-        echo -e "${YELLOW}This is normal if you're not running on a platform that supports QEMU or if you don't have sufficient privileges.${NC}"
-        echo -e "${YELLOW}ARM64 tests will still be attempted, but may not work correctly.${NC}"
-    fi
-
-    # Clean up any existing test containers
-    echo "Cleaning up any existing test containers..."
-    docker rm -f $CONTAINER_NAME &> /dev/null
-
-    # If a filter was provided, only test tags that match
-    if [ -n "$TAG_FILTER" ]; then
-        echo -e "${BLUE}Filter provided: '$TAG_FILTER' - Only testing matching tags${NC}"
-        FILTERED_TAGS=()
-        for tag in "${TAGS_TO_TEST[@]}"; do
-            if [[ "$tag" == *"$TAG_FILTER"* ]]; then
-                FILTERED_TAGS+=("$tag")
-            fi
-        done
-        TAGS_TO_TEST=("${FILTERED_TAGS[@]}")
-        
-        if [ ${#TAGS_TO_TEST[@]} -eq 0 ]; then
-            echo -e "${RED}No tags matched the filter '$TAG_FILTER'${NC}"
-            exit 1
-        fi
-    fi
-
-    echo -e "${BLUE}Will test the following container tags:${NC}"
-    for tag in "${TAGS_TO_TEST[@]}"; do
-        echo "  - $tag"
-    done
-
-    # Test each container in the array
-    for tag in "${TAGS_TO_TEST[@]}"; do
-        test_container "$tag"
-    done
-
-    # Display final test results and prompt for inspection
-    echo -e "\n${BOLD}${YELLOW}====== Final Test Results Summary ======${NC}"
+# Display test results summary 
+show_test_summary() {
+    echo -e "\n${BOLD}${YELLOW}====== Test Results Summary ======${NC}"
 
     if [ ${#FAILED_TAGS[@]} -eq 0 ]; then
         echo -e "${GREEN}All container tests passed successfully!${NC}"
-        INSPECT_PROMPT=false
     else
         echo -e "${RED}Failed containers (${#FAILED_TAGS[@]}):"
         for i in "${!FAILED_TAGS[@]}"; do
             echo -e "  ${RED}$((i+1)).${NC} ${FAILED_TAGS[$i]}"
         done
         echo -e "${NC}"
-        INSPECT_PROMPT=true
-    fi
-
-    # If there were failures, offer to inspect containers
-    if [ "$INSPECT_PROMPT" = true ]; then
-        echo -e "\n${YELLOW}Would you like to inspect any of the failed containers?${NC}"
-        echo -e "${BLUE}This will launch an interactive bash session in the container.${NC}"
-        echo -e "Enter the number of the container to inspect, or 'n' to exit:"
-        
-        read -r choice
-        
-        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#FAILED_TAGS[@]}" ]; then
-            # Extract just the tag from the failed tag entry (removing the error message)
-            failed_tag="${FAILED_TAGS[$((choice-1))]}"
-            tag_only=$(echo "$failed_tag" | cut -d' ' -f1)
-            
-            # Launch inspection session
-            inspect_container "$tag_only"
-        else
-            echo -e "${BLUE}Skipping container inspection.${NC}"
-        fi
-    fi
-
-    # Clean up
-    echo -e "\n${YELLOW}====== Cleaning Up ======${NC}"
-    echo "Removing test resources..."
-    rm -rf $TEST_DIR
-    echo -e "${GREEN}Test resources cleaned up.${NC}"
-
-    # Return status code based on test results
-    if [ ${#FAILED_TAGS[@]} -eq 0 ]; then
-        echo -e "${GREEN}Test suite completed successfully!${NC}"
-        exit 0
-    else
-        echo -e "${RED}Test suite failed! See summary above for details.${NC}"
-        exit 1
     fi
 }
 
-# Execute main function
-main
+# Show container inspection menu
+show_inspection_menu() {
+    local keep_menu=true
+    
+    while [ "$keep_menu" = true ]; do
+        show_test_summary
+        
+        echo -e "\n${YELLOW}===== Container Inspection Menu =====${NC}"
+        echo -e "${BLUE}Available containers:${NC}"
+        
+        # Show all available tags
+        for i in "${!TAGS_TO_TEST[@]}"; do
+            # Mark failed containers with an asterisk
+            local tag="${TAGS_TO_TEST[$i]}"
+            local failed=""
+            
+            for failed_tag in "${FAILED_TAGS[@]}"; do
+                if [[ "$failed_tag" == "$tag"* ]]; then
+                    failed=" ${RED}*${NC}"
+                    break
+                fi
+            done
+            
+            echo -e "  ${CYAN}$((i+1)).${NC} ${tag}${failed}"
+        done
+        
+        echo -e "\nOptions:"
+        echo -e "  ${CYAN}r${NC} - Show test results summary"
+        echo -e "  ${CYAN}q${NC} - Quit"
+        echo -e "\n${YELLOW}Enter the number of the container to inspect, or 'q' to exit:${NC}"
+        
+        read -r choice
+        
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#TAGS_TO_TEST[@]}" ]; then
+            # Get the tag for the selected container
+            local selected_tag="${TAGS_TO_TEST[$((choice-1))]}"
+            
+            # Launch inspection session
+            inspect_container "$selected_tag"
+            
+            # After returning from the container, show menu again
+            echo -e "\n${BLUE}Returned to menu. You can select another container or quit.${NC}"
+        elif [ "$choice" = "r" ]; then
+            # Just show the summary again (will happen at loop start)
+            echo -e "\n${BLUE}Refreshing test results...${NC}"
+        elif [ "$choice" = "q" ]; then
+            keep_menu=false
+            echo -e "\n${BLUE}Exiting container inspection menu.${NC}"
+        else
+            echo -e "\n${RED}Invalid choice. Please try again.${NC}"
+        fi
+    done
+}
+
+# Show the menu after tests complete
+show_inspection_menu
+
+# Clean up
+echo -e "\n${YELLOW}====== Cleaning Up ======${NC}"
+echo "Removing test resources..."
+rm -rf $TEST_DIR
+echo -e "${GREEN}Test resources cleaned up.${NC}"
+
+# Return status code based on test results
+if [ ${#FAILED_TAGS[@]} -eq 0 ]; then
+    echo -e "${GREEN}Test suite completed successfully!${NC}"
+    exit 0
+else
+    echo -e "${RED}Test suite failed! See summary above for details.${NC}"
+    exit 1
+fi

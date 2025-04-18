@@ -182,6 +182,6 @@ echo "Box86/Box64 installation completed!"
 
 # Show final environment configuration
 echo "Final environment configuration:"
-grep -E "^(BOX|DEBUGGER|APP_COMMAND_PREFIX)" /etc/environment
+cat /etc/environment
 
 exit 0

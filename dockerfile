@@ -76,6 +76,10 @@ ENV WORLD_FILES="/world" \
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
     # The WINEARCH value will be determined by the wine installer script based on version
     \
+    PACKAGES_BUILD="\
+        # localization stops some steamcmd warnings.
+        locales" \
+    \
     # Package definitions with minimal base packages
     PACKAGES_BASE="\
         # curl needed for api calls
@@ -108,7 +112,6 @@ RUN set -eux && \
     echo "                                                  USER SETUP                                                                                                          " && \
     echo "=======================================================================================================================================================================" && \
     useradd -m -u $PUID -d "/home/$CONTAINER_USER" -s /bin/bash $CONTAINER_USER && \
-    \
     # BUILD TAGS
     # Extract first 7 characters of commit hash
     COMMIT_SHORT=$(echo "${SOURCE_COMMIT}" | cut -c1-7) && \
@@ -125,15 +128,22 @@ RUN set -eux && \
     apt-get install -y --no-install-recommends $PACKAGES_BASE && \
     if echo "$BUILD_VERSION" | grep -q "_dev"; then \
         echo "Installing development packages..." && \
-        apt-get install -y --no-install-recommends $PACKAGES_DEV; \
+        apt-get install -y --no-install-recommends $PACKAGES_DEV $PACKAGES_BUILD; \
     fi && \
+    \
+    echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
+    sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
+    locale-gen && \
+    echo "" >> /etc/environment && \
+    echo "# Localization" >> /etc/environment && \
+    echo "LANG=en_US.UTF-8" >> /etc/environment && \
+    echo "LC_ALL=en_US.UTF-8" >> /etc/environment && \
     \
     echo "=======================================================================================================================================================================" && \
     echo "                                                  STEAMCMD SETUP                                                                                                      " && \
     echo "=======================================================================================================================================================================" && \
-    mkdir -p ${STEAMCMD_PATH} && \
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH} && \
-    ln -sf "$STEAMCMD_PATH/steamcmd.sh" /usr/local/bin/steamcmd && \
+    \
+    /tmp/installers/steamcmd.sh && \
     \
     echo "=======================================================================================================================================================================" && \
     echo "                                                  ARCHITECTURE-SPECIFIC CONFIGURATIONS                                                                                " && \
@@ -144,8 +154,6 @@ RUN set -eux && \
         \
     elif [ "$TARGETARCH" = "arm64" ]; then \
         echo "------------------------------------------------------- ARM64 Architecture Setup -----------------------------------------------------------------------" && \
-        # Run the boxes installer script (self-contained with package variables)
-        chmod +x /tmp/installers/*.sh && \
         /tmp/installers/boxes.sh;\
     fi && \
     \
@@ -160,12 +168,6 @@ RUN set -eux && \
     \
     # Clean up installers after all installations are complete    
     rm -rf /tmp/installers && \
-    \
-    echo "=======================================================================================================================================================================" && \
-    echo "                                                  FINAL CLEANUP                                                                                                       " && \
-    echo "=======================================================================================================================================================================" && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
     \
     echo "=======================================================================================================================================================================" && \
     echo "                                                  ENVIRONMENT VARIABLES                                                                                               " && \
@@ -193,7 +195,14 @@ RUN set -eux && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
-    find ~ -type d -exec ls -ld {} \;
+    find ~ -type d -exec ls -ld {} \; \
+    \
+    echo "=======================================================================================================================================================================" && \
+    echo "                                                  FINAL CLEANUP                                                                                                       " && \
+    echo "=======================================================================================================================================================================" && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get autoremove --purge -y $PACKAGES_BASE_BUILD
 
 # Switch to the container user
 USER ${CONTAINER_USER}

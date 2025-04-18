@@ -10,12 +10,12 @@ gameserver_update() {
     log "Starting server update for $APP_NAME" "update"
     
     # Set SteamCMD environment variables
-    export LD_LIBRARY_PATH="$STEAMCMD_PATH/linux32"
+    # export LD_LIBRARY_PATH="$STEAMCMD_PATH/linux32"
     
     # Initialize SteamCMD if needed
     if [ ! -d "$STEAMCMD_PROFILE" ]; then
         log "$STEAMCMD_PATH directory not complete, presuming first run." "update"
-        $STEAMCMD_PATH/steamcmd.sh +login anonymous +quit | log_stdout "steamcmd"
+        steamcmd +login anonymous +quit | log_stdout "steamcmd"
     fi
     
     # Set platform type (windows/linux) based on game requirements
@@ -24,7 +24,7 @@ gameserver_update() {
     
     # Update the server
     log "SteamCMD beginning download of $APP_NAME (AppID: $STEAM_SERVER_APPID)" "update"
-    $STEAMCMD_PATH/steamcmd.sh \
+    steamcmd \
         +@sSteamCmdForcePlatformType $platform_type \
         +force_install_dir $APP_FILES \
         +login anonymous \

@@ -175,7 +175,7 @@ fi
 echo "Creating helper scripts..."
 
 # Create a backup of the original file (optional but recommended)
-cp /tmp/installers/steamcmd.sh /usr/local/bin/steamcmd
+echo "box86 \"$STEAMCMD_PATH/linux32/steamcmd\" \"\$@\"" > /usr/local/bin/steamcmd
 chmod +x "/usr/local/bin/steamcmd"
 
 # ===== Step 7: Log installation results =====

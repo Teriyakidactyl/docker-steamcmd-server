@@ -195,7 +195,7 @@ RUN set -eux && \
     chown -R ${CONTAINER_USER}:${CONTAINER_USER} $DIR_LIST && \
     chmod 755 $DIR_LIST && \
     ls -la / && \
-    find ~ -type d -exec ls -ld {} \; \
+    find ~ -type d -exec ls -ld {} \; && \
     \
     echo "=======================================================================================================================================================================" && \
     echo "                                                  FINAL CLEANUP                                                                                                       " && \

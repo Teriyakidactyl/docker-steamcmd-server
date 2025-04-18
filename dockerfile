@@ -138,7 +138,7 @@ RUN set -eux && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i '/$LANG/s/^# //g' /etc/locale.gen && \
-    locale-gen $LANG && \
+    locale-gen && \
     update-locale LANG=$LANG && \
     locale && \
     \

@@ -80,10 +80,7 @@ ENV WORLD_FILES="/world" \
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
     # The WINEARCH value will be determined by the wine installer script based on version
     \
-    PACKAGES_BUILD="\
-        # localization stops some steamcmd warnings.
-        locales" \
-        # TODO localpurge? https://packages.debian.org/search?keywords=localepurge
+    PACKAGES_BUILD="" \
     \
     # Package definitions with minimal base packages
     PACKAGES_BASE="\
@@ -93,6 +90,8 @@ ENV WORLD_FILES="/world" \
         ca-certificates \
         # timezones
         tzdata \
+        # localization stops some steamcmd warnings.
+        locales \
         # Required for extracting archives
         tar" \
         \

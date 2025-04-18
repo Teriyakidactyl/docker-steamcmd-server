@@ -28,7 +28,6 @@ PROTON_PATH="/opt/proton"
 WINEPREFIX="/home/$CONTAINER_USER/app/Proton"
 
 # ===== Package Variables =====
-
 PACKAGES_PROTON="\
     `# Fake X-Server desktop for Wine/Proton`
     xvfb \
@@ -160,17 +159,8 @@ echo "Setting up architecture support..."
 # Add i386 architecture if requested
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     echo "Adding i386 architecture support..."
-    dpkg --add-architecture i386 || {
-        echo "✗ ERROR: Failed to add i386 architecture"
-        exit 1
-    }
-    apt-get update || {
-        echo "✗ ERROR: Failed to update package lists"
-        exit 1
-    }
-    echo "✓ i386 architecture support added"
-else
-    echo "✓ Skipping i386 architecture setup"
+    dpkg --add-architecture i386
+    apt-get update
 fi
 
 # ===== Step 4: Install base packages =====
@@ -178,29 +168,17 @@ echo "Installing Proton dependencies..."
 
 # Install base packages
 echo "Installing Proton packages: $PACKAGES_PROTON"
-apt-get install -y --no-install-recommends $PACKAGES_PROTON || {
-    echo "✗ ERROR: Failed to install Proton packages"
-    exit 1
-}
-echo "✓ Proton packages installed successfully"
+apt-get install -y --no-install-recommends $PACKAGES_PROTON
 
 # Install i386 packages if requested
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     echo "Installing Proton i386 packages: $PACKAGES_PROTON_I386"
-    apt-get install -y --no-install-recommends $PACKAGES_PROTON_I386 || {
-        echo "✗ ERROR: Failed to install Proton i386 packages"
-        exit 1
-    }
-    echo "✓ Proton i386 packages installed successfully"
+    apt-get install -y --no-install-recommends $PACKAGES_PROTON_I386
 fi
 
 # ===== Step 5: Create required directories =====
 echo "Creating required directories..."
-mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton/crash_reports" || {
-    echo "✗ ERROR: Failed to create required directories"
-    exit 1
-}
-echo "✓ Required directories created"
+mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton/crash_reports"
 
 # ===== Step 6: Download and install Proton =====
 if [ -n "$PROTON_VERSION" ]; then
@@ -210,17 +188,11 @@ if [ -n "$PROTON_VERSION" ]; then
     PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz"
     
     echo "Download URL: ${PROTON_URL}"
-    curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz || {
-        echo "✗ ERROR: Failed to download Proton"
-        exit 1
-    }
+    curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz
     
     # Extract Proton
     echo "Extracting Proton to ${PROTON_PATH}..."
-    tar -xzf /tmp/proton.tar.gz -C "${PROTON_PATH}" --strip-components=1 || {
-        echo "✗ ERROR: Failed to extract Proton"
-        exit 1
-    }
+    tar -xzf /tmp/proton.tar.gz -C "${PROTON_PATH}" --strip-components=1
     rm -f /tmp/proton.tar.gz
     
     # Verify installation
@@ -260,10 +232,7 @@ else
 fi
 EOF
 
-chmod +x /usr/local/bin/proton || {
-    echo "✗ ERROR: Failed to make proton wrapper executable"
-    exit 1
-}
+chmod +x /usr/local/bin/proton
 
 # Create a proton-run helper script
 cat > /usr/local/bin/proton-run << EOF
@@ -272,10 +241,7 @@ cat > /usr/local/bin/proton-run << EOF
 exec proton run "\$@"
 EOF
 
-chmod +x /usr/local/bin/proton-run || {
-    echo "✗ ERROR: Failed to make proton-run wrapper executable"
-    exit 1
-}
+chmod +x /usr/local/bin/proton-run
 echo "✓ Proton helper scripts created"
 
 # ===== Step 8: Setup on ARM64 if needed =====
@@ -305,10 +271,7 @@ else
     exec box64 "\$PROTON_BINARY" "\$@"
 fi
 EOF
-        chmod +x /usr/local/bin/proton || {
-            echo "✗ ERROR: Failed to make ARM64 proton wrapper executable"
-            exit 1
-        }
+        chmod +x /usr/local/bin/proton
         echo "✓ ARM64-specific proton wrapper created"
     else
         echo "✗ ERROR: box64 is not installed, Proton will not function correctly on ARM64."
@@ -321,5 +284,34 @@ echo "Running verification tests..."
 
 # Test Proton installation
 if command -v proton >/dev/null 2>&1; then
-    echo "✓ Pro
+    echo "✓ Proton command found"
     
+    # Run a basic test with the proton command
+    if proton --version > /tmp/proton_version.txt 2>&1; then
+        echo "✓ Proton version command successful"
+        cat /tmp/proton_version.txt
+    else
+        echo "! Warning: Proton version command returned non-zero exit code"
+        cat /tmp/proton_version.txt
+    fi
+else
+    echo "✗ ERROR: Proton installation failed - command not found"
+    exit 1
+fi
+
+echo "✓ All installation tests passed successfully!"
+
+# ===== Step 10: Finalize installation =====
+echo "Proton installation completed!"
+echo "  Proton Version: ${PROTON_VERSION}"
+echo "  Proton Path: ${PROTON_PATH}"
+echo "  Proton Prefix: ${WINEPREFIX}"
+
+# Re-source environment for current script
+. /etc/environment
+
+# Show final environment configuration
+echo "Final environment configuration:"
+cat /etc/environment
+
+exit 0

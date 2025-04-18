@@ -354,6 +354,6 @@ echo "  i386 Support: ${INSTALL_I386}"
 
 # Show final environment configuration
 echo "Final environment configuration:"
-grep -E "^(WINE|APP_COMMAND_PREFIX)" /etc/environment
+cat /etc/environment
 
 exit 0

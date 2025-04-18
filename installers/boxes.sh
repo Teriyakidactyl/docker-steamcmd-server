@@ -66,27 +66,23 @@ echo "  Logs Directory: ${LOGS}"
 # ===== Step 1: Setup environment variables =====
 echo "Setting up environment variables..."
 
-# Clear previous Box entries if they exist
-sed -i '/^# Box86\/Box64 configuration/d' /etc/environment
-sed -i '/^BOX86_/d' /etc/environment
-sed -i '/^BOX64_/d' /etc/environment
-sed -i '/^DEBUGGER=/d' /etc/environment
-
 # Add Box86/Box64 configuration to environment file
-echo "" >> /etc/environment
-echo "# Box86/Box64 configuration" >> /etc/environment
+cat << EOT >> /etc/environment
 
+# Box86/Box64 configuration
 # Box86 configuration
-echo "export BOX86_LOG=1" >> /etc/environment
-echo "export BOX86_TRACE_FILE=${LOGS}/box86.log" >> /etc/environment
-echo "export DEBUGGER=box86" >> /etc/environment
+export BOX86_LOG=1
+export BOX86_TRACE_FILE=${LOGS}/box86.log
+export DEBUGGER=box86
 
 # Box64 configuration
-echo "export BOX64_LOG=1" >> /etc/environment
-echo "export BOX64_DYNAREC_BLEEDING_EDGE=0" >> /etc/environment
-echo "export BOX64_DYNAREC_BIGBLOCK=0" >> /etc/environment
-echo "export BOX64_DYNAREC_STRONGMEM=2" >> /etc/environment
-echo "export BOX64_TRACE_FILE=${LOGS}/box64.log" >> /etc/environment
+export BOX64_LOG=1
+export BOX64_DYNAREC_BLEEDING_EDGE=0
+export BOX64_DYNAREC_BIGBLOCK=0
+export BOX64_DYNAREC_STRONGMEM=2
+export BOX64_TRACE_FILE=${LOGS}/box64.log
+EOT
+
 
 # Update APP_COMMAND_PREFIX for Box64
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then

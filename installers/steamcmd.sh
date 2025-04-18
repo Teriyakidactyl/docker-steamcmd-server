@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 
-echo "" >> /etc/environment
-echo "# Steamcmd configuration" >> /etc/environment
-echo "export LD_LIBRARY_PATH=$STEAMCMD_PATH/linux32" >> /etc/environment
+cat << 'EOT' >> /etc/environment
+
+# Steamcmd configuration
+export LD_LIBRARY_PATH=$STEAMCMD_PATH/linux32
+EOT
+
+# Add steamcmd alias to bash profile
+cat << 'EOT' >> /home/${CONTAINER_USER}/.bashrc
+
+# Steamcmd aliases and shortcuts
+alias steamcmd="${STEAMCMD_PATH}/steamcmd.sh"
+EOT
 
 mkdir -p ${STEAMCMD_PATH}
 curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH}
-ln -sf "$STEAMCMD_PATH/steamcmd.sh" /usr/local/bin/steamcmd
-
 
 # NOTE
 # ILocalize::AddFile() failed to load file "public/steambootstrapper_english.txt"

@@ -103,12 +103,14 @@ if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
 fi
 
 # Update environment file with Wine configurations
-echo "" >> /etc/environment
-echo "# Wine configuration values set by installer script" >> /etc/environment
-echo "export WINE_PATH=${WINE_PATH}" >> /etc/environment
-echo "export WINEPREFIX=${WINEPREFIX}" >> /etc/environment
-echo "export WINEARCH=${WINEARCH}" >> /etc/environment
-echo "export WINEDEBUG=fixme-all" >> /etc/environment
+cat << EOT >> /etc/environment
+
+# Wine configuration values set by installer script
+export WINE_PATH=${WINE_PATH}
+export WINEPREFIX=${WINEPREFIX}
+export WINEARCH=${WINEARCH}
+export WINEDEBUG=fixme-all
+EOT
 
 # Update the APP_COMMAND_PREFIX for wine
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then

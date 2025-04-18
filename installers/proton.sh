@@ -97,27 +97,26 @@ fi
 # ===== Step 1: Setup environment variables =====
 echo "Setting up environment variables..."
 
-# Clear previous Proton entries if they exist
-sed -i '/^# Proton configuration/d' /etc/environment
-sed -i '/^PROTON_/d' /etc/environment
-sed -i '/^STEAM_COMPAT_/d' /etc/environment
-
 # Add Proton configuration to environment file
-echo "" >> /etc/environment
-echo "# Proton configuration" >> /etc/environment
-echo "export PROTON_PATH=${PROTON_PATH}" >> /etc/environment
-echo "export PROTON_VERSION=${PROTON_VERSION}" >> /etc/environment
-echo "export WINEPREFIX=${WINEPREFIX}" >> /etc/environment
+cat << EOT >> /etc/environment
+
+# Proton configuration
+export PROTON_PATH=${PROTON_PATH}
+export PROTON_VERSION=${PROTON_VERSION}
+export WINEPREFIX=${WINEPREFIX}
 
 # Proton-specific environment variables
-echo "export STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam" >> /etc/environment
-echo "export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}" >> /etc/environment
+export STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam
+export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}
+
 # Enable Steam Play debug logging
-echo "export PROTON_LOG=1" >> /etc/environment
-echo "export PROTON_DUMP_DEBUG_COMMANDS=1" >> /etc/environment
+export PROTON_LOG=1
+export PROTON_DUMP_DEBUG_COMMANDS=1
+
 # Performance optimizations
-echo "export PROTON_NO_ESYNC=0" >> /etc/environment
-echo "export PROTON_NO_FSYNC=0" >> /etc/environment
+export PROTON_NO_ESYNC=0
+export PROTON_NO_FSYNC=0
+EOT
 
 # Update APP_COMMAND_PREFIX for Proton
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then

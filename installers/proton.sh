@@ -105,19 +105,19 @@ sed -i '/^STEAM_COMPAT_/d' /etc/environment
 # Add Proton configuration to environment file
 echo "" >> /etc/environment
 echo "# Proton configuration" >> /etc/environment
-echo "PROTON_PATH=${PROTON_PATH}" >> /etc/environment
-echo "PROTON_VERSION=${PROTON_VERSION}" >> /etc/environment
-echo "WINEPREFIX=${WINEPREFIX}" >> /etc/environment
+echo "export PROTON_PATH=${PROTON_PATH}" >> /etc/environment
+echo "export PROTON_VERSION=${PROTON_VERSION}" >> /etc/environment
+echo "export WINEPREFIX=${WINEPREFIX}" >> /etc/environment
 
 # Proton-specific environment variables
-echo "STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam" >> /etc/environment
-echo "STEAM_COMPAT_DATA_PATH=${WINEPREFIX}" >> /etc/environment
+echo "export STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam" >> /etc/environment
+echo "export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}" >> /etc/environment
 # Enable Steam Play debug logging
-echo "PROTON_LOG=1" >> /etc/environment
-echo "PROTON_DUMP_DEBUG_COMMANDS=1" >> /etc/environment
+echo "export PROTON_LOG=1" >> /etc/environment
+echo "export PROTON_DUMP_DEBUG_COMMANDS=1" >> /etc/environment
 # Performance optimizations
-echo "PROTON_NO_ESYNC=0" >> /etc/environment
-echo "PROTON_NO_FSYNC=0" >> /etc/environment
+echo "export PROTON_NO_ESYNC=0" >> /etc/environment
+echo "export PROTON_NO_FSYNC=0" >> /etc/environment
 
 # Update APP_COMMAND_PREFIX for Proton
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
@@ -126,14 +126,14 @@ if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
     
     if [ -z "$EXISTING_PREFIX" ]; then
         # If prefix exists but is empty, set it to proton run
-        sed -i 's/^APP_COMMAND_PREFIX=.*/APP_COMMAND_PREFIX="proton run"/' /etc/environment
+        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="proton run"/' /etc/environment
     else
         # If prefix exists, append proton run
-        sed -i 's/^APP_COMMAND_PREFIX=.*/APP_COMMAND_PREFIX="'"$EXISTING_PREFIX"' proton run"/' /etc/environment
+        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="'"$EXISTING_PREFIX"' proton run"/' /etc/environment
     fi
 else
     # If no prefix exists, create one with proton run
-    echo 'APP_COMMAND_PREFIX="proton run"' >> /etc/environment
+    echo 'export APP_COMMAND_PREFIX="proton run"' >> /etc/environment
 fi
 
 # ===== Step 2: Install dependencies =====

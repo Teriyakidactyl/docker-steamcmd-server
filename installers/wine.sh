@@ -105,23 +105,23 @@ fi
 # Update environment file with Wine configurations
 echo "" >> /etc/environment
 echo "# Wine configuration values set by installer script" >> /etc/environment
-echo "WINE_PATH=${WINE_PATH}" >> /etc/environment
-echo "WINEPREFIX=${WINEPREFIX}" >> /etc/environment
-echo "WINEARCH=${WINEARCH}" >> /etc/environment
-echo "WINEDEBUG=fixme-all" >> /etc/environment
+echo "export WINE_PATH=${WINE_PATH}" >> /etc/environment
+echo "export WINEPREFIX=${WINEPREFIX}" >> /etc/environment
+echo "export WINEARCH=${WINEARCH}" >> /etc/environment
+echo "export WINEDEBUG=fixme-all" >> /etc/environment
 
 # Update the APP_COMMAND_PREFIX for wine
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
     # If already set (possibly by box64 script), append wine to it
     OLD_PREFIX=$(grep "APP_COMMAND_PREFIX" /etc/environment | cut -d= -f2 | tr -d '"')
     if [ -z "$OLD_PREFIX" ]; then
-        sed -i 's/^APP_COMMAND_PREFIX=.*/APP_COMMAND_PREFIX="wine"/' /etc/environment
+        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="wine"/' /etc/environment
     else
-        sed -i 's/^APP_COMMAND_PREFIX=.*/APP_COMMAND_PREFIX="'"$OLD_PREFIX"' wine"/' /etc/environment
+        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="'"$OLD_PREFIX"' wine"/' /etc/environment
     fi
 else
     # If not set, create a new entry
-    echo 'APP_COMMAND_PREFIX="wine"' >> /etc/environment
+    echo 'export APP_COMMAND_PREFIX="wine"' >> /etc/environment
 fi
 
 # Create required directories

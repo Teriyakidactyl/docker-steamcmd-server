@@ -77,16 +77,16 @@ echo "" >> /etc/environment
 echo "# Box86/Box64 configuration" >> /etc/environment
 
 # Box86 configuration
-echo "BOX86_LOG=1" >> /etc/environment
-echo "BOX86_TRACE_FILE=${LOGS}/box86.log" >> /etc/environment
-echo "DEBUGGER=box86" >> /etc/environment
+echo "export BOX86_LOG=1" >> /etc/environment
+echo "export BOX86_TRACE_FILE=${LOGS}/box86.log" >> /etc/environment
+echo "export DEBUGGER=box86" >> /etc/environment
 
 # Box64 configuration
-echo "BOX64_LOG=1" >> /etc/environment
-echo "BOX64_DYNAREC_BLEEDING_EDGE=0" >> /etc/environment
-echo "BOX64_DYNAREC_BIGBLOCK=0" >> /etc/environment
-echo "BOX64_DYNAREC_STRONGMEM=2" >> /etc/environment
-echo "BOX64_TRACE_FILE=${LOGS}/box64.log" >> /etc/environment
+echo "export BOX64_LOG=1" >> /etc/environment
+echo "export BOX64_DYNAREC_BLEEDING_EDGE=0" >> /etc/environment
+echo "export BOX64_DYNAREC_BIGBLOCK=0" >> /etc/environment
+echo "export BOX64_DYNAREC_STRONGMEM=2" >> /etc/environment
+echo "export BOX64_TRACE_FILE=${LOGS}/box64.log" >> /etc/environment
 
 # Update APP_COMMAND_PREFIX for Box64
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
@@ -95,17 +95,17 @@ if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
     
     if [ -z "$EXISTING_PREFIX" ]; then
         # If prefix exists but is empty, set it to box64
-        sed -i 's/^APP_COMMAND_PREFIX=.*/APP_COMMAND_PREFIX="box64"/' /etc/environment
+        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="box64"/' /etc/environment
     else
         # Check if box64 is already in the prefix to avoid duplication
         if [[ "$EXISTING_PREFIX" != *"box64"* ]]; then
             # If prefix exists and doesn't contain box64, prepend box64
-            sed -i 's/^APP_COMMAND_PREFIX=.*/APP_COMMAND_PREFIX="box64 '"$EXISTING_PREFIX"'"/' /etc/environment
+            sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="box64 '"$EXISTING_PREFIX"'"/' /etc/environment
         fi
     fi
 else
     # If no prefix exists, create one with box64
-    echo 'APP_COMMAND_PREFIX="box64"' >> /etc/environment
+    echo 'export APP_COMMAND_PREFIX="box64"' >> /etc/environment
 fi
 
 # ===== Step 2: Install ARM architecture dependencies =====

@@ -5,6 +5,39 @@
 # TODO RCON 'Attach' mode
 # TODO add 'server' restart interval and ENV support
 
+    # # < app_startup hook >    
+        # # Run pre-start hooks
+        # run_hooks "pre-start"
+        # wine_setup
+        
+        # # Run pre-update hooks
+        # run_hooks "pre-update"
+        # server_update
+
+        # # Run post-update hooks
+        # run_hooks "post-update"
+        
+        # check_env
+        # check_whitelist
+        # mod_updates
+        
+        # server_start
+        
+        # # Run post-start hooks
+        # run_hooks "post-start"
+        
+check_env() {
+
+    if [[ ${#SERVER_PLAYER_PASS} -lt 5 ]]; then
+        log "WARNING - Password: '$SERVER_PLAYER_PASS' too short! Password should be at least 5 characters long."
+    fi
+
+    if [[ "$SERVER_NAME" == *"$SERVER_PLAYER_PASS"* ]]; then
+        log "WARNING - Password '$SERVER_PLAYER_PASS' should not be part of the server name."
+    fi
+}
+
+
 # Server update function - handles SteamCMD game updates
 gameserver_update() {
     log "Starting server update for $APP_NAME" "update"

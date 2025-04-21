@@ -69,6 +69,8 @@ ENV CONTAINER_USER="container" \
 ENV WORLD_FILES="/world" \
     WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
     APP_FILES="/app" \
+    # TODO default to bash, deriviatives override this
+    APP_COMMAND="/bin/bash" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \
@@ -86,6 +88,8 @@ ENV WORLD_FILES="/world" \
     \
     # Package definitions with minimal base packages
     PACKAGES_BASE="\
+        # Init system
+        tini \
         # curl needed for api calls
         curl \
         # curl, steamcmd
@@ -109,9 +113,8 @@ ENV WORLD_FILES="/world" \
         # required for steamcmd
         lib32gcc-s1"
 
-# Copy installer scripts and runtime scripts
+# Copy installer scripts
 COPY installers /tmp/installers
-COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 RUN set -eux && \
     echo "=======================================================================================================================================================================" && \
@@ -138,7 +141,7 @@ RUN set -eux && \
     fi && \
     \
     # Install docker-logging
-    git clone https://github.com/Teriyakidactyl/docker-logging.git $SCRIPTS/docker-logging && \
+    git clone https://github.com/Teriyakidactyl/docker-up.git $SCRIPTS/container && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i "/$LANG/s/^# //g" /etc/locale.gen && \
@@ -213,6 +216,12 @@ RUN set -eux && \
 
 # Switch to the container user
 USER ${CONTAINER_USER}
+
+COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS
+
+ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
+
+CMD ["$SCRIPTS/container/up.sh"]
 
 # TODO touch permission testing (and cleanup) after USER ${CONTAINER_USER}
 

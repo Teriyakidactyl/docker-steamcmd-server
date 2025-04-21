@@ -217,7 +217,7 @@ RUN set -eux && \
 # Switch to the container user
 USER ${CONTAINER_USER}
 
-COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS
+COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
 

@@ -138,7 +138,7 @@ RUN set -eux && \
     fi && \
     \
     # Install docker-logging
-    git clone https://github.com/Teriyakidactyl/docker-logging.git $SCRIPTS && \
+    git clone https://github.com/Teriyakidactyl/docker-logging.git $SCRIPTS/docker-logging && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i "/$LANG/s/^# //g" /etc/locale.gen && \

@@ -80,7 +80,9 @@ ENV WORLD_FILES="/world" \
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
     # The WINEARCH value will be determined by the wine installer script based on version
     \
-    PACKAGES_BUILD="" \
+    PACKAGES_BUILD=" \
+    # Needed to pull docker-logging
+    git" \
     \
     # Package definitions with minimal base packages
     PACKAGES_BASE="\
@@ -129,11 +131,14 @@ RUN set -eux && \
     echo "BUILD_ID=${COMMIT_SHORT}-${BUILD_DATE}-${DEBIAN_VERSION_CODENAME}${COMPAT_LAYER_STR}-${TARGETARCH}" >> /etc/environment && \
     \
     apt-get update && \
-    apt-get install -y --no-install-recommends $PACKAGES_BASE && \
+    apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_BUILD && \
     if echo "$BUILD_VERSION" | grep -q "_dev"; then \
         echo "Installing development packages..." && \
-        apt-get install -y --no-install-recommends $PACKAGES_DEV $PACKAGES_BUILD; \
+        apt-get install -y --no-install-recommends $PACKAGES_DEV; \
     fi && \
+    \
+    # Install docker-logging
+    git clone https://github.com/Teriyakidactyl/docker-logging.git $SCRIPTS && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i "/$LANG/s/^# //g" /etc/locale.gen && \

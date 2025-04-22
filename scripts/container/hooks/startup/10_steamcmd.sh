@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO review commented 'exits'
+
 # Verify each required environment variable
 REQUIRED_VARS=("STEAM_SERVER_APPID" "STEAM_PLATFORM_TYPE" "APP_NAME" "APP_FILES")
 log "Verifying required environment variables..."
@@ -31,7 +33,7 @@ log "Checking for needed updates for game id $APPID"
 # Get current app info from API
 if ! curl "https://api.steamcmd.net/v1/info/$APPID" --silent --output "$APPINFO_FILE_NEW"; then
     log "Error getting app info for game"
-    exit 1
+    # exit 1
 fi
 
 # Check if an update is needed by comparing the new info with the stored info
@@ -56,16 +58,16 @@ if [ $NEEDS_UPDATE -ne 0 ]; then
     
     if [ $? -ne 0 ]; then
         log "Error updating app via steamcmd"
-        exit 1
+        # exit 1
     fi
     
     # Save the new app info file for future comparisons
     mv "$APPINFO_FILE_NEW" "$APPINFO_FILE"
     
     log "Version was out-of-date, update applied"
-    exit 1
+    # exit 1
 else
     log "Version up-to-date, no update needed"
     rm "$APPINFO_FILE_NEW"
-    exit 0
+    # exit 0
 fi

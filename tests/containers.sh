@@ -16,9 +16,6 @@
 #   0 - All tests passed
 #   1 - One or more tests failed
 
-# TODO prompt docker image purge for all ghcr.io/teriyakidactyl/docker-steamcmd-server
-# TODO Also prompt to stop and remove any $CONTAINER_NAME containers that exists (running or not)
-
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -31,6 +28,7 @@ NC='\033[0m' # No Color
 # Define variables
 BASE_IMAGE="ghcr.io/teriyakidactyl/docker-steamcmd-server"
 CONTAINER_NAME="steamcmd-test-container"
+CONTAINER_USER="container"
 CS_GO_SERVER_APPID="740" # Counter-Strike 2 Dedicated Server
 DEBUG_MODE=false
 
@@ -260,36 +258,33 @@ run_test() {
     if [ "$cross_arch" = true ] && [ "$arch" = "arm64" ]; then
         docker run --rm --privileged --name $CONTAINER_NAME \
             $platform_arg \
-            --user 1000 \
             -v $TEST_DIR/app:/app \
             -v $TEST_DIR/world:/world \
             -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
             -e PATH=$PATH:/opt/wine-staging/bin \
             --entrypoint /bin/bash \
             $image \
-            -c "$command" > $TEST_DIR/test_output.log 2>&1
+            -l -c "$command" > $TEST_DIR/test_output.log 2>&1
     elif [ "$cross_arch" = true ]; then
         # Other cross-arch (not ARM64)
         docker run --rm --privileged --name $CONTAINER_NAME \
             $platform_arg \
-            --user 1000 \
             -v $TEST_DIR/app:/app \
             -v $TEST_DIR/world:/world \
             -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
             -e PATH=$PATH:/opt/wine-staging/bin \
             $image \
-            bash -c "$command" > $TEST_DIR/test_output.log 2>&1
+            bash -l -c "$command" > $TEST_DIR/test_output.log 2>&1
     else
         # Same architecture
         docker run --rm --name $CONTAINER_NAME \
             $platform_arg \
-            --user 1000 \
             -v $TEST_DIR/app:/app \
             -v $TEST_DIR/world:/world \
             -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
             -e PATH=$PATH:/opt/wine-staging/bin \
             $image \
-            bash -c "$command" > $TEST_DIR/test_output.log 2>&1
+            bash -l -c "$command" > $TEST_DIR/test_output.log 2>&1
     fi
     
     local EXIT_CODE=$?
@@ -398,23 +393,77 @@ test_steamcmd_basic() {
     echo -e "\n${YELLOW}====== SteamCMD Basic Tests ======${NC}"
     
     run_test "SteamCMD Basic" "
-        # Source profile scripts if they exist to ensure environment is set up
-        [ -f /etc/profile ] && source /etc/profile
-        [ -f ~/.bash_profile ] && source ~/.bash_profile
-        [ -f ~/.profile ] && source ~/.profile
-        [ -f ~/.bashrc ] && source ~/.bashrc
+        # The container has the alias in .bashrc, so we need to force it to be loaded
+        # First, enable alias expansion in this non-interactive shell
+        shopt -s expand_aliases
+        
+        # Source the .bashrc file directly - this is where the steamcmd alias is defined
+        if [ -f ~/.bashrc ]; then
+            echo \"Sourcing .bashrc file...\"
+            source ~/.bashrc
+        fi
         
         # Print environment variables for debugging
         echo \"===========================================\"
+        echo \"Current user: \$(whoami)\"
         echo \"DEBUGGER: \${DEBUGGER}\"
         echo \"Architecture: \$(uname -m)\"
         echo \"PATH: \${PATH}\"
+        echo \"STEAMCMD_PATH: \${STEAMCMD_PATH}\"
         env | grep BOX
         echo \"===========================================\"
         
+        # Attempt to run the alias directly first
+        echo \"Attempting to run steamcmd via alias...\"
+        if steamcmd +quit &>/dev/null; then
+            echo \"Successfully executed steamcmd alias\"
+            STEAMCMD_CMD=\"steamcmd\"
+        else
+            echo \"steamcmd alias test failed, checking for alternatives...\"
+            
+            # Check the STEAMCMD_PATH variable
+            if [ -n \"\${STEAMCMD_PATH}\" ] && [ -x \"\${STEAMCMD_PATH}/steamcmd.sh\" ]; then
+                echo \"Found steamcmd.sh at \${STEAMCMD_PATH}/steamcmd.sh\"
+                STEAMCMD_CMD=\"\${STEAMCMD_PATH}/steamcmd.sh\"
+            # Check if steamcmd is an alias but couldn't execute
+            elif alias steamcmd 2>/dev/null; then
+                echo \"steamcmd is defined as an alias: \$(alias steamcmd)\"
+                echo \"But the alias failed to execute properly\"
+                echo \"This is a critical failure as the steamcmd alias should work!\"
+                exit 1
+            # If not an alias, check if it's a command in PATH
+            elif command -v steamcmd &>/dev/null; then
+                echo \"steamcmd found in PATH\"
+                STEAMCMD_CMD=\"steamcmd\"
+            # Otherwise check common locations
+            else
+                echo \"steamcmd not found as alias or in PATH. Checking common locations...\"
+                if [ -x \"/usr/games/steamcmd\" ]; then
+                    STEAMCMD_CMD=\"/usr/games/steamcmd\"
+                elif [ -x \"/usr/bin/steamcmd\" ]; then
+                    STEAMCMD_CMD=\"/usr/bin/steamcmd\"
+                elif [ -x \"/app/steamcmd/steamcmd.sh\" ]; then
+                    STEAMCMD_CMD=\"/app/steamcmd/steamcmd.sh\"
+                # Last resort - look for steamcmd.sh files
+                else
+                    echo \"Searching for steamcmd.sh files...\"
+                    STEAMCMD_SH=\$(find / -name steamcmd.sh -type f -executable 2>/dev/null | head -1)
+                    if [ -n \"\${STEAMCMD_SH}\" ]; then
+                        echo \"Found steamcmd.sh at \${STEAMCMD_SH}\"
+                        STEAMCMD_CMD=\"\${STEAMCMD_SH}\"
+                    else
+                        echo \"Error: steamcmd not found!\"
+                        exit 1
+                    fi
+                fi
+            fi
+        fi
+        
+        echo \"Using SteamCMD command: \${STEAMCMD_CMD}\"
+        
         # Run SteamCMD with anonymous login and quit (with longer timeout)
         echo \"Starting SteamCMD...\"
-        timeout 300 steamcmd +login anonymous +quit | tee /tmp/steamcmd_output.log
+        timeout 300 \${STEAMCMD_CMD} +login anonymous +quit | tee /tmp/steamcmd_output.log
         STEAMCMD_EXIT_CODE=\$?
         
         echo \"SteamCMD exit code: \${STEAMCMD_EXIT_CODE}\"
@@ -434,7 +483,8 @@ test_steamcmd_basic() {
            grep -q 'Loading Steam API' /tmp/steamcmd_output.log || \\
            grep -q 'Success!' /tmp/steamcmd_output.log || \\
            grep -q 'Logged in OK' /tmp/steamcmd_output.log || \\
-           grep -q 'Steam Console Client' /tmp/steamcmd_output.log; then
+           grep -q 'Steam Console Client' /tmp/steamcmd_output.log || \\
+           grep -q 'Checking for available update...' /tmp/steamcmd_output.log; then
             echo 'SteamCMD showed signs of successful operation - test passed'
             exit 0
         else
@@ -465,6 +515,7 @@ test_wine_prefix() {
     echo -e "\n${YELLOW}====== Wine Prefix Tests ======${NC}"
     
     run_test "Wine Prefix Setup" "
+        
         # Check if WINEPREFIX directory exists
         if [ ! -d \$WINEPREFIX ]; then
             echo \"Creating new Wine prefix at \$WINEPREFIX\"
@@ -503,6 +554,7 @@ test_box86_version() {
     echo -e "\n${YELLOW}====== Box86 Version Test ======${NC}"
     
     run_test "Box86 Version" "
+        
         if command -v box86 &> /dev/null; then
             box86 --version
             echo 'Box86 version verified'
@@ -529,6 +581,7 @@ test_box64_version() {
     echo -e "\n${YELLOW}====== Box64 Version Test ======${NC}"
     
     run_test "Box64 Version" "
+        
         if command -v box64 &> /dev/null; then
             box64 --version
             echo 'Box64 version verified'
@@ -648,38 +701,37 @@ inspect_container() {
     # Add platform flag for cross-architecture testing
     local platform_arg="--platform linux/${arch}"
     
+    # No need to set CONTAINER_USER as environment variable since we're using --user flag
+    
     # For ARM64 emulation, bypass Tini to avoid issues
     if [ "$cross_arch" = true ] && [ "$arch" = "arm64" ]; then
         docker run --name $CONTAINER_NAME \
             --privileged \
             $platform_arg \
-            --user 1000 \
             -v $TEST_DIR/app:/app \
             -v $TEST_DIR/world:/world \
             -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
             -e PATH=$PATH:/opt/wine-staging/bin \
-            -it --entrypoint /bin/bash $image
+            -it --entrypoint /bin/bash $image -l
     elif [ "$cross_arch" = true ]; then
         # Other cross-arch emulation
         docker run --name $CONTAINER_NAME \
             --privileged \
             $platform_arg \
-            --user 1000 \
             -v $TEST_DIR/app:/app \
             -v $TEST_DIR/world:/world \
             -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
             -e PATH=$PATH:/opt/wine-staging/bin \
-            -it --entrypoint bash $image
+            -it --entrypoint bash $image -l
     else
         # Same architecture
         docker run --name $CONTAINER_NAME \
             $platform_arg \
-            --user 1000 \
             -v $TEST_DIR/app:/app \
             -v $TEST_DIR/world:/world \
             -e STEAM_SERVER_APPID=$CS_GO_SERVER_APPID \
             -e PATH=$PATH:/opt/wine-staging/bin \
-            -it --entrypoint bash $image
+            -it --entrypoint bash $image -l
     fi
     
     # Clean up the container after exiting

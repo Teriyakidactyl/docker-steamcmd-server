@@ -216,6 +216,7 @@ RUN set -eux && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get autoremove --purge -y $PACKAGES_BUILD
+    # TODO $SCRIPTS/container/.git cleanup
 
 # Switch to the container user
 USER ${CONTAINER_USER}

@@ -44,6 +44,7 @@ EOT
 echo "Adding user aliases..."
 
 # Add steamcmd alias to bash profile
+# FIXME aliases don't persist to subshells
 cat << 'EOT' >> /home/${CONTAINER_USER}/.bashrc
 
 # SteamCMD aliases and shortcuts

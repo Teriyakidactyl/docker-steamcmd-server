@@ -108,6 +108,7 @@ ENV WORLD_FILES="/world" \
         ncdu \
         # top replacement
         btop \
+        # Easy editor
         nano" \
     \
     # Package definitions with detailed comments for maintainers

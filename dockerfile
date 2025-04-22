@@ -77,6 +77,8 @@ ENV WORLD_FILES="/world" \
     STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \ 
     STEAMCMD_LOGS="/home/$CONTAINER_USER/Steam/logs" \
     STEAM_LIBRARY="/home/$CONTAINER_USER/.local/share/Steam" \
+    STEAM_SERVER_APPID="" \
+    STEAM_PLATFORM_TYPE="linux" \
     \
     # Wine
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \

@@ -4,6 +4,8 @@ Implement first time STEAMCMD downloader
 Implement STEAMD_ID downloader
 Implement APP_FILES exists check
 
+Implement a steamcmd STEAM_ID based version check where downloads don't occur unless needed.
+
 create wrappers?
 
 steamcmd update

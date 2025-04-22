@@ -1,11 +1,15 @@
 #!/bin/bash
 
-# TODO verify required ENV are not null
-# STEAM_SERVER_APPID="" \
-# STEAM_PLATFORM_TYPE="linux" \
-# APP_NAME="valheim" \
-# APP_EXE="valheim_server.x86_64" \
-# APP_COMMAND
+# Verify each required environment variable
+REQUIRED_VARS=("STEAM_SERVER_APPID" "STEAM_PLATFORM_TYPE" "APP_NAME" "APP_EXE")
+echo "Verifying required environment variables..."
+for var in "${REQUIRED_VARS[@]}"; do
+  if [ -z "${!var}" ]; then
+    echo "Error: Required environment variable '$var' is not set or is empty."
+    exit 1
+  fi
+done
+echo "All required environment variables are set."
 
 # Initialize SteamCMD if needed
 if [ ! -d "$STEAMCMD_PROFILE" ]; then

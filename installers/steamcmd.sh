@@ -34,10 +34,11 @@ echo "  Container User: ${CONTAINER_USER}"
 echo "Setting up environment variables..."
 
 # Add SteamCMD configuration to environment file
+# TODO did the  /linux32/steamclient.so softlinks remove the need for the export?
 cat << 'EOT' >> /etc/environment
 
 # SteamCMD configuration
-export LD_LIBRARY_PATH=$STEAMCMD_PATH/linux32
+# export LD_LIBRARY_PATH=$STEAMCMD_PATH/linux32
 export STEAMCMD_EXEC="${STEAMCMD_PATH}/steamcmd.sh"
 EOT
 
@@ -57,6 +58,15 @@ echo "Creating directories and downloading SteamCMD..."
 mkdir -p ${STEAMCMD_PATH}
 echo "Downloading SteamCMD from: https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz"
 curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf - -C ${STEAMCMD_PATH}
+
+# TODO does this remove need for LD_LIBRARY exports?
+# Create Steam SDK directories if they don't exist
+mkdir -p $STEAMCMD_PROFILE/sdk32 $STEAMCMD_PROFILE/sdk64
+
+# Create symbolic links for Steam libraries
+ln -sf ${STEAMCMD_PATH}/linux32/steamclient.so $STEAMCMD_PROFILE/sdk32/steamclient.so
+ln -sf ${STEAMCMD_PATH}/linux64/steamclient.so $STEAMCMD_PROFILE/sdk64/steamclient.so
+
 chmod +x ${STEAMCMD_PATH}/steamcmd.sh
 chown -R ${CONTAINER_USER}:${CONTAINER_USER} ${STEAMCMD_PATH}
 

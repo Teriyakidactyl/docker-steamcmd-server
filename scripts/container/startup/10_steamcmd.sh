@@ -12,7 +12,7 @@ fi
 log "SteamCMD begining download of $APP_NAME"
 
 steamcmd \
-+@sSteamCmdForcePlatformType linux \
++@sSteamCmdForcePlatformType $STEAM_PLATFORM_TYPE \
 +force_install_dir $APP_FILES \
 +login anonymous \
 +app_update $STEAM_SERVER_APPID \

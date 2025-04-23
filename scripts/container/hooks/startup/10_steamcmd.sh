@@ -57,6 +57,7 @@ if [ $NEEDS_UPDATE -ne 0 ]; then
     if grep -q "Success! App '$STEAM_SERVER_APPID' fully installed" "$UPDATE_OUTPUT_FILE"; then
         # Save the new app info file since update succeeded
         mv "$APPINFO_FILE_NEW" "$APPINFO_FILE"
+        # TODO include verions info?
         log "Version was out-of-date, update applied successfully" "10_steamcmd.sh"
     else
         # If success message not found, assume failure

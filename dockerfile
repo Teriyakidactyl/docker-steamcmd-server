@@ -221,6 +221,9 @@ RUN set -eux && \
 # Switch to the container user
 USER ${CONTAINER_USER}
 
+# https://docs.docker.com/reference/dockerfile/#stopsignal
+# TODO STOPSIGNAL SIGQUIT
+
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "--"]

@@ -68,24 +68,13 @@ ENV CONTAINER_USER="container" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \
-    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \ 
-    STEAMCMD_LOGS="/home/$CONTAINER_USER/Steam/logs" \
-    STEAM_LIBRARY="/home/$CONTAINER_USER/.local/share/Steam" \
     STEAM_SERVER_APPID="" \
-    STEAM_PLATFORM_TYPE="linux"
-
-ENV WORLD_FILES="/world" \
-    WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
+    STEAM_PLATFORM_TYPE="linux" \
+    \
+    WORLD_FILES="/world" \
     APP_FILES="/app" \
-    # TODO default to bash, deriviatives override this
-    APP_COMMAND="/bin/bash" \
-    \
-    # Steamcmd
-    STEAMCMD_EXEC="$STEAMCMD_PATH/steamcmd.sh" \
-    \
-    # Wine
-    WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \
-    # The WINEARCH value will be determined by the wine installer script based on version
+    # APP_COMMAND: This is a placeholder, derivative containers should replace it
+    APP_COMMAND="" \
     \
     PACKAGES_BUILD=" \
     # Needed to pull docker-logging
@@ -118,6 +107,19 @@ ENV WORLD_FILES="/world" \
     PACKAGES_AMD64_ONLY="\
         # required for steamcmd
         lib32gcc-s1"
+
+# Secondary ENV
+ENV WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
+    \
+    # Steamcmd
+    STEAMCMD_EXEC="$STEAMCMD_PATH/steamcmd.sh" \
+    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \ 
+    STEAMCMD_LOGS="/home/$CONTAINER_USER/Steam/logs" \
+    STEAM_LIBRARY="/home/$CONTAINER_USER/.local/share/Steam" \
+    \
+    # Wine
+    WINEPREFIX="/home/$CONTAINER_USER/app/Wine"
+    # The WINEARCH value will be determined by the wine installer script based on version
 
 # Copy installer scripts
 COPY installers /tmp/installers

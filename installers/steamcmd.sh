@@ -55,7 +55,7 @@ mkdir -p $STEAMCMD_PROFILE/sdk32 $STEAMCMD_PROFILE/sdk64
 ln -sf ${STEAMCMD_PATH}/linux32/steamclient.so $STEAMCMD_PROFILE/sdk32/steamclient.so
 ln -sf ${STEAMCMD_PATH}/linux64/steamclient.so $STEAMCMD_PROFILE/sdk64/steamclient.so
 
-chmod +x ${$STEAMCMD_EXEC}
+chmod +x ${STEAMCMD_EXEC}
 chown -R ${CONTAINER_USER}:${CONTAINER_USER} ${STEAMCMD_PATH}
 
 # ===== Step 5: Test SteamCMD functionality ==========================================

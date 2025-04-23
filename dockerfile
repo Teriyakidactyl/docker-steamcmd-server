@@ -148,8 +148,9 @@ RUN set -eux && \
         apt-get install -y --no-install-recommends $PACKAGES_DEV; \
     fi && \
     \
-    # Install docker-logging
+    # Install docker-up base scripts
     git clone https://github.com/Teriyakidactyl/docker-up.git $SCRIPTS/container && \
+    rm -rf "$SCRIPTS/container/.git" && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \
     sed -i "/$LANG/s/^# //g" /etc/locale.gen && \
@@ -221,26 +222,17 @@ RUN set -eux && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get autoremove --purge -y $PACKAGES_BUILD
-    # TODO $SCRIPTS/container/.git cleanup
 
-# Switch to the container user
 USER ${CONTAINER_USER}
-
-# https://docs.docker.com/reference/dockerfile/#stopsignal
-# TODO STOPSIGNAL SIGQUIT
 
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
-ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
-
-CMD ["$SCRIPTS/container/up.sh"]
-
-# TODO touch permission testing (and cleanup) after USER ${CONTAINER_USER}
-
-# TODO insert derivative container examples
+HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1
 
 # Expose application volumes
 # VOLUME ["${APP_FILES}"]
 # VOLUME ["${WORLD_FILES}"]
 
-# CMD ["up.sh"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
+
+CMD ["/bin/bash", "-c", "$SCRIPTS/container/up.sh"]

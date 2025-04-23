@@ -64,7 +64,15 @@ ENV CONTAINER_USER="container" \
     SCRIPTS="/usr/local/bin" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
-    DISPLAY=":0"
+    DISPLAY=":0" \
+    \
+    # Steamcmd
+    STEAMCMD_PATH="/opt/steamcmd" \
+    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \ 
+    STEAMCMD_LOGS="/home/$CONTAINER_USER/Steam/logs" \
+    STEAM_LIBRARY="/home/$CONTAINER_USER/.local/share/Steam" \
+    STEAM_SERVER_APPID="" \
+    STEAM_PLATFORM_TYPE="linux"
 
 ENV WORLD_FILES="/world" \
     WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
@@ -73,12 +81,7 @@ ENV WORLD_FILES="/world" \
     APP_COMMAND="/bin/bash" \
     \
     # Steamcmd
-    STEAMCMD_PATH="/opt/steamcmd" \
-    STEAMCMD_PROFILE="/home/$CONTAINER_USER/Steam" \ 
-    STEAMCMD_LOGS="/home/$CONTAINER_USER/Steam/logs" \
-    STEAM_LIBRARY="/home/$CONTAINER_USER/.local/share/Steam" \
-    STEAM_SERVER_APPID="" \
-    STEAM_PLATFORM_TYPE="linux" \
+    STEAMCMD_EXEC="$STEAMCMD_PATH/steamcmd.sh" \
     \
     # Wine
     WINEPREFIX="/home/$CONTAINER_USER/app/Wine" \

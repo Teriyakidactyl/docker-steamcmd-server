@@ -30,16 +30,6 @@ echo "SteamCMD Configuration:"
 echo "  SteamCMD Path: ${STEAMCMD_PATH}"
 echo "  Container User: ${CONTAINER_USER}"
 
-# ===== Step 1: Setup environment variables =====
-echo "Setting up environment variables..."
-
-# Add SteamCMD configuration to environment file
-cat << 'EOT' >> /etc/environment
-
-# SteamCMD configuration
-export STEAMCMD_EXEC="${STEAMCMD_PATH}/steamcmd.sh"
-EOT
-
 # ===== Step 2: Add user aliases =====
 echo "Adding user aliases..."
 
@@ -65,7 +55,7 @@ mkdir -p $STEAMCMD_PROFILE/sdk32 $STEAMCMD_PROFILE/sdk64
 ln -sf ${STEAMCMD_PATH}/linux32/steamclient.so $STEAMCMD_PROFILE/sdk32/steamclient.so
 ln -sf ${STEAMCMD_PATH}/linux64/steamclient.so $STEAMCMD_PROFILE/sdk64/steamclient.so
 
-chmod +x ${STEAMCMD_PATH}/steamcmd.sh
+chmod +x ${$STEAMCMD_EXEC}
 chown -R ${CONTAINER_USER}:${CONTAINER_USER} ${STEAMCMD_PATH}
 
 # ===== Step 5: Test SteamCMD functionality ==========================================

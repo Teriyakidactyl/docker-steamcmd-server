@@ -2,14 +2,14 @@
 
 # Verify each required environment variable
 REQUIRED_VARS=("STEAM_SERVER_APPID" "STEAM_PLATFORM_TYPE" "APP_NAME" "APP_FILES")
-log "Verifying required environment variables..."
+log "Verifying required environment variables..." "10_steamcmd.sh"
 for var in "${REQUIRED_VARS[@]}"; do
   if [ -z "${!var}" ]; then
     log "Error: Required environment variable '$var' is not set or is empty." "10_steamcmd.sh"
     exit 1
   fi
 done
-log "All required environment variables are set."
+log "All required environment variables are set."  "10_steamcmd.sh"
 
 # Initialize SteamCMD if needed
 if [ ! -d "$STEAMCMD_PROFILE" ]; then

@@ -65,6 +65,7 @@ ENV CONTAINER_USER="container" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
     DISPLAY=":0" \
+    TAIL_PGID="" \
     \
     # Steamcmd
     STEAMCMD_PATH="/opt/steamcmd" \
@@ -72,9 +73,12 @@ ENV CONTAINER_USER="container" \
     STEAM_PLATFORM_TYPE="linux" \
     \
     WORLD_FILES="/world" \
+    APP_PID="" \
+    APP_EXE="" \
+    APP_ARGS="" \
     APP_FILES="/app" \
-    # APP_COMMAND: This is a placeholder, derivative containers should replace it
     APP_COMMAND="" \
+    APP_COMMAND_PREFIX="" \
     \
     PACKAGES_BUILD=" \
     # Needed to pull docker-logging

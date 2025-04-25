@@ -3,24 +3,6 @@ ARG DEBIAN_TAG
 FROM debian:${DEBIAN_TAG}
 
 # ======================================================================================================
-# ECHO BLOCK FORMATTING GUIDELINES
-# ======================================================================================================
-# This Dockerfile uses two levels of section headers implemented as echo statements:
-#
-# 1. H1 (Main Section Headers): 150 characters wide with centered text
-#    Format:
-#    echo "=======================================================================================================================================================================" && \
-#    echo "                                                  SECTION NAME                                                                                                       " && \
-#    echo "=======================================================================================================================================================================" && \
-#
-# 2. H2 (Subsection Headers): 150 characters wide with text surrounded by dashes
-#    Format:
-#    echo "------------------------------------------------------- Subsection Name -----------------------------------------------------------------------" && \
-#
-# These echo statements create visual separation between logical sections in the build output
-# and make debugging and troubleshooting easier by providing clear visual markers in logs.
-
-# ======================================================================================================
 # Global ARGs - these will be available to all build stages
 # ======================================================================================================
 ARG TARGETARCH \
@@ -65,21 +47,23 @@ ENV CONTAINER_USER="container" \
     DEBIAN_FRONTEND=noninteractive \
     TERM="xterm-256color" \
     DISPLAY=":0" \
-    TAIL_PGID="" \
     \
-    # Steamcmd
+    # Steamcmd ------------------------------------------------------
     STEAMCMD_PATH="/opt/steamcmd" \
     STEAM_SERVER_APPID="" \
     STEAM_PLATFORM_TYPE="linux" \
     \
-    WORLD_FILES="/world" \
+    # docker-up variables -------------------------------------------
     APP_PID="" \
     APP_EXE="" \
     APP_ARGS="" \
     APP_FILES="/app" \
     APP_COMMAND="" \
     APP_COMMAND_PREFIX="" \
+    WORLD_FILES="/world" \
+    TAIL_PGID="" \
     \
+    # dockerfile package variables ----------------------------------
     PACKAGES_BUILD=" \
     # Needed to pull docker-logging
     git" \
@@ -232,10 +216,6 @@ USER ${CONTAINER_USER}
 COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
 
 HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1
-
-# Expose application volumes
-# VOLUME ["${APP_FILES}"]
-# VOLUME ["${WORLD_FILES}"]
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
 

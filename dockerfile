@@ -209,7 +209,9 @@ RUN set -eux && \
     echo "=======================================================================================================================================================================" && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    apt-get autoremove --purge -y $PACKAGES_BUILD
+    apt-get autoremove --purge -y $PACKAGES_BUILD && \
+    rm -rf $LOGS/*
+
 
 USER ${CONTAINER_USER}
 

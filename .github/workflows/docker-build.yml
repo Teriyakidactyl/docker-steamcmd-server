@@ -82,8 +82,8 @@ env:
       # History: https://github.com/ryanfortner/box86-debs/commits/master/debian
 
   BOX64_VERSION: "0.3.5"
-      # Source: https://github.com/ptitSeb/box64/releases
-  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/a6c4fb3f1a4773b6318d3f66e56c119f40f17a87/debian/box64_0.3.5+20250416.96080e4-1_arm64.deb"
+      # Source: https://github.com/ptitSeb/box6d4/releases
+  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
       # https://github.com/ryanfortner/box64-debs/tree/master/debian
 
   # Runner architecture (will be set in jobs)

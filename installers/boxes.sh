@@ -37,6 +37,7 @@ echo "  Box64 Package URL: $BOX64_DEB_URL"
 echo "Setting up environment variables..."
 
 # Add Box86/Box64 configuration to environment file
+# https://github.com/ptitSeb/box64/blob/main/docs/USAGE.md
 cat << EOT >> /etc/environment
 
 # Box86/Box64 configuration
@@ -47,10 +48,12 @@ export DEBUGGER=box86
 
 # Box64 configuration
 export BOX64_LOG=1
+export BOX64_DYNAREC=1  
 export BOX64_DYNAREC_BLEEDING_EDGE=0
 export BOX64_DYNAREC_BIGBLOCK=0
 export BOX64_DYNAREC_STRONGMEM=2
 export BOX64_TRACE_FILE=/var/log/box64.log
+export SDL_AUDIODRIVER=dummy
 EOT
 
 PACKAGES_ARM_ONLY="\

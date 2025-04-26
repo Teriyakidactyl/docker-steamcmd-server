@@ -52,6 +52,7 @@ env:
     native
     wine-staging-10.5
     wine-stable-10.0.0.0
+    
   # Wine configurations
   # Source: https://gitlab.winehq.org/wine/wine/-/releases
   # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/

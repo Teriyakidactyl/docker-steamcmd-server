@@ -1,3 +1,12 @@
+4/25/2025
+BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
+
+^ Seems to complete world creation in valheim without seg fault
+
+
+
+
+4/25/2025
 BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/a6c4fb3f1a4773b6318d3f66e56c119f40f17a87/debian/box64_0.3.5+20250416.96080e4-1_arm64.deb"
 
 https://api.github.com/repos/ptitSeb/box64/commits/96080e4

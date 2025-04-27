@@ -98,6 +98,7 @@ ENV CONTAINER_USER="container" \
 
 # Secondary ENV
 ENV WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
+    HOOK_DIRECTORIES="$SCRIPTS/$CONTAINER_USER/hooks" \
     \
     # Steamcmd
     STEAMCMD_EXEC="$STEAMCMD_PATH/steamcmd.sh" \
@@ -137,7 +138,7 @@ RUN set -eux && \
     fi && \
     \
     # Install docker-up base scripts
-    git clone https://github.com/Teriyakidactyl/docker-up.git $SCRIPTS/container && \
+    git clone https://github.com/Teriyakidactyl/docker-up.git $SCRIPTS/$CONTAINER_USER && \
     rm -rf "$SCRIPTS/container/.git" && \
     \
     echo "------------------------------------------------------- Localization ------------------------------------------------------------------------------------------" && \

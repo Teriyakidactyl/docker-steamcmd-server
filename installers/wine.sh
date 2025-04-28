@@ -296,8 +296,8 @@ else
 fi
 
 mkdir -p $HOOK_DIRECTORIES/pre-startup $HOOK_DIRECTORIES/startup
-cp /tmp/installers/hook/pre-startup/20_wine_prefix.sh $HOOK_DIRECTORIES/pre-startup/20_wine_prefix.sh
-cp /tmp/installers/hook/startup/10_xvfb_wine.sh $HOOK_DIRECTORIES/startup/10_xvfb_wine.sh
+cp /tmp/installers/hooks/pre-startup/20_wine_prefix.sh $HOOK_DIRECTORIES/pre-startup/20_wine_prefix.sh
+cp /tmp/installers/hooks/startup/10_xvfb_wine.sh $HOOK_DIRECTORIES/startup/10_xvfb_wine.sh
 chown -R ${CONTAINER_USER}:${CONTAINER_USER} $HOOK_DIRECTORIES/pre-startup $HOOK_DIRECTORIES/startup
 
 # Common symlinks for all architectures and versions

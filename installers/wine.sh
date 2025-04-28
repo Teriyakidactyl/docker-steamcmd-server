@@ -295,6 +295,7 @@ else
     fi
 fi
 
+# hooks
 mkdir -p $HOOK_DIRECTORIES/pre-startup $HOOK_DIRECTORIES/startup
 cp /tmp/installers/hooks/pre-startup/20_wine_prefix.sh $HOOK_DIRECTORIES/pre-startup/20_wine_prefix.sh
 cp /tmp/installers/hooks/startup/10_xvfb_wine.sh $HOOK_DIRECTORIES/startup/10_xvfb_wine.sh

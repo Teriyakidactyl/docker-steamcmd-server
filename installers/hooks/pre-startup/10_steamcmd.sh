@@ -41,7 +41,7 @@ if [ -f "$APPINFO_FILE" ]; then
 fi
 
 if [ $NEEDS_UPDATE -ne 0 ]; then
-    log "Update required, installing to $APP_FILES" "10_steamcmd.sh"
+    log "Update required, installing $APP_NAME, APPID $STEAM_SERVER_APPID, to $APP_FILES" "10_steamcmd.sh"
     UPDATE_OUTPUT_FILE=$(mktemp)
    
     # Run SteamCMD to update the app
@@ -54,7 +54,7 @@ if [ $NEEDS_UPDATE -ne 0 ]; then
     +quit | tee "$UPDATE_OUTPUT_FILE" | log_stdout "10_steamcmd.sh"
    
     # Check for success message in the output
-    if grep -q "Success! App '$STEAM_SERVER_APPID' fully installed" "$UPDATE_OUTPUT_FILE"; then
+    if grep -q "Success! App $APP_NAME, APPID $STEAM_SERVER_APPID, fully installed" "$UPDATE_OUTPUT_FILE"; then
         # Save the new app info file since update succeeded
         mv "$APPINFO_FILE_NEW" "$APPINFO_FILE"
         # TODO include verions info?

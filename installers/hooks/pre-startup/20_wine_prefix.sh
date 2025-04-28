@@ -4,9 +4,12 @@
 # It requires the installation of 32 bit libraries in order to run 32 bit Windows applications
 
 # Check first time wine run, this will force Wine config creation so that our server load won't fail on first run.
-# TODO change to if $WINEPREFIX (path) is empty
-if [ -n "$WINEPREFIX" ] && [ ! -d "$WINEPREFIX" ]; then
+
+if [ -z "$WINEPREFIX" ]; then
     # https://wiki.winehq.org/Wineboot
-    log "Wine first run detected, wait 15 seconds for wine config creation."
-    $APP_COMMAND_PREFIX wineboot -iuf | log_stdout
+    log "Wine prefix is empty, running wineboot to initialize." "20_wine_prefix.sh"
+    $APP_COMMAND_PREFIX wineboot -iuf | log_stdout "20_wine_prefix.sh"
+elif [ ! -d "$WINEPREFIX" ]; then
+    log "WINEPREFIX '$WINEPREFIX' does not exist, attempting to initialize." "20_wine_prefix.sh"
+    $APP_COMMAND_PREFIX wineboot -iuf | log_stdout "20_wine_prefix.sh"
 fi

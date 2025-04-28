@@ -9,5 +9,5 @@ xvfb-run \
 -nosteamclient \
 -game \
 -server \
--log"
+-log
 )

@@ -216,8 +216,6 @@ RUN set -eux && \
 
 USER ${CONTAINER_USER}
 
-COPY --chown=${CONTAINER_USER}:${CONTAINER_USER} scripts ${SCRIPTS}
-
 HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "--"]

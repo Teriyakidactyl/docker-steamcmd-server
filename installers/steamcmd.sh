@@ -82,6 +82,11 @@ echo "Testing SteamCMD functionality..."
 #     exit 1
 # fi
 
+# Place supporting hookscripts in $HOOK_DIRECTORIES from /tmp/installers/hook/*
+mkdir -p $HOOK_DIRECTORIES/pre-startup
+cp /tmp/installers/hook/pre-startup/10_steamcmd.sh $HOOK_DIRECTORIES/pre-startup/10_steamcmd.sh
+chown -R ${CONTAINER_USER}:${CONTAINER_USER} $HOOK_DIRECTORIES/pre-startup
+
 # ===== Step 6: Finalize installation =====
 echo "SteamCMD installation completed!"
 

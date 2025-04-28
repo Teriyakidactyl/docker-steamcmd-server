@@ -14,7 +14,7 @@ on:
       - dev
       - main
     paths:
-      - 'dockerfile'
+      - 'Dockerfile'
       - '.github/workflows/**'
       - 'docker/**'
       - 'installers/**'
@@ -24,7 +24,7 @@ on:
       - dev
       - main
     paths:
-      - 'dockerfile'
+      - 'Dockerfile'
       - '.github/workflows/**'
       - 'docker/**'
       - 'installers/**'

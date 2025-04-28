@@ -111,7 +111,7 @@ ENV WORLD_DIRECTORIES="/home/$CONTAINER_USER/world/States" \
     # The WINEARCH value will be determined by the wine installer script based on version
 
 # Copy installer scripts
-COPY installers /tmp/installers
+COPY installers/ /tmp/installers/
 
 RUN set -eux && \
     echo "=======================================================================================================================================================================" && \

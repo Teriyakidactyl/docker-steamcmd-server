@@ -52,6 +52,8 @@ ENV CONTAINER_USER="container" \
     STEAMCMD_PATH="/opt/steamcmd" \
     STEAM_SERVER_APPID="" \
     STEAM_PLATFORM_TYPE="linux" \
+    STEAM_ID_ALLOW_LIST_PATH="" \
+    STEAM_ID_ALLOW_LIST="" \
     \
     # docker-up variables -------------------------------------------
     APP_PID="" \

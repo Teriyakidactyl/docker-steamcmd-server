@@ -48,12 +48,13 @@ ENV CONTAINER_USER="container" \
     TERM="xterm-256color" \
     DISPLAY=":0" \
     \
-    # Steamcmd ------------------------------------------------------
+    # Steam ---------------------------------------------------------
     STEAMCMD_PATH="/opt/steamcmd" \
     STEAM_SERVER_APPID="" \
     STEAM_PLATFORM_TYPE="linux" \
     STEAM_ID_ALLOW_LIST_PATH="" \
     STEAM_ID_ALLOW_LIST="" \
+    STEAM_MOD_IDS="" \
     \
     # docker-up variables -------------------------------------------
     APP_PID="" \

@@ -211,7 +211,6 @@ RUN set -eux && \
     apt-get autoremove --purge -y $PACKAGES_BUILD && \
     rm -rf $LOGS/*
 
-
 USER ${CONTAINER_USER}
 
 HEALTHCHECK --interval=1m --timeout=3s CMD pidof $APP_EXE || exit 1

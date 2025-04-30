@@ -143,21 +143,21 @@ export WINE_LOG=1
 export WINE_TRACE_FILE=/var/log/wine.log
 EOT
 
-# Update the APP_COMMAND_PREFIX for wine
+# Update the APP_COMMAND_PREFIX for wine, using WINE_EXECUTABLE
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
-    # If already set (possibly by box64 script), append wine to it
+    # If already set (possibly by box64 script), append $WINE_EXECUTABLE to it
     OLD_PREFIX=$(grep "APP_COMMAND_PREFIX" /etc/environment | cut -d= -f2 | tr -d '"')
     if [ -z "$OLD_PREFIX" ]; then
-        sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="wine"/' /etc/environment
+        sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"$WINE_EXECUTABLE\"/" /etc/environment
     else
-        # Check if wine is already in the prefix to avoid duplication
-        if [[ "$OLD_PREFIX" != *"wine"* ]]; then
-            sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="'"$OLD_PREFIX"' wine"/' /etc/environment
+        # Check if $WINE_EXECUTABLE is already in the prefix to avoid duplication
+        if [[ "$OLD_PREFIX" != *"$WINE_EXECUTABLE"* ]]; then
+            sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"'$OLD_PREFIX' $WINE_EXECUTABLE\"/" /etc/environment
         fi
     fi
 else
     # If not set, create a new entry
-    echo 'export APP_COMMAND_PREFIX="wine"' >> /etc/environment
+    echo "export APP_COMMAND_PREFIX=\"$WINE_EXECUTABLE\"" >> /etc/environment
 fi
 
 # ===== Step 5: Create required directories =====
@@ -268,7 +268,7 @@ EOF
             echo "Creating ARM64-specific wine32 wrapper using box86"
             cat > /usr/local/bin/wine32 << EOF
 #!/bin/bash
-box86 $WINE_PATH/wine "\$@"
+box86 $WINE_PATH/$WINE_EXECUTABLE "\$@"
 EOF
             chmod +x /usr/local/bin/wine32
             echo "✓ ARM64 wine32 wrapper created with box86"
@@ -280,7 +280,8 @@ EOF
 else
     # For AMD64, create direct symlinks
     echo "Creating AMD64 wine symlinks"
-    ln -sf "$WINE_PATH/$WINE_EXECUTABLE" /usr/local/bin/wine || {
+    #NOTE creating a symlink with a name 'wine' for 'wine64' can confuse wine internal logic
+    ln -sf "$WINE_PATH/$WINE_EXECUTABLE" /usr/local/bin/$WINE_EXECUTABLE || {
         echo "✗ ERROR: Failed to create wine symlink"
         exit 1
     }
@@ -313,8 +314,9 @@ ln -sf "$WINE_PATH/wineserver" /usr/local/bin/wineserver || {
 }
 
 # Make everything executable
+chown -R ${CONTAINER_USER}:${CONTAINER_USER} $WINE_PATH
 chmod +x \
-    /usr/local/bin/wine \
+    "$SCRIPTS/$WINE_EXECUTABLE" \
     "$WINE_PATH/wineboot" \
     "$WINE_PATH/winecfg" \
     "$WINE_PATH/wineserver" || {

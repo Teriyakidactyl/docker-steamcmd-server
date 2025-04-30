@@ -64,7 +64,7 @@ PACKAGES_ARM_ONLY="\
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
     # Get existing prefix, if any
     EXISTING_PREFIX=$(grep "APP_COMMAND_PREFIX" /etc/environment | cut -d= -f2 | tr -d '"')
-    
+   
     if [ -z "$EXISTING_PREFIX" ]; then
         # If prefix exists but is empty, set it to box64
         sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="box64"/' /etc/environment
@@ -72,7 +72,8 @@ if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
         # Check if box64 is already in the prefix to avoid duplication
         if [[ "$EXISTING_PREFIX" != *"box64"* ]]; then
             # If prefix exists and doesn't contain box64, prepend box64
-            sed -i 's/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="box64 '"$EXISTING_PREFIX"'"/' /etc/environment
+            NEW_PREFIX="box64 $EXISTING_PREFIX"
+            sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"$NEW_PREFIX\"/" /etc/environment
         fi
     fi
 else

@@ -151,10 +151,11 @@ if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
         sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"$WINE_EXECUTABLE\"/" /etc/environment
     else
         # Check if $WINE_EXECUTABLE is already in the prefix to avoid duplication
-        if [[ "$OLD_PREFIX" != *"$WINE_EXECUTABLE"* ]]; then
-            sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"'$OLD_PREFIX' $WINE_EXECUTABLE\"/" /etc/environment
-        fi
-    fi
+    if [[ "$OLD_PREFIX" != *"$WINE_EXECUTABLE"* ]]; then
+        # Create the new prefix without adding extra quotes
+        NEW_PREFIX="$OLD_PREFIX $WINE_EXECUTABLE"
+        sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"$NEW_PREFIX\"/" /etc/environment
+    fi    
 else
     # If not set, create a new entry
     echo "export APP_COMMAND_PREFIX=\"$WINE_EXECUTABLE\"" >> /etc/environment

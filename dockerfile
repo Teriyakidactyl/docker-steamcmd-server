@@ -54,7 +54,7 @@ ENV CONTAINER_USER="container" \
     STEAM_PLATFORM_TYPE="linux" \
     STEAM_ID_ALLOW_LIST_PATH="" \
     STEAM_ID_ALLOW_LIST="" \
-    STEAM_MOD_IDS="" \
+    STEAM_WORKSHOP_MOD_IDS="" \
     \
     # docker-up variables -------------------------------------------
     APP_PID="" \

@@ -6,6 +6,9 @@
 # - Proton GE from GitHub releases
 # - Required dependencies
 # - Configures environment variables
+#
+# This script expects PROTON_VERSION to be passed as a build argument or environment variable,
+# representing the base version number (e.g., "8.0-5").
 
 set -eo pipefail
 
@@ -22,20 +25,46 @@ if [ -z "$TARGETARCH" ]; then
     exit 1
 fi
 
-# Get parameters from environment
-PROTON_PATH="/opt/proton"
-WINEPREFIX="/home/$CONTAINER_USER/app/Proton"
+# PROTON_VERSION must be provided via build arg or environment
+if [ -z "$PROTON_VERSION" ]; then
+    echo "✗ ERROR: PROTON_VERSION is required but not set. Please provide the base version (e.g., '8.0-5')."
+    exit 1
+fi
+
+# Get parameters from environment or use defaults
+PROTON_PATH="${PROTON_PATH:-/opt/proton}" # Use default if not set
+WINEPREFIX="${WINEPREFIX:-/home/$CONTAINER_USER/app/Proton}" # Use default if not set
+INSTALL_I386="${INSTALL_I386:-true}" # Default to true if not set
+CONTAINER_USER="${CONTAINER_USER:-steam}" # Default to steam if not set
+HOOK_DIRECTORIES="${HOOK_DIRECTORIES:-/opt/steam/hooks}" # Default hook directory
+
+# Construct the full Proton GE tag name from the provided PROTON_VERSION
+# This tag is needed for downloading the correct release archive.
+# Remove the "GE-" prefix if present (for flexibility in how the version is specified)
+# Remove the "Proton-" prefix if present
+# Then prepend "GE-Proton-"
+PROTON_TAG_NAME="GE-Proton-${PROTON_VERSION#GE-#Proton-}"
+
+# Log configuration
+echo "Proton GE Configuration:"
+echo "    Requested Version: ${PROTON_VERSION}"
+echo "    Full GE Tag Name: ${PROTON_TAG_NAME}"
+echo "    Target Architecture: ${TARGETARCH}"
+echo "    Install i386 support: ${INSTALL_I386}"
+echo "    Proton Path: ${PROTON_PATH}"
+echo "    Wineprefix: ${WINEPREFIX}"
+
 
 # ===== Package Variables =====
 PACKAGES_PROTON="\
-    `# Fake X-Server desktop for Wine/Proton - needed for server`
+    # Fake X-Server desktop for Wine/Proton - needed for server
     xvfb \
-    `# xauth needed with --no-install-recommends`
+    # xauth needed with --no-install-recommends
     xauth \
-    `# Python is needed for Proton scripts`
+    # Python is needed for Proton scripts
     python3 \
     python3-pip \
-    `# Minimum required libraries`  
+    # Minimum required libraries
     fontconfig \
     libfreetype6 \
     libpng16-16 \
@@ -56,7 +85,7 @@ PACKAGES_PROTON="\
 # libegl1"
 
 PACKAGES_PROTON_I386="\
-    `# 32-bit common libraries - minimal set for Proton`
+    # 32-bit common libraries - minimal set for Proton
     libfreetype6:i386 \
     libpng16-16:i386 \
     libjpeg62-turbo:i386 \
@@ -75,22 +104,6 @@ PACKAGES_PROTON_I386="\
 # libxss1:i386 \
 # libegl1:i386"
 
-# Format the PROTON_GE_VERSION if needed
-if [ -n "$PROTON_GE_VERSION" ]; then
-    # Remove the "GE-" prefix if present (for flexibility in how the version is specified)
-    PROTON_VERSION=${PROTON_GE_VERSION#GE-}
-    # Remove the "Proton-" prefix if present
-    PROTON_VERSION=${PROTON_VERSION#Proton-}
-    
-    # Log configuration
-    echo "Proton GE Configuration:"
-    echo "  Version: GE-Proton-${PROTON_VERSION}"
-    echo "  Target Architecture: ${TARGETARCH}"
-    echo "  Install i386 support: ${INSTALL_I386}"
-else
-    echo "✗ ERROR: PROTON_GE_VERSION is not set"
-    exit 1
-fi
 
 # ===== Step 1: Check for Box86/Box64 on ARM64 =====
 echo "Step 1: Checking system compatibility..."
@@ -101,12 +114,15 @@ if [ "$TARGETARCH" = "arm64" ]; then
         echo "✗ ERROR: box64 is required for Proton on ARM64"
         exit 1
     fi
-    
+
     # Check for box86 if i386 support is requested
     if [ "$INSTALL_I386" = "true" ] && ! command -v box86 >/dev/null 2>&1; then
         echo "! Warning: box86 not found. Disabling i386 support on ARM64."
         INSTALL_I386="false"
     fi
+    echo "✓ ARM64 compatibility check passed"
+else
+    echo "✓ System compatibility check passed"
 fi
 
 # ===== Step 2: Set up architecture support =====
@@ -117,70 +133,79 @@ if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     dpkg --add-architecture i386
     apt-get update
     echo "✓ i386 architecture support added"
+else
+     echo "✓ i386 architecture support not added (either not requested or on ARM64)"
 fi
+
 
 # ===== Step 3: Install base packages =====
 echo "Step 3: Installing Proton dependencies..."
 
 # Install base packages
 apt-get install -y --no-install-recommends $PACKAGES_PROTON
+echo "✓ Proton base packages installed"
 
-# Install i386 packages if requested
+# Install i386 packages if requested and not on ARM
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" != "arm64" ]; then
     apt-get install -y --no-install-recommends $PACKAGES_PROTON_I386
     echo "✓ Proton i386 packages installed"
+else
+    echo "✓ Proton i386 packages not installed (either not requested or on ARM64)"
 fi
+
 
 # ===== Step 4: Setup environment variables =====
 echo "Step 4: Setting up environment variables..."
 
 # Add Proton configuration to environment file
-cat << EOT >> /etc/environment
+# Use tee with -a for appending and sudo for permissions if needed
+tee -a /etc/environment > /dev/null << EOT
 
 # Proton GE configuration
 export PROTON_PATH=${PROTON_PATH}
-export PROTON_VERSION=GE-Proton-${PROTON_VERSION}
+export PROTON_VERSION=${PROTON_VERSION} # Set to the input version string provided by the user
 export WINEPREFIX=${WINEPREFIX}
 
 # Proton-specific environment variables
-export STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam
+export STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam # Assuming steam is installed here
 export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}
 
 # Enable Steam Play debug logging
 export PROTON_LOG=1
 export PROTON_LOG_DIR=/var/log/proton
 EOT
+echo "✓ Proton environment variables added to /etc/environment"
 
 # Commented out unnecessary environment variables for headless server
 # export PROTON_DUMP_DEBUG_COMMANDS=1
 # export PROTON_CRASH_REPORT_DIR=/var/log/proton/crash_reports
-# 
+#
 # # Performance optimizations - may not be needed for all servers
 # export PROTON_NO_ESYNC=0
 # export PROTON_NO_FSYNC=0
 
 # Update APP_COMMAND_PREFIX for Proton
-if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
+echo "Updating APP_COMMAND_PREFIX..."
+if grep -q "export APP_COMMAND_PREFIX=" /etc/environment; then
     # If already set, append proton run to it
-    OLD_PREFIX=$(grep "APP_COMMAND_PREFIX" /etc/environment | cut -d= -f2 | tr -d '"')
-    if [ -z "$OLD_PREFIX" ]; then
-        sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"proton run\"/" /etc/environment
-    else
-        # Check if proton run is already in the prefix to avoid duplication
-        if [[ "$OLD_PREFIX" != *"proton run"* ]]; then
-            # Create the new prefix without adding extra quotes
-            NEW_PREFIX="$OLD_PREFIX proton run"
-            sed -i "s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX=\"$NEW_PREFIX\"/" /etc/environment
-        fi
-    fi
+    # Use sed to modify the existing line
+    sed -i '/export APP_COMMAND_PREFIX=/ {
+        s/export APP_COMMAND_PREFIX="\(.*\)"/export APP_COMMAND_PREFIX="\1 proton run"/
+        t # jump to end if substitution was made
+        s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="proton run"/ # handle case without quotes
+    }' /etc/environment
+    echo "✓ APP_COMMAND_PREFIX updated in /etc/environment"
 else
     # If not set, create a new entry
-    echo "export APP_COMMAND_PREFIX=\"proton run\"" >> /etc/environment
+    echo 'export APP_COMMAND_PREFIX="proton run"' >> /etc/environment
+    echo "✓ APP_COMMAND_PREFIX added to /etc/environment"
 fi
+
 
 # ===== Step 5: Create required directories =====
 echo "Step 5: Creating required directories..."
 mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton"
+echo "✓ Required directories created"
 
 # Directory for crash reports only if needed
 # mkdir -p "/var/log/proton/crash_reports"
@@ -188,9 +213,8 @@ mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton"
 # ===== Step 6: Download and install Proton GE =====
 echo "Step 6: Downloading and installing Proton GE..."
 
-# Define download URL for Proton GE
-PROTON_GE_TAG="GE-Proton-${PROTON_VERSION}"
-PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${PROTON_GE_TAG}/${PROTON_GE_TAG}.tar.gz"
+# Define download URL for Proton GE using the constructed tag name
+PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${PROTON_TAG_NAME}/${PROTON_TAG_NAME}.tar.gz"
 
 echo "Downloading Proton GE from: ${PROTON_URL}"
 
@@ -199,19 +223,27 @@ mkdir -p /tmp/proton_ge
 curl -sL "$PROTON_URL" -o /tmp/proton_ge/proton.tar.gz
 if [ $? -ne 0 ]; then
     echo "✗ ERROR: Failed to download Proton GE from ${PROTON_URL}"
+    rm -rf /tmp/proton_ge # Clean up temp directory on failure
     exit 1
 fi
+echo "✓ Download complete"
 
+echo "Extracting Proton GE..."
 # Extract to temporary location first
 tar -xzf /tmp/proton_ge/proton.tar.gz -C /tmp/proton_ge
 if [ $? -ne 0 ]; then
     echo "✗ ERROR: Failed to extract Proton GE archive"
+    rm -rf /tmp/proton_ge # Clean up temp directory on failure
     exit 1
 fi
+echo "✓ Extraction complete"
 
 # Move content to final location
-mv /tmp/proton_ge/${PROTON_GE_TAG}/* "${PROTON_PATH}/"
-rm -rf /tmp/proton_ge
+echo "Moving extracted files to ${PROTON_PATH}..."
+# The extracted directory name is the full tag name
+mv /tmp/proton_ge/${PROTON_TAG_NAME}/* "${PROTON_PATH}/"
+rm -rf /tmp/proton_ge # Clean up temp directory
+echo "✓ Files moved"
 
 # Verify installation
 if [ -f "${PROTON_PATH}/proton" ]; then
@@ -232,34 +264,42 @@ if [ "$TARGETARCH" != "arm64" ]; then
     ln -sf "${PROTON_PATH}/files/bin/wine" /usr/local/bin/proton-wine
     ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/proton-wine64
     ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/proton-wineserver
-    echo "✓ Proton GE symlinks created"
+    echo "✓ Proton GE symlinks created for standard architecture"
 # Setup for ARM64
 else
     echo "Setting up ARM64-specific configuration..."
-    
+
     # Create ARM64-specific symlinks using box64/box86
     if command -v box64 >/dev/null 2>&1; then
         # Create a minimal wrapper script for box64 -> proton
         cat > /usr/local/bin/proton << EOF
 #!/bin/bash
+# Wrapper script to run proton via box64
 exec box64 "${PROTON_PATH}/proton" "\$@"
 EOF
         chmod +x /usr/local/bin/proton
-        
+        echo "✓ ARM64 proton wrapper script created"
+
         # Create symlinks for wine components
         ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/proton-wine64
         ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/proton-wineserver
-        
+        echo "✓ ARM64 proton-wine64 and proton-wineserver symlinks created"
+
         # Add wine symlink using box86 if available
         if [ "$INSTALL_I386" = "true" ] && command -v box86 >/dev/null 2>&1; then
             cat > /usr/local/bin/proton-wine << EOF
 #!/bin/bash
+# Wrapper script to run wine via box86
 exec box86 "${PROTON_PATH}/files/bin/wine" "\$@"
 EOF
             chmod +x /usr/local/bin/proton-wine
+            echo "✓ ARM64 proton-wine symlink created via box86"
+        else
+             echo "✓ ARM64 proton-wine symlink not created (box86 not available or i386 not requested)"
         fi
-        
-        echo "✓ ARM64-specific Proton GE symlinks created"
+    else
+        echo "✗ ERROR: box64 not found. Cannot setup ARM64 symlinks."
+        exit 1 # Exit if box64 is required but not found on ARM64
     fi
 fi
 
@@ -267,25 +307,39 @@ fi
 echo "Step 8: Setting up hooks..."
 
 # Create hooks directories if they don't exist
-mkdir -p $HOOK_DIRECTORIES/pre-startup $HOOK_DIRECTORIES/startup
+mkdir -p "$HOOK_DIRECTORIES/pre-startup" "$HOOK_DIRECTORIES/startup"
+echo "✓ Hook directories created"
 
 # Copy hook scripts - follow the same pattern as the Wine script
+# Use -f to force overwrite if they exist
 if [ -d "/tmp/installers/hooks" ]; then
-    cp /tmp/installers/hooks/pre-startup/20_proton_prefix.sh $HOOK_DIRECTORIES/pre-startup/20_proton_prefix.sh 2>/dev/null || echo "! Hook script not found, skipping"
-    cp /tmp/installers/hooks/startup/10_xvfb_proton.sh $HOOK_DIRECTORIES/startup/10_xvfb_proton.sh 2>/dev/null || echo "! Hook script not found, skipping"
-    chown -R ${CONTAINER_USER}:${CONTAINER_USER} $HOOK_DIRECTORIES/pre-startup $HOOK_DIRECTORIES/startup
+    echo "Copying hook scripts from /tmp/installers/hooks..."
+    cp -f /tmp/installers/hooks/pre-startup/20_proton_prefix.sh "$HOOK_DIRECTORIES/pre-startup/20_proton_prefix.sh" 2>/dev/null || echo "! Hook script 20_proton_prefix.sh not found, skipping"
+    cp -f /tmp/installers/hooks/startup/10_xvfb_proton.sh "$HOOK_DIRECTORIES/startup/10_xvfb_proton.sh" 2>/dev/null || echo "! Hook script 10_xvfb_proton.sh not found, skipping"
+    # Ensure correct ownership
+    chown -R "${CONTAINER_USER}":"${CONTAINER_USER}" "$HOOK_DIRECTORIES/pre-startup" "$HOOK_DIRECTORIES/startup"
+    echo "✓ Hook scripts copied and permissions set"
+else
+    echo "! Hook scripts source directory /tmp/installers/hooks not found, skipping hook setup"
 fi
 
-# Make everything executable
-chown -R ${CONTAINER_USER}:${CONTAINER_USER} $PROTON_PATH
+# Make everything in PROTON_PATH executable and set ownership
+echo "Setting permissions and ownership for ${PROTON_PATH}..."
+chmod -R +x "$PROTON_PATH"
+chown -R "${CONTAINER_USER}":"${CONTAINER_USER}" "$PROTON_PATH"
+echo "✓ Permissions and ownership set for ${PROTON_PATH}"
+
 
 echo "Proton GE installation complete!"
-echo "  Version: GE-Proton-${PROTON_VERSION}"
-echo "  Path: ${PROTON_PATH}"
-echo "  Prefix: ${WINEPREFIX}"
-echo "  i386 Support: ${INSTALL_I386}"
+echo "    Requested Version: ${PROTON_VERSION}"
+echo "    Installed Tag: ${PROTON_TAG_NAME}"
+echo "    Path: ${PROTON_PATH}"
+echo "    Prefix: ${WINEPREFIX}"
+echo "    i386 Support: ${INSTALL_I386}"
 
-# Re-source environment for current script
-. /etc/environment
+# Re-source environment for current script - useful for interactive sessions
+# Note: This does not affect the environment of the calling script/Dockerfile RUN instruction
+# echo "Re-sourcing /etc/environment..."
+# . /etc/environment
 
 exit 0

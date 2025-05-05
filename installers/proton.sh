@@ -1,9 +1,9 @@
 #!/bin/bash
-# Proton installation script for Docker SteamCMD Server
-# Handles installation of Proton (Valve's compatibility tool based on Wine)
+# Proton GE installation script for Docker SteamCMD Server
+# Handles installation of Proton GE (Glorious Eggroll's custom Proton build)
 #
 # This script installs:
-# - Proton from GitHub releases
+# - Proton GE from GitHub releases
 # - Required dependencies
 # - Configures environment variables
 
@@ -14,7 +14,7 @@ if [ -f /etc/environment ]; then
     . /etc/environment
 fi
 
-echo "Starting Proton Installation..."
+echo "Starting Proton GE Installation..."
 
 # Verify required parameters are provided
 if [ -z "$TARGETARCH" ]; then
@@ -75,11 +75,22 @@ PACKAGES_PROTON_I386="\
 # libxss1:i386 \
 # libegl1:i386"
 
-# Log configuration
-echo "Proton Configuration:"
-echo "  Version: ${PROTON_VERSION}"
-echo "  Target Architecture: ${TARGETARCH}"
-echo "  Install i386 support: ${INSTALL_I386}"
+# Format the PROTON_GE_VERSION if needed
+if [ -n "$PROTON_GE_VERSION" ]; then
+    # Remove the "GE-" prefix if present (for flexibility in how the version is specified)
+    PROTON_VERSION=${PROTON_GE_VERSION#GE-}
+    # Remove the "Proton-" prefix if present
+    PROTON_VERSION=${PROTON_VERSION#Proton-}
+    
+    # Log configuration
+    echo "Proton GE Configuration:"
+    echo "  Version: GE-Proton-${PROTON_VERSION}"
+    echo "  Target Architecture: ${TARGETARCH}"
+    echo "  Install i386 support: ${INSTALL_I386}"
+else
+    echo "✗ ERROR: PROTON_GE_VERSION is not set"
+    exit 1
+fi
 
 # ===== Step 1: Check for Box86/Box64 on ARM64 =====
 echo "Step 1: Checking system compatibility..."
@@ -126,9 +137,9 @@ echo "Step 4: Setting up environment variables..."
 # Add Proton configuration to environment file
 cat << EOT >> /etc/environment
 
-# Proton configuration
+# Proton GE configuration
 export PROTON_PATH=${PROTON_PATH}
-export PROTON_VERSION=${PROTON_VERSION}
+export PROTON_VERSION=GE-Proton-${PROTON_VERSION}
 export WINEPREFIX=${WINEPREFIX}
 
 # Proton-specific environment variables
@@ -174,42 +185,54 @@ mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton"
 # Directory for crash reports only if needed
 # mkdir -p "/var/log/proton/crash_reports"
 
-# ===== Step 6: Download and install Proton =====
-echo "Step 6: Downloading and installing Proton..."
+# ===== Step 6: Download and install Proton GE =====
+echo "Step 6: Downloading and installing Proton GE..."
 
-if [ -n "$PROTON_VERSION" ]; then
-    # Define download URL
-    PROTON_URL="https://github.com/ValveSoftware/Proton/releases/download/proton-${PROTON_VERSION}/proton-${PROTON_VERSION}.tar.gz"
-    
-    # Download and extract Proton
-    curl -sL "$PROTON_URL" -o /tmp/proton.tar.gz
-    tar -xzf /tmp/proton.tar.gz -C "${PROTON_PATH}" --strip-components=1
-    rm -f /tmp/proton.tar.gz
-    
-    # Verify installation
-    if [ -f "${PROTON_PATH}/proton" ]; then
-        echo "✓ Proton installation successful"
-    else
-        echo "✗ ERROR: Proton installation failed. proton executable not found."
-        ls -la "${PROTON_PATH}"
-        exit 1
-    fi
+# Define download URL for Proton GE
+PROTON_GE_TAG="GE-Proton-${PROTON_VERSION}"
+PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${PROTON_GE_TAG}/${PROTON_GE_TAG}.tar.gz"
+
+echo "Downloading Proton GE from: ${PROTON_URL}"
+
+# Download and extract Proton GE
+mkdir -p /tmp/proton_ge
+curl -sL "$PROTON_URL" -o /tmp/proton_ge/proton.tar.gz
+if [ $? -ne 0 ]; then
+    echo "✗ ERROR: Failed to download Proton GE from ${PROTON_URL}"
+    exit 1
+fi
+
+# Extract to temporary location first
+tar -xzf /tmp/proton_ge/proton.tar.gz -C /tmp/proton_ge
+if [ $? -ne 0 ]; then
+    echo "✗ ERROR: Failed to extract Proton GE archive"
+    exit 1
+fi
+
+# Move content to final location
+mv /tmp/proton_ge/${PROTON_GE_TAG}/* "${PROTON_PATH}/"
+rm -rf /tmp/proton_ge
+
+# Verify installation
+if [ -f "${PROTON_PATH}/proton" ]; then
+    echo "✓ Proton GE installation successful"
 else
-    echo "✗ ERROR: PROTON_VERSION is not set"
+    echo "✗ ERROR: Proton GE installation failed. proton executable not found."
+    ls -la "${PROTON_PATH}"
     exit 1
 fi
 
 # ===== Step 7: Create symlinks =====
-echo "Step 7: Setting up Proton symlinks..."
+echo "Step 7: Setting up Proton GE symlinks..."
 
 # Create symlinks for standard architecture
 if [ "$TARGETARCH" != "arm64" ]; then
     # Create direct symlinks to Proton executables
     ln -sf "${PROTON_PATH}/proton" /usr/local/bin/proton
-    ln -sf "${PROTON_PATH}/proton_dist/bin/wine" /usr/local/bin/proton-wine
-    ln -sf "${PROTON_PATH}/proton_dist/bin/wine64" /usr/local/bin/proton-wine64
-    ln -sf "${PROTON_PATH}/proton_dist/bin/wineserver" /usr/local/bin/proton-wineserver
-    echo "✓ Proton symlinks created"
+    ln -sf "${PROTON_PATH}/files/bin/wine" /usr/local/bin/proton-wine
+    ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/proton-wine64
+    ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/proton-wineserver
+    echo "✓ Proton GE symlinks created"
 # Setup for ARM64
 else
     echo "Setting up ARM64-specific configuration..."
@@ -224,19 +247,19 @@ EOF
         chmod +x /usr/local/bin/proton
         
         # Create symlinks for wine components
-        ln -sf "${PROTON_PATH}/proton_dist/bin/wine64" /usr/local/bin/proton-wine64
-        ln -sf "${PROTON_PATH}/proton_dist/bin/wineserver" /usr/local/bin/proton-wineserver
+        ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/proton-wine64
+        ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/proton-wineserver
         
         # Add wine symlink using box86 if available
         if [ "$INSTALL_I386" = "true" ] && command -v box86 >/dev/null 2>&1; then
             cat > /usr/local/bin/proton-wine << EOF
 #!/bin/bash
-exec box86 "${PROTON_PATH}/proton_dist/bin/wine" "\$@"
+exec box86 "${PROTON_PATH}/files/bin/wine" "\$@"
 EOF
             chmod +x /usr/local/bin/proton-wine
         fi
         
-        echo "✓ ARM64-specific Proton symlinks created"
+        echo "✓ ARM64-specific Proton GE symlinks created"
     fi
 fi
 
@@ -256,8 +279,8 @@ fi
 # Make everything executable
 chown -R ${CONTAINER_USER}:${CONTAINER_USER} $PROTON_PATH
 
-echo "Proton installation complete!"
-echo "  Version: ${PROTON_VERSION}"
+echo "Proton GE installation complete!"
+echo "  Version: GE-Proton-${PROTON_VERSION}"
 echo "  Path: ${PROTON_PATH}"
 echo "  Prefix: ${WINEPREFIX}"
 echo "  i386 Support: ${INSTALL_I386}"

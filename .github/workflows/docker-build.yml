@@ -50,15 +50,14 @@ env:
     bookworm-20250407-slim
   
   # Compatibility layers with specific versions
+  # Wine configurations
+  # Source: https://gitlab.winehq.org/wine/wine/-/releases
+  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
   MATRIX_COMPAT_LAYERS: |
     native
     wine-staging-10.5
     wine-stable-10.0.0.0
-    
-  # Wine configurations
-  # Source: https://gitlab.winehq.org/wine/wine/-/releases
-  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
-  # TODO: Add "proton" to MATRIX_COMPAT_LAYERS when ready (no ARM support yet)
+    proton-9.0-4
   
   # Target platforms
   MATRIX_PLATFORMS: |
@@ -188,6 +187,10 @@ jobs:
             echo "WINE_BRANCH=$WINE_BRANCH" >> $GITHUB_ENV
             echo "WINE_VERSION=$WINE_VERSION" >> $GITHUB_ENV
             echo "COMPAT_LAYER=wine" >> $GITHUB_ENV
+          elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
+            PROTON_VERSION="${BASH_REMATCH[1]}"
+            echo "PROTON_VERSION=$PROTON_VERSION" >> $GITHUB_ENV
+            echo "COMPAT_LAYER=proton" >> $GITHUB_ENV
           elif [[ "${{ matrix.compat_layer }}" == "native" ]]; then
             echo "COMPAT_LAYER=" >> $GITHUB_ENV
           else
@@ -205,8 +208,9 @@ jobs:
             if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
               # Use the full compat_layer string with branch and version
               TAG_VERSIONED="${TAG_VERSIONED}_${{ matrix.compat_layer }}"
-            elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
-              TAG_VERSIONED="${TAG_VERSIONED}_proton-${{ env.PROTON_VERSION }}"
+            elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
+              # Use the full proton string with version
+              TAG_VERSIONED="${TAG_VERSIONED}_${{ matrix.compat_layer }}"
             fi
           fi
           
@@ -228,8 +232,10 @@ jobs:
               # For wine, add both the layer and branch
               WINE_BRANCH="${BASH_REMATCH[1]}"
               TAG_CODENAME="${TAG_CODENAME}-wine-${WINE_BRANCH}"
-            elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
-              TAG_CODENAME="${TAG_CODENAME}-proton"
+            elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
+              # For proton, add the version
+              PROTON_VERSION="${BASH_REMATCH[1]}"
+              TAG_CODENAME="${TAG_CODENAME}-proton-${PROTON_VERSION}"
             fi
           fi
           
@@ -493,9 +499,13 @@ jobs:
               # Extract wine branch for codename tag
               WINE_BRANCH="${BASH_REMATCH[1]}"
               BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-wine-${WINE_BRANCH}"
-            elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
-              BASE_VERSION_TAG="${BASE_VERSION_TAG}_proton-${{ env.PROTON_VERSION }}"
-              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-proton"
+            elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
+              # Use the full proton string with version
+              BASE_VERSION_TAG="${BASE_VERSION_TAG}_${{ matrix.compat_layer }}"
+              
+              # Extract proton version for codename tag
+              PROTON_VERSION="${BASH_REMATCH[1]}"
+              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-proton-${PROTON_VERSION}"
             fi
           fi
           

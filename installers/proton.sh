@@ -28,45 +28,52 @@ WINEPREFIX="/home/$CONTAINER_USER/app/Proton"
 
 # ===== Package Variables =====
 PACKAGES_PROTON="\
-    `# Fake X-Server desktop for Wine/Proton`
+    `# Fake X-Server desktop for Wine/Proton - needed for server`
     xvfb \
     `# xauth needed with --no-install-recommends`
     xauth \
-    `# Python is needed for some Proton scripts`
+    `# Python is needed for Proton scripts`
     python3 \
     python3-pip \
-    `# Graphics and common libraries`
-    libvulkan1 \
-    mesa-vulkan-drivers \
+    `# Minimum required libraries`  
     fontconfig \
     libfreetype6 \
     libpng16-16 \
     libjpeg62-turbo \
-    `# Audio support`
-    libasound2 \
-    `# Common dependencies`
     libglib2.0-0 \
     libdbus-1-3 \
     libnss3 \
-    libx11-6 \
-    libxss1 \
-    libegl1"
+    libx11-6"
+
+# Commented out unnecessary packages for headless server
+# `# Graphics libraries - not needed for headless server`
+# libvulkan1 \
+# mesa-vulkan-drivers \
+# `# Audio libraries - not needed for headless server`
+# libasound2 \
+# `# Optional eye-candy related libraries`
+# libxss1 \
+# libegl1"
 
 PACKAGES_PROTON_I386="\
-    `# 32-bit graphics libraries`
-    libvulkan1:i386 \
-    mesa-vulkan-drivers:i386 \
-    `# 32-bit common libraries`
+    `# 32-bit common libraries - minimal set for Proton`
     libfreetype6:i386 \
     libpng16-16:i386 \
     libjpeg62-turbo:i386 \
-    libasound2:i386 \
     libglib2.0-0:i386 \
     libdbus-1-3:i386 \
     libnss3:i386 \
-    libx11-6:i386 \
-    libxss1:i386 \
-    libegl1:i386"
+    libx11-6:i386"
+
+# Commented out unnecessary i386 packages
+# `# 32-bit graphics libraries - not needed for headless server`
+# libvulkan1:i386 \
+# mesa-vulkan-drivers:i386 \
+# `# 32-bit audio - not needed for headless server`
+# libasound2:i386 \
+# `# Optional 32-bit libraries`
+# libxss1:i386 \
+# libegl1:i386"
 
 # Log configuration
 echo "Proton Configuration:"
@@ -130,14 +137,16 @@ export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}
 
 # Enable Steam Play debug logging
 export PROTON_LOG=1
-export PROTON_DUMP_DEBUG_COMMANDS=1
 export PROTON_LOG_DIR=/var/log/proton
-export PROTON_CRASH_REPORT_DIR=/var/log/proton/crash_reports
-
-# Performance optimizations
-export PROTON_NO_ESYNC=0
-export PROTON_NO_FSYNC=0
 EOT
+
+# Commented out unnecessary environment variables for headless server
+# export PROTON_DUMP_DEBUG_COMMANDS=1
+# export PROTON_CRASH_REPORT_DIR=/var/log/proton/crash_reports
+# 
+# # Performance optimizations - may not be needed for all servers
+# export PROTON_NO_ESYNC=0
+# export PROTON_NO_FSYNC=0
 
 # Update APP_COMMAND_PREFIX for Proton
 if grep -q "APP_COMMAND_PREFIX" /etc/environment; then
@@ -160,7 +169,10 @@ fi
 
 # ===== Step 5: Create required directories =====
 echo "Step 5: Creating required directories..."
-mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton/crash_reports"
+mkdir -p "${PROTON_PATH}" "${WINEPREFIX}" "/var/log/proton"
+
+# Directory for crash reports only if needed
+# mkdir -p "/var/log/proton/crash_reports"
 
 # ===== Step 6: Download and install Proton =====
 echo "Step 6: Downloading and installing Proton..."
@@ -234,7 +246,7 @@ echo "Step 8: Setting up hooks..."
 # Create hooks directories if they don't exist
 mkdir -p $HOOK_DIRECTORIES/pre-startup $HOOK_DIRECTORIES/startup
 
-# Copy hook scripts - adjust as needed to match your hook system
+# Copy hook scripts - follow the same pattern as the Wine script
 if [ -d "/tmp/installers/hooks" ]; then
     cp /tmp/installers/hooks/pre-startup/20_proton_prefix.sh $HOOK_DIRECTORIES/pre-startup/20_proton_prefix.sh 2>/dev/null || echo "! Hook script not found, skipping"
     cp /tmp/installers/hooks/startup/10_xvfb_proton.sh $HOOK_DIRECTORIES/startup/10_xvfb_proton.sh 2>/dev/null || echo "! Hook script not found, skipping"

@@ -40,10 +40,17 @@ HOOK_DIRECTORIES="${HOOK_DIRECTORIES:-/opt/steam/hooks}" # Default hook director
 
 # Construct the full Proton GE tag name from the provided PROTON_VERSION
 # This tag is needed for downloading the correct release archive.
-# Remove the "GE-" prefix if present (for flexibility in how the version is specified)
-# Remove the "Proton-" prefix if present
-# Then prepend "GE-Proton-"
-PROTON_TAG_NAME="GE-Proton-${PROTON_VERSION#GE-#Proton-}"
+# Example: If PROTON_VERSION is "9.26", we need "GE-Proton9-26"
+# Strip any prefixes if present
+VERSION_CLEANED="${PROTON_VERSION#GE-}"
+VERSION_CLEANED="${VERSION_CLEANED#Proton}"
+VERSION_CLEANED="${VERSION_CLEANED#-}"
+
+# Replace dots with hyphens in the version number
+VERSION_FORMATTED="${VERSION_CLEANED//./-}"
+
+# Construct the final tag name
+PROTON_TAG_NAME="GE-Proton${VERSION_FORMATTED}"
 
 # Log configuration
 echo "Proton GE Configuration:"

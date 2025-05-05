@@ -57,7 +57,7 @@ env:
     native
     wine-staging-10.5
     wine-stable-10.0.0.0
-    proton-9.0-4
+    proton-9.26
   
   # Target platforms
   MATRIX_PLATFORMS: |
@@ -70,8 +70,8 @@ env:
   WINE_TAG: "-1"
 
   # Proton configuration
-  # Source: https://github.com/ValveSoftware/Proton/releases
-  PROTON_VERSION: "9.0-4"
+  # Source: https://github.com/GloriousEggroll/proton-ge-custom/releases
+  PROTON_VERSION: "9.26"
   
   # Box86/Box64 versions (for ARM compatibility)
   # NOTE browse files by commit to get more permanent link!

@@ -113,27 +113,28 @@ tee -a /etc/environment > /dev/null << EOT
 export PROTON_PATH=${PROTON_PATH}
 export PROTON_VERSION=${PROTON_VERSION}
 export WINEPREFIX=${WINEPREFIX}
+export WINEDEBUG=fixme-all
 
 # Proton-specific environment variables
-export STEAM_COMPAT_CLIENT_INSTALL_PATH=/opt/steam
+export STEAM_COMPAT_CLIENT_INSTALL_PATH=${STEAMCMD_PATH}
 export STEAM_COMPAT_DATA_PATH=${WINEPREFIX}
 
 # Enable Steam Play debug logging
 export PROTON_LOG=1
-export PROTON_LOG_DIR=/var/log/proton
+export PROTON_LOG_DIR=${LOGS}
 EOT
 
 # Update APP_COMMAND_PREFIX for Proton
 if grep -q "export APP_COMMAND_PREFIX=" /etc/environment; then
     # If already set, append proton run to it
     sed -i '/export APP_COMMAND_PREFIX=/ {
-        s/export APP_COMMAND_PREFIX="\(.*\)"/export APP_COMMAND_PREFIX="\1 proton run"/
+        s/export APP_COMMAND_PREFIX="\(.*\)"/export APP_COMMAND_PREFIX="\1 proton runinprefix"/
         t # jump to end if substitution was made
-        s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="proton run"/ # handle case without quotes
+        s/export APP_COMMAND_PREFIX=.*/export APP_COMMAND_PREFIX="proton runinprefix"/ # handle case without quotes
     }' /etc/environment
 else
     # If not set, create a new entry
-    echo 'export APP_COMMAND_PREFIX="proton run"' >> /etc/environment
+    echo 'export APP_COMMAND_PREFIX="proton runinprefix"' >> /etc/environment
 fi
 
 # ===== Step 5: Create required directories =====

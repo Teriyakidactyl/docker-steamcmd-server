@@ -23,22 +23,4 @@ chmod +x "$SCRIPTS/xvfb-run-proton.sh"
 # Update the APP_COMMAND to use our wrapper
 export APP_COMMAND="$SCRIPTS/xvfb-run-proton.sh"
 
-# Set common Proton environment variables if they aren't already set
-if [ -z "$DISPLAY" ]; then
-    export DISPLAY=:99
-fi
-
-# Disable GPU acceleration - not needed for server applications
-if [ -z "$PROTON_NO_D3D11" ]; then
-    export PROTON_NO_D3D11=1
-fi
-
-if [ -z "$PROTON_NO_D3D12" ]; then
-    export PROTON_NO_D3D12=1 
-fi
-
-if [ -z "$PROTON_USE_WINED3D" ]; then
-    export PROTON_USE_WINED3D=1
-fi
-
 log "Xvfb Proton launcher setup complete with virtual display $DISPLAY"

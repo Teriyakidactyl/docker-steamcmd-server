@@ -61,7 +61,6 @@ echo "    Install i386 support: ${INSTALL_I386}"
 echo "    Proton Path: ${PROTON_PATH}"
 echo "    Wineprefix: ${WINEPREFIX}"
 
-
 # ===== Package Variables =====
 PACKAGES_PROTON="\
     `# Fake X-Server desktop for Wine/Proton - needed for server`
@@ -70,6 +69,8 @@ PACKAGES_PROTON="\
     xauth \
     `# Font configuration needed by many Windows applications`
     fontconfig \
+    `# Required by proton`
+    python3 \
     `# Libraries frequently needed by Windows applications`
     libfreetype6 \
     libpng16-16 \

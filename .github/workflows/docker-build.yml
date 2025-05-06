@@ -57,8 +57,9 @@ env:
     native
     wine-staging-10.5
     wine-stable-10.0.0.0
-    proton-9.26
-  
+    proton-9.27
+    proton-9.25
+
   # Target platforms
   MATRIX_PLATFORMS: |
     linux/amd64

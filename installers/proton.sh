@@ -1,6 +1,7 @@
 #!/bin/bash
 # Proton GE installation script for Docker SteamCMD Server
 # Handles installation of Proton GE (Glorious Eggroll's custom Proton build)
+# Refference: https://github.com/GloriousEggroll/proton-ge-custom?tab=readme-ov-file#native
 #
 # This script installs:
 # - Proton GE from GitHub releases
@@ -62,6 +63,7 @@ echo "    Proton Path: ${PROTON_PATH}"
 echo "    Wineprefix: ${WINEPREFIX}"
 
 # ===== Package Variables =====
+# TODO remove dbus at the end
 PACKAGES_PROTON="\
     `# Fake X-Server desktop for Wine/Proton - needed for server`
     xvfb \
@@ -71,6 +73,7 @@ PACKAGES_PROTON="\
     fontconfig \
     `# Required by proton`
     python3 \
+    dbus \
     `# Libraries frequently needed by Windows applications`
     libfreetype6 \
     libpng16-16 \
@@ -252,6 +255,10 @@ mv /tmp/proton_ge/${PROTON_TAG_NAME}/* "${PROTON_PATH}/"
 rm -rf /tmp/proton_ge # Clean up temp directory
 echo "✓ Files moved"
 
+
+rm -f /etc/machine-id
+dbus-uuidgen --ensure=/etc/machine-id
+
 # Verify installation
 if [ -f "${PROTON_PATH}/proton" ]; then
     echo "✓ Proton GE installation successful"
@@ -268,9 +275,9 @@ echo "Step 7: Setting up Proton GE symlinks..."
 if [ "$TARGETARCH" != "arm64" ]; then
     # Create direct symlinks to Proton executables
     ln -sf "${PROTON_PATH}/proton" /usr/local/bin/proton
-    ln -sf "${PROTON_PATH}/files/bin/wine" /usr/local/bin/proton-wine
-    ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/proton-wine64
-    ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/proton-wineserver
+    ln -sf "${PROTON_PATH}/files/bin/wine" /usr/local/bin/wine
+    ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/wine64
+    ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/wineserver
     echo "✓ Proton GE symlinks created for standard architecture"
 # Setup for ARM64
 else
@@ -288,8 +295,8 @@ EOF
         echo "✓ ARM64 proton wrapper script created"
 
         # Create symlinks for wine components
-        ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/proton-wine64
-        ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/proton-wineserver
+        ln -sf "${PROTON_PATH}/files/bin/wine64" /usr/local/bin/wine64
+        ln -sf "${PROTON_PATH}/files/bin/wineserver" /usr/local/bin/wineserver
         echo "✓ ARM64 proton-wine64 and proton-wineserver symlinks created"
 
         # Add wine symlink using box86 if available

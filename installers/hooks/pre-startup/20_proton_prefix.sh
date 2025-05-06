@@ -38,3 +38,4 @@ if [ -n "$STEAM_COMPAT_DATA_PATH" ] && [ "$STEAM_COMPAT_DATA_PATH" != "$WINEPREF
         ln -sf "$WINEPREFIX/"* "$STEAM_COMPAT_DATA_PATH/"
     fi
 fi
+

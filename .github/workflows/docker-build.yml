@@ -64,13 +64,23 @@ env:
   # Box86/Box64 version matrices
   # FIXME: Currently, the matrix is only using the first version of each ([0] index) instead of creating separate builds for each box86/box64 version combination.
   ## To fully implement the TODO, we should modify the matrix configuration to build separate images for different box86/box64 version combinations. Here's how I would adjust it:
+
+  # MATRIX_BOX86: |
+  #   0.3.9-d0aad67=https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb
+  #   0.3.7-fcbebfa=https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb
+
+  # MATRIX_BOX64: |
+  #   0.3.5-3542c88=https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb
+  #   0.3.4-fecaaae=https://github.com/ryanfortner/box64-debs/raw/08f1e8bfd73b8cfa35b4f4d0a61a0ddaf1239b54/debian/box64_0.3.4+20240117.fecaaae-1_arm64.deb
+
   MATRIX_BOX86: |
-    0.3.9-d0aad67=https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb
-    0.3.7-fcbebfa=https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb
+    0.3.9-d0aad67
+    0.3.7-fcbebfa
 
   MATRIX_BOX64: |
-    0.3.5-3542c88=https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb
-    0.3.4-fecaaae=https://github.com/ryanfortner/box64-debs/raw/08f1e8bfd73b8cfa35b4f4d0a61a0ddaf1239b54/debian/box64_0.3.4+20240117.fecaaae-1_arm64.deb
+    0.3.5-3542c88
+    0.3.4-fecaaae
+
 
   # Wine configurations
   # Source: https://gitlab.winehq.org/wine/wine/-/releases

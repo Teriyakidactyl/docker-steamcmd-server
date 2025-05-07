@@ -4,6 +4,8 @@
 # Ensures that the Proton prefix is properly initialized before server start
 # This is equivalent to Wine's prefix initialization but adapted for Proton
 
+# FIXME WINEPREFIX should live in $APP_FILES so as to not reinstall over and over
+
 # Check if WINEPREFIX is set and prepare it if needed
 if [ -z "$WINEPREFIX" ]; then
     # Error if WINEPREFIX is not set

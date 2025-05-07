@@ -1,6 +1,6 @@
 # File: .github/workflows/build-docker-images.yml
 # Purpose: Build and publish multi-architecture Docker images for SteamCMD server
-# 
+#
 # This workflow builds Docker images with various combinations of:
 # - Debian base images (trixie, bookworm)
 # - Compatibility layers (native, wine-staging-10.5, wine-staging-10.4, proton [future])
@@ -17,6 +17,7 @@ on:
       - 'Dockerfile'
       - 'dockerfile'
       - '.github/workflows/**'
+      - '.github/scripts/**' # <<< Added path for scripts
       - 'docker/**'
       - 'installers/**'
       - 'scripts/**'
@@ -28,6 +29,7 @@ on:
       - 'Dockerfile'
       - 'dockerfile'
       - '.github/workflows/**'
+      - '.github/scripts/**' # <<< Added path for scripts
       - 'docker/**'
       - 'installers/**'
       - 'scripts/**'
@@ -42,17 +44,50 @@ concurrency:
 env:
   # Registry information
   REGISTRY_IMAGE: ghcr.io/teriyakidactyl/docker-steamcmd-server
-  
+
+  # Box86/Box64 versions (for ARM compatibility)
+  # NOTE browse files by commit to get more permanent link!
+  # TODO In 'linux/arm64' for BOX86, BOX64 provide variable 'versions', like BOX86-0.3.7="https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
+    # Then call $BOX86-0.3.7 as variable and track it's name as a tag adding _BOX86-0.3.7 to build tag
+    # Add variables to BOX64 and BOX86 matrixes MATRIX_BOX64, MATRIX_BOX86
+
+  # BOX86_VERSION: "0.3.9"
+  # BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+  # # 0.3.7 "https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
+  # # History: https://github.com/ryanfortner/box86-debs/commits/master/debian , https://github.com/ryanfortner/box86-debs/tree/master/debian
+
+  # # https://github.com/ryanfortner/box64-debs/tree/master/debian
+  # BOX64_VERSION: "0.3.5"
+  # BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
+  # # History: https://github.com/ryanfortner/box64-debs/commits/master/debian , https://github.com/ryanfortner/box64-debs/tree/master/debian
+
+  # Box86/Box64 version matrices
+  # FIXME: Currently, the matrix is only using the first version of each ([0] index) instead of creating separate builds for each box86/box64 version combination.
+    # To fully implement the TODO, we should modify the matrix configuration to build separate images for different box86/box64 version combinations. Here's how I would adjust it:
+  MATRIX_BOX86: |
+    0.3.9-d0aad67=https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb
+  # 0.3.7-fcbebfa=https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb
+
+  MATRIX_BOX64: |
+    0.3.5-3542c88=https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb
+  # 0.3.4-fecaaae=https://github.com/ryanfortner/box64-debs/raw/08f1e8bfd73b8cfa35b4f4d0a61a0ddaf1239b54/debian/box64_0.3.4+20240117.fecaaae-1_arm64.deb
+
+  # Wine configurations
+  # Source: https://gitlab.winehq.org/wine/wine/-/releases
+  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
+  WINE_ID: "debian"
+  WINE_TAG: "-1"
+
+  # Proton versions:
+  # Source: https://github.com/GloriousEggroll/proton-ge-custom/releases
+  PROTON_VERSION_GLOBAL: "9.26" # Renamed to avoid conflict if layer specifies its own
+
   # ===== Matrix Configuration =====
   # Debian Tags: https://hub.docker.com/_/debian
   MATRIX_IMAGES: |
     trixie-20250407-slim
     bookworm-20250407-slim
-  
-  # Compatibility layers with specific versions
-  # Wine configurations
-  # Source: https://gitlab.winehq.org/wine/wine/-/releases
-  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
+
   MATRIX_COMPAT_LAYERS: |
     native
     wine-staging-10.5
@@ -64,33 +99,9 @@ env:
   MATRIX_PLATFORMS: |
     linux/amd64
     linux/arm64
-  
-  # ===== Software Versions =====
-  # Wine configuration (defaults, may be overridden by matrix values)
-  WINE_ID: "debian"
-  WINE_TAG: "-1"
-
-  # Proton configuration
-  # Source: https://github.com/GloriousEggroll/proton-ge-custom/releases
-  PROTON_VERSION: "9.26"
-  
-  # Box86/Box64 versions (for ARM compatibility)
-  # NOTE browse files by commit to get more permanent link!
-  BOX86_VERSION: "0.3.9"
-      # https://github.com/ptitSeb/box86/releases
-  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
-      # "https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
-      # 
-      # https://github.com/ryanfortner/box86-debs/tree/master/debian
-      # History: https://github.com/ryanfortner/box86-debs/commits/master/debian
-
-  BOX64_VERSION: "0.3.5"
-      # Source: https://github.com/ptitSeb/box6d4/releases
-  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
-      # https://github.com/ryanfortner/box64-debs/tree/master/debian
 
   # Runner architecture (will be set in jobs)
-  RUNNER_ARCH: amd64
+  RUNNER_ARCH: amd64 # Default, will be determined
 
 jobs:
   # Setup job to process matrix values from environment variables
@@ -101,30 +112,23 @@ jobs:
       image-tags: ${{ steps.set-matrix.outputs.image-tags }}
       compat-layers: ${{ steps.set-matrix.outputs.compat-layers }}
       platforms: ${{ steps.set-matrix.outputs.platforms }}
+      box86-versions: ${{ steps.set-matrix.outputs.box86-versions }}
+      box64-versions: ${{ steps.set-matrix.outputs.box64-versions }}
       runner-arch: ${{ steps.set-runner-arch.outputs.arch }}
     steps:
       - id: set-matrix
         name: Process matrix configurations
-        run: |
-          # Process the multiline env vars into JSON arrays for matrix strategy
-          # Remove empty lines, add quotes, convert to JSON array
-          echo "image-tags=$(echo '${{ env.MATRIX_IMAGES }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
-          echo "compat-layers=$(echo '${{ env.MATRIX_COMPAT_LAYERS }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
-          echo "platforms=$(echo '${{ env.MATRIX_PLATFORMS }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
-      
+        run: ./.github/scripts/setup_set_matrix.sh
+        env:
+          INPUT_MATRIX_IMAGES: ${{ env.MATRIX_IMAGES }}
+          INPUT_MATRIX_COMPAT_LAYERS: ${{ env.MATRIX_COMPAT_LAYERS }}
+          INPUT_MATRIX_PLATFORMS: ${{ env.MATRIX_PLATFORMS }}
+          INPUT_MATRIX_BOX86: ${{ env.MATRIX_BOX86 }}
+          INPUT_MATRIX_BOX64: ${{ env.MATRIX_BOX64 }}
+
       - id: set-runner-arch
         name: Determine runner architecture
-        run: |
-          # Determine the architecture of the GitHub runner
-          ARCH=$(uname -m)
-          if [[ "$ARCH" == "x86_64" ]]; then
-            echo "arch=amd64" >> $GITHUB_OUTPUT
-          elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
-            echo "arch=arm64" >> $GITHUB_OUTPUT
-          else
-            echo "arch=$ARCH" >> $GITHUB_OUTPUT
-          fi
-          echo "Running on architecture: $ARCH"
+        run: ./.github/scripts/setup_set_runner_arch.sh
 
   # Build job that creates individual architecture-specific images
   build:
@@ -138,6 +142,10 @@ jobs:
         image: ${{ fromJson(needs.setup.outputs.image-tags) }}
         compat_layer: ${{ fromJson(needs.setup.outputs.compat-layers) }}
         platform: ${{ fromJson(needs.setup.outputs.platforms) }}
+        include:
+          - platform: linux/arm64
+            box86_matrix_entry: ${{ fromJson(needs.setup.outputs.box86-versions)[0] }} # Pass the whole entry
+            box64_matrix_entry: ${{ fromJson(needs.setup.outputs.box64-versions)[0] }} # Pass the whole entry
       fail-fast: false  # Continue other matrix builds if one fails
 
     steps:
@@ -164,140 +172,19 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GHCR_PAT }} # Make sure this secret is named GHCR_PAT
 
       # Prepare Docker metadata, tags, labels, and build arguments
       - name: Prepare Docker metadata and tags
         id: prep_meta
-        run: |
-          # ===== Extract Architecture from platform string =====
-          # Strip "linux/" prefix to get architecture (amd64 or arm64)
-          ARCHITECTURE=$(echo ${{ matrix.platform }} | cut -d'/' -f2)
-          echo "ARCHITECTURE=$ARCHITECTURE" >> $GITHUB_ENV
-
-          # ===== Extract Debian Version =====
-          # Get codename from image tag (e.g., "bookworm" from "bookworm-20250407-slim")
-          DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
-          echo "DEBIAN_VERSION_CODENAME=$DEBIAN_VERSION_CODENAME" >> $GITHUB_ENV
-          
-          # ===== Parse Wine configuration from compat_layer =====
-          # Extract wine branch and version if specified in compatibility layer
-          if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
-            WINE_BRANCH="${BASH_REMATCH[1]}"
-            WINE_VERSION="${BASH_REMATCH[2]}"
-            echo "WINE_BRANCH=$WINE_BRANCH" >> $GITHUB_ENV
-            echo "WINE_VERSION=$WINE_VERSION" >> $GITHUB_ENV
-            echo "COMPAT_LAYER=wine" >> $GITHUB_ENV
-          elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
-            PROTON_VERSION="${BASH_REMATCH[1]}"
-            echo "PROTON_VERSION=$PROTON_VERSION" >> $GITHUB_ENV
-            echo "COMPAT_LAYER=proton" >> $GITHUB_ENV
-          elif [[ "${{ matrix.compat_layer }}" == "native" ]]; then
-            echo "COMPAT_LAYER=" >> $GITHUB_ENV
-          else
-            echo "COMPAT_LAYER=${{ matrix.compat_layer }}" >> $GITHUB_ENV
-          fi
-      
-          # ===== Build Version Tags =====
-          # Format: <image>[-compat_layer][-version][_branch]
-          
-          # Initialize base version tag using matrix image
-          TAG_VERSIONED="${{ matrix.image }}"
-          
-          # Add compatibility layer and version if present (only for non-native)
-          if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
-            if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
-              # Use the full compat_layer string with branch and version
-              TAG_VERSIONED="${TAG_VERSIONED}_${{ matrix.compat_layer }}"
-            elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
-              # Use the full proton string with version
-              TAG_VERSIONED="${TAG_VERSIONED}_${{ matrix.compat_layer }}"
-            fi
-          fi
-          
-          # Add dev suffix if not on main branch
-          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-            TAG_VERSIONED="${TAG_VERSIONED}_dev"
-          fi
-          echo "TAG_VERSIONED=$TAG_VERSIONED-$ARCHITECTURE" >> $GITHUB_ENV
-      
-          # ===== Build Codename Tags =====
-          # Format: <debian_codename>[-compat_layer][_branch]
-          
-          # Initialize with Debian codename
-          TAG_CODENAME="$DEBIAN_VERSION_CODENAME"
-          
-          # Add compatibility layer if present (only for non-native)
-          if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
-            if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
-              # For wine, add both the layer and branch
-              WINE_BRANCH="${BASH_REMATCH[1]}"
-              TAG_CODENAME="${TAG_CODENAME}-wine-${WINE_BRANCH}"
-            elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
-              # For proton, add the version
-              PROTON_VERSION="${BASH_REMATCH[1]}"
-              TAG_CODENAME="${TAG_CODENAME}-proton-${PROTON_VERSION}"
-            fi
-          fi
-          
-          # Add dev suffix if not on main branch
-          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-            TAG_CODENAME="${TAG_CODENAME}_dev"
-          fi
-          echo "TAG_CODENAME=$TAG_CODENAME-$ARCHITECTURE" >> $GITHUB_ENV
-      
-          # ===== Build Latest Tag =====
-          # Only used for main branch - native builds
-          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ matrix.compat_layer }}" == "native" ]]; then
-            TAG_LATEST="latest-$ARCHITECTURE"
-            echo "TAG_LATEST=$TAG_LATEST" >> $GITHUB_ENV
-            echo "HAS_LATEST_TAG=true" >> $GITHUB_ENV
-          else
-            echo "HAS_LATEST_TAG=false" >> $GITHUB_ENV
-          fi
-      
-          # ===== Configure Platform-Specific Settings =====
-          # Set up debugger for ARM platforms
-          DEBUGGER=""
-          if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
-            DEBUGGER="box86"
-          fi
-          echo "DEBUGGER=$DEBUGGER" >> $GITHUB_ENV
-      
-          # Configure command prefix based on platform and compatibility layer
-          APP_COMMAND_PREFIX=""
-          if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
-            APP_COMMAND_PREFIX="box64 "
-          fi
-          if [[ "${{ matrix.compat_layer }}" =~ ^wine ]]; then
-            APP_COMMAND_PREFIX="wine $APP_COMMAND_PREFIX"
-          elif [[ "${{ matrix.compat_layer }}" == "proton" ]]; then
-            APP_COMMAND_PREFIX="proton $APP_COMMAND_PREFIX"
-          fi
-          # For native compatibility layer, keep the prefix as is
-          echo "APP_COMMAND_PREFIX=$APP_COMMAND_PREFIX" >> $GITHUB_ENV
-      
-          # ===== Set Build Metadata =====
-          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-          echo "BUILD_DATE=$BUILD_DATE" >> $GITHUB_ENV
-      
-          # ===== Debug Output =====
-          echo "Generated tags:"
-          echo "  Architecture tag: $ARCHITECTURE"
-          echo "  Version tag: $TAG_VERSIONED"
-          echo "  Codename tag: $TAG_CODENAME"
-          echo "  Has latest tag: $HAS_LATEST_TAG"
-          echo "Platform configuration:"
-          echo "  Debugger: $DEBUGGER"
-          echo "  Command prefix: $APP_COMMAND_PREFIX"
-          echo "Build metadata:"
-          echo "  Date: $BUILD_DATE"
-          echo "  Debian codename: $DEBIAN_VERSION_CODENAME"
-          if [[ "${{ matrix.compat_layer }}" =~ ^wine ]]; then
-            echo "Wine configuration:"
-            echo "  Branch: $WINE_BRANCH"
-            echo "  Version: $WINE_VERSION"
-          fi
+        run: ./.github/scripts/build_prepare_docker_meta.sh
+        env:
+          INPUT_PLATFORM: ${{ matrix.platform }}
+          INPUT_BOX86_MATRIX_ENTRY: ${{ matrix.box86_matrix_entry }}
+          INPUT_BOX64_MATRIX_ENTRY: ${{ matrix.box64_matrix_entry }}
+          INPUT_IMAGE_TAG_BASE: ${{ matrix.image }} # e.g., bookworm-20250407-slim
+          INPUT_COMPAT_LAYER_NAME: ${{ matrix.compat_layer }} # e.g., wine-staging-10.5
+          # Global env vars like PROTON_VERSION_GLOBAL are automatically available
 
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata
@@ -307,32 +194,31 @@ jobs:
           images: ${{ env.REGISTRY_IMAGE }}
           tags: |
             # Version Tag: Combines image name and compatibility layer with version
-            # Example: 'trixie-20250407-slim_wine-staging-10.5' 
-            ${{ env.TAG_VERSIONED }}
+            # Example: 'trixie-20250407-slim_wine-staging-10.5-amd64'
+            ${{ env.FINAL_TAG_VERSIONED_ARCH }}
 
             # Codename Tag: Combines Debian version codename with compatibility layer
-            # Example: 'bookworm-wine-staging'
-            ${{ env.TAG_CODENAME }}
-            
+            # Example: 'bookworm-wine-staging-amd64'
+            ${{ env.FINAL_TAG_CODENAME_ARCH }}
+
             # Latest Tag: Only for main branch and native builds
-            type=raw,value=${{ env.TAG_LATEST }},enable=${{ env.HAS_LATEST_TAG == 'true' }}
-          
+            type=raw,value=${{ env.FINAL_TAG_LATEST_ARCH }},enable=${{ env.HAS_LATEST_TAG == 'true' }}
           labels: |
             # https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#labelling-container-images
             org.opencontainers.image.title=SteamCMD Server Base Images
             org.opencontainers.image.description=A base image with common elements for game servers
             org.opencontainers.image.vendor=TeriyakiDactyl
             org.opencontainers.image.version=${{ github.ref_name }}
-            org.opencontainers.image.created=${{ env.BUILD_DATE }}
+            org.opencontainers.image.created=${{ env.BUILD_DATE_ISO }}
             org.opencontainers.image.revision=${{ github.sha }}
             com.example.git.branch=${{ github.ref_name }}
-          
+
       # Validate Dockerfile before building
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
-          failure-threshold: warning
+          failure-threshold: warning # Consider 'error' for stricter checks
         continue-on-error: true  # Continue even if linting fails
 
       # Build and push Docker image with improved caching
@@ -340,43 +226,42 @@ jobs:
         id: docker_build
         uses: docker/build-push-action@v6
         with:
-          context: .         
+          context: .
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}            
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             # Build information
             SOURCE_COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
-            BUILD_VERSION=${{ env.TAG_VERSIONED }}
+            BUILD_DATE=${{ env.BUILD_DATE_ISO }} # From prep_meta script
+            BUILD_VERSION=${{ env.FINAL_TAG_VERSIONED_ARCH }} # From prep_meta script
             TARGETPLATFORM=${{ matrix.platform }}
 
             # Debian configuration
-            DEBIAN_TAG=${{ matrix.image }}
-            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_VERSION_CODENAME }}
-            
+            DEBIAN_TAG=${{ matrix.image }} # Base image tag
+            DEBIAN_VERSION_CODENAME=${{ env.DEBIAN_CODENAME }} # From prep_meta script
+
             # Compatibility Layer
-            COMPAT_LAYER=${{ env.COMPAT_LAYER }}
+            COMPAT_LAYER_TYPE=${{ env.COMPAT_LAYER_TYPE_FOR_DOCKERFILE }} # e.g., wine, proton, or empty. From prep_meta
 
             # Wine configuration
-            WINE_VERSION=${{ env.WINE_VERSION }}
-            WINE_DIST=${{ env.DEBIAN_VERSION_CODENAME }}
-            WINE_BRANCH=${{ env.WINE_BRANCH }}
-            WINE_ID=${{ env.WINE_ID }}
-            WINE_TAG=${{ env.WINE_TAG }}
+            WINE_VERSION=${{ env.WINE_VERSION_FINAL }} # From prep_meta script
+            WINE_DIST=${{ env.DEBIAN_CODENAME }} # From prep_meta script
+            WINE_BRANCH=${{ env.WINE_BRANCH_FINAL }} # From prep_meta script
+            WINE_ID=${{ env.WINE_ID }} # Global
+            WINE_TAG=${{ env.WINE_TAG }} # Global
 
             # Proton configuration
-            PROTON_VERSION=${{ env.PROTON_VERSION }}
+            PROTON_VERSION=${{ env.PROTON_VERSION_FINAL }} # From prep_meta script
 
             # Box86/Box64 configuration (for ARM)
-            DEBUGGER=${{ env.DEBUGGER }}
-            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX }}
-            BOX86_VERSION=${{ env.BOX86_VERSION }}
-            BOX64_VERSION=${{ env.BOX64_VERSION }}
-            BOX86_DEB_URL=${{ env.BOX86_DEB_URL }}
-            BOX64_DEB_URL=${{ env.BOX64_DEB_URL }}
-
+            DEBUGGER=${{ env.DEBUGGER_TOOL }} # From prep_meta script
+            APP_COMMAND_PREFIX=${{ env.APP_COMMAND_PREFIX_FINAL }} # From prep_meta script
+            BOX86_VERSION=${{ env.BOX86_VERSION_FINAL }} # From prep_meta script
+            BOX64_VERSION=${{ env.BOX64_VERSION_FINAL }} # From prep_meta script
+            BOX86_DEB_URL=${{ env.BOX86_DEB_URL_FINAL }} # From prep_meta script
+            BOX64_DEB_URL=${{ env.BOX64_DEB_URL_FINAL }} # From prep_meta script
           # Improved caching using GitHub's native cache
           cache-from: |
             type=gha,scope=${{ matrix.image }}-${{ matrix.compat_layer }}-${{ matrix.platform }}
@@ -384,222 +269,116 @@ jobs:
             type=gha,scope=${{ matrix.image }}-${{ matrix.compat_layer }}-${{ matrix.platform }},mode=max
           platforms: ${{ matrix.platform }}
 
-      # Basic test for the image - FIXED for cross-architecture testing
+      # Basic test for the image
       - name: Test Docker image
         if: success() && steps.docker_build.outcome == 'success'
-        run: |
-          # Get runner architecture
-          RUNNER_ARCH=$(uname -m)
-          if [[ "$RUNNER_ARCH" == "x86_64" ]]; then
-            RUNNER_ARCH="amd64"
-          elif [[ "$RUNNER_ARCH" == "aarch64" ]]; then
-            RUNNER_ARCH="arm64"
-          fi
-          echo "Runner architecture: $RUNNER_ARCH"
-          
-          # Get image architecture from matrix
-          IMAGE_ARCH="${{ env.ARCHITECTURE }}"
-          echo "Image architecture: $IMAGE_ARCH"
-          
-          # For PRs, test using the local image
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "Testing locally built image"
-            # For local testing, use the loaded Docker image directly
-            # Get the image ID from the build output
-            IMAGE_ID=$(docker images --format "{{.ID}}" | head -n 1)
-            
-            if [[ "$RUNNER_ARCH" != "$IMAGE_ARCH" ]]; then
-              echo "Skipping cross-architecture testing in PR mode - would require emulation"
-              echo "::notice::Image test skipped for cross-architecture in PR mode"
-            else
-              docker run --rm $IMAGE_ID bash -c "echo 'Image test passed'"
-              echo "::notice::Image test successfully completed!"
-            fi
-          else
-            # For pushes, we need a different approach for cross-arch testing
-            if [[ "$RUNNER_ARCH" != "$IMAGE_ARCH" ]]; then
-              echo "Using architecture-specific test approach for cross-architecture testing"
-              
-              # For arm64 images on amd64 runners, just verify the image exists but don't try to run it
-              echo "Verifying image exists without running it"
-              
-              # Use buildx to check if the image exists in the registry without pulling
-              # This avoids the need to actually pull and run the image
-              echo "Checking if image exists with buildx imagetools inspect"
-              
-              # Check if the image exists using buildx imagetools
-              if docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }} &>/dev/null; then
-                MANIFEST_CHECK="success"
-              else
-                MANIFEST_CHECK="error"
-              fi
-              
-              if [[ "$MANIFEST_CHECK" == "error" ]]; then
-                echo "::error::Image ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }} not found in registry"
-                exit 1
-              else
-                echo "::notice::Image ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }} verified in registry"
-              fi
-            else
-              # For same architecture, pull and run normally
-              echo "Testing pushed image"
-              docker pull ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }}
-              docker run --rm ${{ env.REGISTRY_IMAGE }}:${{ env.TAG_VERSIONED }} bash -c "echo 'Image test passed'"
-              echo "::notice::Image test successfully completed!"
-            fi
-          fi
+        run: ./.github/scripts/build_test_docker_image.sh
+        env:
+          INPUT_IMAGE_ARCH: ${{ env.IMAGE_ARCHITECTURE }} # From prep_meta script
+          INPUT_TAG_TO_TEST: ${{ env.FINAL_TAG_VERSIONED_ARCH }} # The specific arch-tag
+          INPUT_REGISTRY_IMAGE: ${{ env.REGISTRY_IMAGE }}
 
       - name: Set build status
         id: build-status
-        run: |
-          echo "image-built=true" >> $GITHUB_OUTPUT
+        run: ./.github/scripts/build_set_status.sh
 
       # Add error handling and retry mechanism
       - name: Handle build failure
         if: failure()
-        run: |
-          echo "::error::Docker build failed for ${{ matrix.image }} with compatibility layer ${{ matrix.compat_layer }} on ${{ matrix.platform }}"
-          echo "::error::Check the logs above for more details on the failure"
+        run: ./.github/scripts/build_handle_failure.sh
+        env:
+          INPUT_MATRIX_IMAGE: ${{ matrix.image }}
+          INPUT_MATRIX_COMPAT_LAYER: ${{ matrix.compat_layer }}
+          INPUT_MATRIX_PLATFORM: ${{ matrix.platform }}
 
   # Create "fat manifests" - single multi-architecture manifests that combine architecture-specific images
   create-manifest:
-    needs: [setup, build]
+    needs: [setup, build] # Ensure setup is also a dependency
     runs-on: ubuntu-latest
     timeout-minutes: 15  # Set timeout limit
+    # Ensure image was built for at least one platform for this matrix combination
     if: github.event_name != 'pull_request' && needs.build.outputs.image-built == 'true'
     strategy:
       matrix:
         # Using the same centralized matrix values from setup job
         image: ${{ fromJson(needs.setup.outputs.image-tags) }}
         compat_layer: ${{ fromJson(needs.setup.outputs.compat-layers) }}
-    
     steps:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
-          
-      - name: Extract metadata for manifest tags
-        id: prep_meta
-        run: |
-          # Extract Debian Version codename
-          DEBIAN_VERSION_CODENAME=$(echo ${{ matrix.image }} | cut -d'-' -f1)
-          
-          # Build base tag components
-          BASE_VERSION_TAG="${{ matrix.image }}"
-          BASE_CODENAME_TAG="$DEBIAN_VERSION_CODENAME"
-          
-          # Add compatibility layer and version if present (only for non-native)
-          if [[ "${{ matrix.compat_layer }}" != "native" ]]; then
-            if [[ "${{ matrix.compat_layer }}" =~ ^wine-(.+)-(.+)$ ]]; then
-              # Use the full wine string with branch and version for version tag
-              BASE_VERSION_TAG="${BASE_VERSION_TAG}_${{ matrix.compat_layer }}"
-              
-              # Extract wine branch for codename tag
-              WINE_BRANCH="${BASH_REMATCH[1]}"
-              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-wine-${WINE_BRANCH}"
-            elif [[ "${{ matrix.compat_layer }}" =~ ^proton-(.+)$ ]]; then
-              # Use the full proton string with version
-              BASE_VERSION_TAG="${BASE_VERSION_TAG}_${{ matrix.compat_layer }}"
-              
-              # Extract proton version for codename tag
-              PROTON_VERSION="${BASH_REMATCH[1]}"
-              BASE_CODENAME_TAG="${BASE_CODENAME_TAG}-proton-${PROTON_VERSION}"
-            fi
-          fi
-          
-          # Add dev suffix if not on main branch
-          if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
-            BASE_VERSION_TAG="${BASE_VERSION_TAG}_dev"
-            BASE_CODENAME_TAG="${BASE_CODENAME_TAG}_dev"
-          fi
-          
-          echo "BASE_VERSION_TAG=$BASE_VERSION_TAG" >> $GITHUB_ENV
-          echo "BASE_CODENAME_TAG=$BASE_CODENAME_TAG" >> $GITHUB_ENV
-          
-          # Set latest tag flag (only for native images on main branch)
-          if [[ "${{ github.ref }}" == "refs/heads/main" && "${{ matrix.compat_layer }}" == "native" ]]; then
-            echo "HAS_LATEST_TAG=true" >> $GITHUB_ENV
-          else
-            echo "HAS_LATEST_TAG=false" >> $GITHUB_ENV
-          fi
-      
-      # Check if both architectures were successfully built
-      - name: Verify architecture images exist
-        run: |
-          # Check if both arch-specific images exist
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-amd64 || { echo "::error::amd64 image not found"; exit 1; }
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-arm64 || { echo "::error::arm64 image not found"; exit 1; }
-          
-          echo "Both architecture images verified to exist"
-      
-      # Create "fat manifests" using buildx imagetools instead of docker manifest
+          password: ${{ secrets.GHCR_PAT }} # Ensure this secret is named GHCR_PAT
+
+      - name: Prepare metadata for manifest tags
+        id: prep_manifest_meta
+        run: ./.github/scripts/manifest_prepare_meta.sh
+        env:
+          INPUT_IMAGE_TAG_BASE: ${{ matrix.image }}
+          INPUT_COMPAT_LAYER_NAME: ${{ matrix.compat_layer }}
+          # Global env vars like PROTON_VERSION_GLOBAL are automatically available
+
+      # Check if both architectures were successfully built and pushed
+      - name: Verify architecture images exist for manifest
+        run: ./.github/scripts/manifest_verify_images.sh
+        env:
+          INPUT_REGISTRY_IMAGE: ${{ env.REGISTRY_IMAGE }}
+          # These are set by manifest_prepare_meta.sh
+          INPUT_BASE_VERSION_TAG_NO_ARCH: ${{ env.MANIFEST_BASE_VERSION_TAG }}
+          INPUT_BASE_CODENAME_TAG_NO_ARCH: ${{ env.MANIFEST_BASE_CODENAME_TAG }}
+          # Box versions also set by manifest_prepare_meta if applicable for arm64 in codename
+          INPUT_BOX86_VERSION_FOR_TAG: ${{ env.BOX86_VERSION_FOR_TAG_FINAL }}
+          INPUT_BOX64_VERSION_FOR_TAG: ${{ env.BOX64_VERSION_FOR_TAG_FINAL }}
+
+
+      # Create "fat manifests" using buildx imagetools
       - name: Create and push multi-architecture manifests
-        run: |
-          # Create version tag fat manifest (combines amd64 and arm64 into a single reference)
-          docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }} \
-            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-amd64 \
-            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}-arm64
-          
-          # Create codename tag fat manifest
-          docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }} \
-            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}-amd64 \
-            ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}-arm64
-          
-          # Create latest tag if this is a native image on main branch
-          if [[ "${{ env.HAS_LATEST_TAG }}" == "true" ]]; then
-            # Verify the architecture-specific latest tags exist
-            docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest-amd64 || { echo "::error::latest-amd64 image not found"; exit 1; }
-            docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:latest-arm64 || { echo "::error::latest-arm64 image not found"; exit 1; }
-            
-            # Create the multi-arch latest tag
-            docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:latest \
-              ${{ env.REGISTRY_IMAGE }}:latest-amd64 \
-              ${{ env.REGISTRY_IMAGE }}:latest-arm64
-            
-            echo "::notice::Successfully created 'latest' multi-architecture manifest"
-          fi
-          
-          echo "::notice::Successfully created version manifest for ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_VERSION_TAG }}"
-          echo "::notice::Successfully created codename manifest for ${{ env.REGISTRY_IMAGE }}:${{ env.BASE_CODENAME_TAG }}"
+        run: ./.github/scripts/manifest_create_push.sh
+        env:
+          INPUT_REGISTRY_IMAGE: ${{ env.REGISTRY_IMAGE }}
+          # These are set by manifest_prepare_meta.sh
+          INPUT_MANIFEST_VERSION_TAG: ${{ env.MANIFEST_FINAL_VERSION_TAG }}
+          INPUT_MANIFEST_CODENAME_TAG: ${{ env.MANIFEST_FINAL_CODENAME_TAG }}
+          INPUT_HAS_LATEST_TAG_FOR_MANIFEST: ${{ env.HAS_LATEST_TAG_FOR_MANIFEST }}
+          # Arch specific tags are needed to build the manifest
+          INPUT_BASE_VERSION_TAG_NO_ARCH: ${{ env.MANIFEST_BASE_VERSION_TAG }}
+          INPUT_BASE_CODENAME_TAG_NO_ARCH: ${{ env.MANIFEST_BASE_CODENAME_TAG }}
+          # Box versions also set by manifest_prepare_meta if applicable for arm64 in codename
+          INPUT_BOX86_VERSION_FOR_TAG: ${{ env.BOX86_VERSION_FOR_TAG_FINAL }}
+          INPUT_BOX64_VERSION_FOR_TAG: ${{ env.BOX64_VERSION_FOR_TAG_FINAL }}
+
 
       # Handle manifest creation failure
       - name: Handle manifest failure
         if: failure()
-        run: |
-          echo "::error::Failed to create multi-architecture manifest"
-          echo "::error::Check if all architecture-specific images were successfully built and pushed"
+        run: ./.github/scripts/manifest_handle_failure.sh
 
   # Notification job
   notify:
-    needs: [create-manifest]
+    needs: [create-manifest] # Depends on the success of create-manifest
     runs-on: ubuntu-latest
-    if: always()
+    if: always() # Run always to notify about success or failure of the preceding jobs
     steps:
-      - name: Set status
+      - name: Aggregate results and set status
         id: status
-        run: |
-          if [[ "${{ needs.create-manifest.result }}" == "success" ]]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "message=Docker images successfully built and pushed" >> $GITHUB_OUTPUT
-          else
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "message=Failed to build or push some Docker images" >> $GITHUB_OUTPUT
-          fi
-      
+        run: ./.github/scripts/notify_set_status.sh
+        env:
+          # Check the result of the 'create-manifest' job specifically.
+          # If 'create-manifest' was skipped (e.g. for PRs), its result might be 'skipped'.
+          # If 'build' failed, 'create-manifest' might also be skipped or fail.
+          # We are interested in the overall success up to 'create-manifest'.
+          NEEDS_CREATE_MANIFEST_RESULT: ${{ needs.create-manifest.result }}
+          NEEDS_BUILD_RESULT: ${{ needs.build.result }}
+
+
       # Update GitHub status with workflow results
-      - name: Update status
-        run: |
-          echo "::notice::Workflow completed with status: ${{ steps.status.outputs.status }}"
-          echo "::notice::${{ steps.status.outputs.message }}"
-          
-          # TODO: Add additional notification methods as needed:
-          # Examples:
-          # - Slack notification: Using actions/slack-notify@vX.X.X
-          # - Email notification: Using dawidd6/action-send-mail@vX.X.X
-          # - Teams notification: Using actions/teams-notify@vX.X.X
+      - name: Send notification
+        run: ./.github/scripts/notify_update_status.sh
+        env:
+          INPUT_WORKFLOW_STATUS: ${{ steps.status.outputs.status }}
+          INPUT_WORKFLOW_MESSAGE: ${{ steps.status.outputs.message }}
+          # TODO: Add additional notification methods as needed (pass secrets as env vars if required by actions)
 
   ## https://github.com/marketplace/actions/delete-package-versions
   ## Clean all untagged packages
@@ -608,3 +387,4 @@ jobs:
   # https://blog.kotlin-academy.com/automating-deletion-of-github-packages-with-kotlin-script-84900e1bf115
 
   ## TODO Implement untagged cleanup, but currently it's a pain
+  

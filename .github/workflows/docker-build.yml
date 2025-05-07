@@ -63,8 +63,8 @@ jobs:
         id: generate_matrices
         run: |
           echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
-          build_matrix_output=$(python .github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
-          manifest_matrix_output=$(python .github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
+          build_matrix_output=$(python ${{ github.workspace }}.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
+          manifest_matrix_output=$(python ${{ github.workspace }}.github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
 
           # Storing multiline JSON output safely
           echo "build_matrix<<EOF" >> $GITHUB_OUTPUT
@@ -158,7 +158,7 @@ jobs:
           build-args: |
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ matrix.build_date }}
-            BUILD_VERSION=${{ matrix.tag_versioned_arch }} # Most specific tag
+            BUILD_VERSION=${{ matrix.tag_versioned_arch }}
             TARGETPLATFORM=${{ matrix.platform_name }}
 
             DEBIAN_TAG=${{ matrix.base_image_name }}

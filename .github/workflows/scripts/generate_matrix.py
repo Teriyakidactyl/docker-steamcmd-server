@@ -153,7 +153,6 @@ def generate_manifest_matrix(github_ref, registry_image_base):
                 item["target_tag_latest"] = ""
                 item["source_images_latest"] = []
 
-
             manifest_items.append(item)
     return {"include": manifest_items}
 
@@ -164,12 +163,24 @@ if __name__ == "__main__":
     parser.add_argument("--registry-image-base", required=True, help="Base registry image path (e.g., ghcr.io/user/image).")
     args = parser.parse_args()
 
-    if args.job == "build":
-        matrix = generate_build_matrix(args.github_ref, args.registry_image_base)
-    elif args.job == "manifest":
-        matrix = generate_manifest_matrix(args.github_ref, args.registry_image_base)
-    else:
-        # Should not happen due to choices in argparse
-        raise ValueError(f"Invalid job type: {args.job}")
-
-    print(json.dumps(matrix, indent=2))
+    # Add debug output to help troubleshoot
+    print(f"Running script with: job={args.job}, github-ref={args.github_ref}, registry-image-base={args.registry_image_base}")
+    
+    try:
+        if args.job == "build":
+            matrix = generate_build_matrix(args.github_ref, args.registry_image_base)
+        elif args.job == "manifest":
+            matrix = generate_manifest_matrix(args.github_ref, args.registry_image_base)
+        else:
+            # Should not happen due to choices in argparse
+            raise ValueError(f"Invalid job type: {args.job}")
+        
+        # Print matrix for debugging
+        print(json.dumps(matrix, indent=2))
+    except Exception as e:
+        print(f"Error generating matrix: {str(e)}")
+        # For debugging purposes, print more information
+        import traceback
+        traceback.print_exc()
+        exit(1)
+        

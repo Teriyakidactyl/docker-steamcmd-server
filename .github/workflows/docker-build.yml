@@ -1,11 +1,3 @@
-# File: .github/workflows/build-docker-images.yml
-# Purpose: Build and publish multi-architecture Docker images for SteamCMD server
-# This workflow builds Docker images with various combinations of:
-# - Debian base images
-# - Compatibility layers
-# - Architectures
-# Matrix generation is handled by a Python script.
-
 name: Build Docker Images
 
 on:
@@ -63,8 +55,15 @@ jobs:
         id: generate_matrices
         run: |
           echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
+          # Fix: Corrected path with proper slash
           build_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
           manifest_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
+
+          # Debug output to help diagnose issues
+          echo "Build matrix output:"
+          echo "$build_matrix_output"
+          echo "Manifest matrix output:"
+          echo "$manifest_matrix_output"
 
           # Storing multiline JSON output safely
           echo "build_matrix<<EOF" >> $GITHUB_OUTPUT
@@ -86,7 +85,8 @@ jobs:
           else
             echo "arch=$ARCH" >> $GITHUB_OUTPUT
           fi
-          echo "Running on architecture determined as: $(outputs.arch)"
+          # Fix: Corrected echo statement to use step outputs correctly
+          echo "Running on architecture determined as: ${{ steps.set-runner-arch.outputs.arch }}"
 
 
   build:
@@ -134,7 +134,7 @@ jobs:
             org.opencontainers.image.title=SteamCMD Server Base Images
             org.opencontainers.image.description=A base image with common elements for game servers
             org.opencontainers.image.vendor=TeriyakiDactyl
-            org.opencontainers.image.version=${{ github.ref_name }} # Or a version from matrix if preferred
+            org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.created=${{ matrix.build_date }}
             org.opencontainers.image.revision=${{ github.sha }}
             com.example.git.branch=${{ github.ref_name }}

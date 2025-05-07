@@ -63,8 +63,8 @@ jobs:
         id: generate_matrices
         run: |
           echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
-          build_matrix_output=$(python ${{ github.workspace }}.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
-          manifest_matrix_output=$(python ${{ github.workspace }}.github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
+          build_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
+          manifest_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
 
           # Storing multiline JSON output safely
           echo "build_matrix<<EOF" >> $GITHUB_OUTPUT

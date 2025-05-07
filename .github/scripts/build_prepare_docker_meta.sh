@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 set -o pipefail
+set -x # <--- Add this for trace mode
 
 # Purpose: Prepare Docker metadata, tags, labels, and build arguments for a single build matrix combination.
 # Sets various environment variables for use in subsequent steps (docker metadata, docker build).

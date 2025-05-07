@@ -126,8 +126,8 @@ jobs:
           INPUT_MATRIX_IMAGES: ${{ env.MATRIX_IMAGES }}
           INPUT_MATRIX_COMPAT_LAYERS: ${{ env.MATRIX_COMPAT_LAYERS }}
           INPUT_MATRIX_PLATFORMS: ${{ env.MATRIX_PLATFORMS }}
-          INPUT_MATRIX_BOX86: ${{ env.MATRIX_BOX86 }}
-          INPUT_MATRIX_BOX64: ${{ env.MATRIX_BOX64 }}
+          INPUT_MATRIX_BOX86: ${{ env.MATRIX_BOX86_JSON }}
+          INPUT_MATRIX_BOX64: ${{ env.MATRIX_BOX64_JSON }}
 
       - id: set-runner-arch
         name: Determine runner architecture
@@ -187,8 +187,8 @@ jobs:
           INPUT_BOX64_MATRIX_ENTRY: ${{ matrix.box64_matrix_entry }}
           INPUT_IMAGE_TAG_BASE: ${{ matrix.image }}
           INPUT_COMPAT_LAYER_NAME: ${{ matrix.compat_layer }}
-          MATRIX_BOX86: ${{ env.MATRIX_BOX86 }}
-          MATRIX_BOX64: ${{ env.MATRIX_BOX64 }}
+          MATRIX_BOX86: ${{ env.MATRIX_BOX86_JSON }}
+          MATRIX_BOX64: ${{ env.MATRIX_BOX64_JSON }}
 
       # Generate metadata for Docker image, including tags
       - name: Generate Docker metadata

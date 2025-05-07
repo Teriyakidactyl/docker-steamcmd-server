@@ -100,14 +100,16 @@ def generate_build_matrix(github_ref, registry_image_base):
                 else:
                     item["tag_versioned_arch"] = versioned_tag_with_arch
 
-                # 2. tag_codename_arch
-                tag_codename_parts = [debian_codename]
-                if compat_def["type"] == "wine":
-                    tag_codename_parts.append(f"wine-{compat_def['wine_branch']}")
-                elif compat_def["type"] == "proton":
-                    pv = compat_def['proton_version']
-                    tag_codename_parts.append(f"proton-{pv}")
+                # 2. tag_codename_arch (Revised Logic)
+                tag_codename_parts = [debian_codename] # Starts with "trixie", "bookworm", etc.
+                
+                if compat_def["type"] != "native":
+                    tag_codename_parts.append(compat_def["id"])
+                
+                # Construct the tag with architecture
                 codename_tag_with_arch = f"{'-'.join(tag_codename_parts)}-{arch}"
+
+                # Append '_dev' if it's a dev branch
                 if is_dev_branch:
                     item["tag_codename_arch"] = f"{codename_tag_with_arch}_dev"
                 else:

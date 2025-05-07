@@ -39,7 +39,7 @@ BUILD_ARG_DEFAULTS = {
 def generate_build_matrix(github_ref, registry_image_base):
     matrix_items = []
     build_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    is_dev_branch = not github_ref.endswith("/main") # GITHUB_REF is like 'refs/heads/main' or 'refs/pull/123/merge'
+    is_dev_branch = not github_ref.endswith("/main") 
 
     for base_image_name in BASE_IMAGES:
         debian_codename = base_image_name.split('-')[0]
@@ -48,30 +48,21 @@ def generate_build_matrix(github_ref, registry_image_base):
             for plat_def in PLATFORM_DEFS:
                 arch = plat_def["arch"]
                 
-                # Create a concise display name
-                job_display_parts = [
-                    base_image_name.split('-')[0],
-                    compat_def["id"] if compat_def["id"] != "native" else None,
-                    plat_def["arch"]
-                ]
-                job_display_name_str = "-".join(filter(None, job_display_parts))
-
+                # --- Initialize item dictionary ---
                 item = {
-                    "job_display_name": job_display_name_str,
                     "build_date": build_date,
                     "base_image_name": base_image_name,
                     "debian_codename": debian_codename,
                     "platform_name": plat_def["name"],
-                    "architecture": arch,
+                    "architecture": arch, # Still useful for internal logic if needed
                     "compat_layer_id": compat_def["id"],
                     "compat_layer_type": compat_def["type"],
                 }
 
-                # --- Build Args & Specific Configs ---
+                # --- Build Args & Specific Configs (Copied from your script) ---
                 item["wine_version_arg"] = compat_def.get("wine_version", "")
                 item["wine_branch_arg"] = compat_def.get("wine_branch", "")
                 item["proton_version_arg"] = compat_def.get("proton_version", BUILD_ARG_DEFAULTS["PROTON_VERSION_DEFAULT"])
-
                 item["wine_id_arg"] = BUILD_ARG_DEFAULTS["WINE_ID_DEFAULT"]
                 item["wine_tag_suffix_arg"] = BUILD_ARG_DEFAULTS["WINE_TAG_SUFFIX_DEFAULT"]
                 item["box86_version_arg"] = BUILD_ARG_DEFAULTS["BOX86_VERSION_DEFAULT"]
@@ -89,8 +80,8 @@ def generate_build_matrix(github_ref, registry_image_base):
                 item["debugger_build_arg"] = ""
                 app_cmd_prefix_parts = []
                 if arch == "arm64":
-                    item["debugger_build_arg"] = "box86" # For debugging x86 apps on arm64
-                    app_cmd_prefix_parts.append("box64") # For running x86_64 apps
+                    item["debugger_build_arg"] = "box86"
+                    app_cmd_prefix_parts.append("box64")
 
                 if item["compat_layer_type"] == "wine":
                     app_cmd_prefix_parts.insert(0, "wine")
@@ -98,31 +89,39 @@ def generate_build_matrix(github_ref, registry_image_base):
                     app_cmd_prefix_parts.insert(0, "proton")
                 item["app_command_prefix_build_arg"] = " ".join(app_cmd_prefix_parts)
 
-                # --- Tag Generation ---
+                # --- Tag Generation (with _dev suffix for dev branches) ---
+                # 1. tag_versioned_arch
                 tag_versioned_parts = [base_image_name]
                 if compat_def["type"] != "native":
                     tag_versioned_parts.append(compat_def["id"])
-                versioned_tag_base_arch = f"{'_'.join(tag_versioned_parts)}-{arch}" # Combine base and arch first
-                final_versioned_tag = versioned_tag_base_arch
+                versioned_tag_with_arch = f"{'_'.join(tag_versioned_parts)}-{arch}"
                 if is_dev_branch:
-                    final_versioned_tag += "_dev"
-                item["tag_versioned_arch"] = final_versioned_tag
+                    item["tag_versioned_arch"] = f"{versioned_tag_with_arch}_dev"
+                else:
+                    item["tag_versioned_arch"] = versioned_tag_with_arch
 
+                # 2. tag_codename_arch
                 tag_codename_parts = [debian_codename]
                 if compat_def["type"] == "wine":
                     tag_codename_parts.append(f"wine-{compat_def['wine_branch']}")
                 elif compat_def["type"] == "proton":
                     pv = compat_def['proton_version']
                     tag_codename_parts.append(f"proton-{pv}")
-                codename_tag_base_arch = f"{'-'.join(tag_codename_parts)}-{arch}" # Combine base and arch first
-
-                final_codename_tag = codename_tag_base_arch
+                codename_tag_with_arch = f"{'-'.join(tag_codename_parts)}-{arch}"
                 if is_dev_branch:
-                    final_codename_tag += "_dev" # Add _dev at the very end
-                item["tag_codename_arch"] = final_codename_tag
-
+                    item["tag_codename_arch"] = f"{codename_tag_with_arch}_dev"
+                else:
+                    item["tag_codename_arch"] = codename_tag_with_arch
+                
+                # 3. tag_latest_arch
                 item["has_latest_tag_arch"] = (not is_dev_branch and compat_def["type"] == "native")
                 item["tag_latest_arch"] = f"latest-{arch}" if item["has_latest_tag_arch"] else ""
+
+                # --- SET job_display_name TO ONE OF THE GENERATED TAGS ---
+                # For example, using tag_codename_arch
+                item["job_display_name"] = item["tag_codename_arch"]
+                # Or, if you prefer tag_versioned_arch for display:
+                # item["job_display_name"] = item["tag_versioned_arch"]
 
                 matrix_items.append(item)
     return {"include": matrix_items}

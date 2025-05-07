@@ -134,6 +134,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY_IMAGE }}
+          # TODO review if there is any redundant process in RE: to generate_matrix.py >  item["job_display_name"] = item["tag_codename_arch"]
           tags: |
             type=raw,value=${{ matrix.tag_versioned_arch }}
             type=raw,value=${{ matrix.tag_codename_arch }}

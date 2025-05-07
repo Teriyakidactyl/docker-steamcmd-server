@@ -177,7 +177,7 @@ jobs:
       # Prepare Docker metadata, tags, labels, and build arguments
       - name: Prepare Docker metadata and tags
         id: prep_meta
-        run: bash ./.github/scripts/build_prepare_docker_meta.sh
+        run: ./.github/scripts/build_prepare_docker_meta.sh
         env:
           INPUT_PLATFORM: ${{ matrix.platform }}
           INPUT_BOX86_MATRIX_ENTRY: ${{ matrix.box86_matrix_entry }}

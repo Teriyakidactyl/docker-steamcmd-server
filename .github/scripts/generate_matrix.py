@@ -161,10 +161,13 @@ if __name__ == "__main__":
     parser.add_argument("--job", choices=["build", "manifest"], required=True, help="Type of matrix to generate.")
     parser.add_argument("--github-ref", required=True, help="GitHub reference (e.g., refs/heads/main).")
     parser.add_argument("--registry-image-base", required=True, help="Base registry image path (e.g., ghcr.io/user/image).")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output")
     args = parser.parse_args()
 
-    # Add debug output to help troubleshoot
-    print(f"Running script with: job={args.job}, github-ref={args.github_ref}, registry-image-base={args.registry_image_base}")
+    # Only print debug info if explicitly requested
+    if args.debug:
+        import sys
+        print(f"Running script with: job={args.job}, github-ref={args.github_ref}, registry-image-base={args.registry_image_base}", file=sys.stderr)
     
     try:
         if args.job == "build":
@@ -175,12 +178,12 @@ if __name__ == "__main__":
             # Should not happen due to choices in argparse
             raise ValueError(f"Invalid job type: {args.job}")
         
-        # Print matrix for debugging
-        print(json.dumps(matrix, indent=2))
+        # Only print the JSON to stdout - no debug messages
+        print(json.dumps(matrix))
     except Exception as e:
-        print(f"Error generating matrix: {str(e)}")
-        # For debugging purposes, print more information
+        import sys
         import traceback
-        traceback.print_exc()
+        print(f"Error generating matrix: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         exit(1)
         

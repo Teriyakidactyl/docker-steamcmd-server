@@ -55,21 +55,28 @@ jobs:
         id: generate_matrices
         run: |
           echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
-          # Fix: Corrected path with proper slash
+          
+          # Make script executable
+          chmod +x ${{ github.workspace }}/.github/scripts/generate_matrix.py
+          
+          # Generate build matrix - ONLY capture the JSON output, no debug messages
           build_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
+          
+          # Generate manifest matrix - ONLY capture the JSON output, no debug messages
           manifest_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
-
-          # Debug output to help diagnose issues
-          echo "Build matrix output:"
-          echo "$build_matrix_output"
-          echo "Manifest matrix output:"
-          echo "$manifest_matrix_output"
-
+          
+          # Validate JSON outputs (this will fail if the output is not valid JSON)
+          echo "Validating build matrix JSON..."
+          echo "$build_matrix_output" | jq . > /dev/null
+          
+          echo "Validating manifest matrix JSON..."
+          echo "$manifest_matrix_output" | jq . > /dev/null
+          
           # Storing multiline JSON output safely
           echo "build_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "$build_matrix_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
+          
           echo "manifest_matrix<<EOF" >> $GITHUB_OUTPUT
           echo "$manifest_matrix_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

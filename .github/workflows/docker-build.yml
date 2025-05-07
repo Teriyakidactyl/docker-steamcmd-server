@@ -252,7 +252,7 @@ jobs:
 
             # Compatibility Layer
             # COMPAT_LAYER_TYPE is set by build_prepare_docker_meta.sh (e.g., wine, proton, or empty)
-            COMPAT_LAYER_TYPE=${{ env.COMPAT_LAYER_TYPE_FOR_DOCKERFILE }}
+            COMPAT_LAYER=${{ env.COMPAT_LAYER_TYPE_FOR_DOCKERFILE }}
 
             # Wine configuration
             # WINE_VERSION is set by build_prepare_docker_meta.sh script

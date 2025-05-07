@@ -43,7 +43,7 @@ jobs:
       build_matrix_json: ${{ steps.generate_matrices.outputs.build_matrix }}
       manifest_matrix_json: ${{ steps.generate_matrices.outputs.manifest_matrix }}
     steps:
-      - name: Git clone '${{ env.REGISTRY_IMAGE }}' repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -98,6 +98,7 @@ jobs:
 
   build:
     needs: setup
+    name: build (${{ matrix.job_display_name }}) 
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:

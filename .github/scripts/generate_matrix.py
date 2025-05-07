@@ -47,7 +47,17 @@ def generate_build_matrix(github_ref, registry_image_base):
         for compat_def in COMPAT_LAYERS_DEFS:
             for plat_def in PLATFORM_DEFS:
                 arch = plat_def["arch"]
+                
+                # Create a concise display name
+                job_display_parts = [
+                    base_image_name.split('-')[0],
+                    compat_def["id"] if compat_def["id"] != "native" else None,
+                    plat_def["arch"]
+                ]
+                job_display_name_str = "-".join(filter(None, job_display_parts))
+
                 item = {
+                    "job_display_name": job_display_name_str,
                     "build_date": build_date,
                     "base_image_name": base_image_name,
                     "debian_codename": debian_codename,
@@ -186,4 +196,3 @@ if __name__ == "__main__":
         print(f"Error generating matrix: {str(e)}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         exit(1)
-        

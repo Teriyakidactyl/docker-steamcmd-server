@@ -116,9 +116,12 @@ jobs:
       box64-versions: ${{ steps.set-matrix.outputs.box64-versions }}
       runner-arch: ${{ steps.set-runner-arch.outputs.arch }}
     steps:
+      - name: Check out repository # <<< ADDED CHECKOUT HERE
+        uses: actions/checkout@v4
+
       - id: set-matrix
         name: Process matrix configurations
-        run: ./.github/scripts/setup_set_matrix.sh
+        run: ${{ github.workspace }}/.github/scripts/setup_set_matrix.sh # <<< UPDATED PATH
         env:
           INPUT_MATRIX_IMAGES: ${{ env.MATRIX_IMAGES }}
           INPUT_MATRIX_COMPAT_LAYERS: ${{ env.MATRIX_COMPAT_LAYERS }}
@@ -128,7 +131,7 @@ jobs:
 
       - id: set-runner-arch
         name: Determine runner architecture
-        run: ./.github/scripts/setup_set_runner_arch.sh
+        run: ${{ github.workspace }}/.github/scripts/setup_set_runner_arch.sh # <<< UPDATED PATH
 
   # Build job that creates individual architecture-specific images
   build:
@@ -177,7 +180,7 @@ jobs:
       # Prepare Docker metadata, tags, labels, and build arguments
       - name: Prepare Docker metadata and tags
         id: prep_meta
-        run: ./.github/scripts/build_prepare_docker_meta.sh
+        run: ${{ github.workspace }}/.github/scripts/build_prepare_docker_meta.sh # <<< UPDATED PATH
         env:
           INPUT_PLATFORM: ${{ matrix.platform }}
           INPUT_BOX86_MATRIX_ENTRY: ${{ matrix.box86_matrix_entry }}
@@ -272,7 +275,7 @@ jobs:
       # Basic test for the image
       - name: Test Docker image
         if: success() && steps.docker_build.outcome == 'success'
-        run: ./.github/scripts/build_test_docker_image.sh
+        run: ${{ github.workspace }}/.github/scripts/build_test_docker_image.sh # <<< UPDATED PATH
         env:
           INPUT_IMAGE_ARCH: ${{ env.IMAGE_ARCHITECTURE }} # From prep_meta script
           INPUT_TAG_TO_TEST: ${{ env.FINAL_TAG_VERSIONED_ARCH }} # The specific arch-tag
@@ -280,12 +283,12 @@ jobs:
 
       - name: Set build status
         id: build-status
-        run: ./.github/scripts/build_set_status.sh
+        run: ${{ github.workspace }}/.github/scripts/build_set_status.sh # <<< UPDATED PATH
 
       # Add error handling and retry mechanism
       - name: Handle build failure
         if: failure()
-        run: ./.github/scripts/build_handle_failure.sh
+        run: ${{ github.workspace }}/.github/scripts/build_handle_failure.sh # <<< UPDATED PATH
         env:
           INPUT_MATRIX_IMAGE: ${{ matrix.image }}
           INPUT_MATRIX_COMPAT_LAYER: ${{ matrix.compat_layer }}
@@ -304,6 +307,9 @@ jobs:
         image: ${{ fromJson(needs.setup.outputs.image-tags) }}
         compat_layer: ${{ fromJson(needs.setup.outputs.compat-layers) }}
     steps:
+      - name: Check out repository # <<< ADDED CHECKOUT HERE
+        uses: actions/checkout@v4
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -313,7 +319,7 @@ jobs:
 
       - name: Prepare metadata for manifest tags
         id: prep_manifest_meta
-        run: ./.github/scripts/manifest_prepare_meta.sh
+        run: ${{ github.workspace }}/.github/scripts/manifest_prepare_meta.sh # <<< UPDATED PATH
         env:
           INPUT_IMAGE_TAG_BASE: ${{ matrix.image }}
           INPUT_COMPAT_LAYER_NAME: ${{ matrix.compat_layer }}
@@ -321,7 +327,7 @@ jobs:
 
       # Check if both architectures were successfully built and pushed
       - name: Verify architecture images exist for manifest
-        run: ./.github/scripts/manifest_verify_images.sh
+        run: ${{ github.workspace }}/.github/scripts/manifest_verify_images.sh # <<< UPDATED PATH
         env:
           INPUT_REGISTRY_IMAGE: ${{ env.REGISTRY_IMAGE }}
           # These are set by manifest_prepare_meta.sh
@@ -334,7 +340,7 @@ jobs:
 
       # Create "fat manifests" using buildx imagetools
       - name: Create and push multi-architecture manifests
-        run: ./.github/scripts/manifest_create_push.sh
+        run: ${{ github.workspace }}/.github/scripts/manifest_create_push.sh # <<< UPDATED PATH
         env:
           INPUT_REGISTRY_IMAGE: ${{ env.REGISTRY_IMAGE }}
           # These are set by manifest_prepare_meta.sh
@@ -352,7 +358,7 @@ jobs:
       # Handle manifest creation failure
       - name: Handle manifest failure
         if: failure()
-        run: ./.github/scripts/manifest_handle_failure.sh
+        run: ${{ github.workspace }}/.github/scripts/manifest_handle_failure.sh # <<< UPDATED PATH
 
   # Notification job
   notify:
@@ -360,9 +366,12 @@ jobs:
     runs-on: ubuntu-latest
     if: always() # Run always to notify about success or failure of the preceding jobs
     steps:
+      - name: Check out repository # <<< ADDED CHECKOUT HERE
+        uses: actions/checkout@v4
+
       - name: Aggregate results and set status
         id: status
-        run: ./.github/scripts/notify_set_status.sh
+        run: ${{ github.workspace }}/.github/scripts/notify_set_status.sh # <<< UPDATED PATH
         env:
           # Check the result of the 'create-manifest' job specifically.
           # If 'create-manifest' was skipped (e.g. for PRs), its result might be 'skipped'.
@@ -374,7 +383,7 @@ jobs:
 
       # Update GitHub status with workflow results
       - name: Send notification
-        run: ./.github/scripts/notify_update_status.sh
+        run: ${{ github.workspace }}/.github/scripts/notify_update_status.sh # <<< UPDATED PATH
         env:
           INPUT_WORKFLOW_STATUS: ${{ steps.status.outputs.status }}
           INPUT_WORKFLOW_MESSAGE: ${{ steps.status.outputs.message }}
@@ -387,3 +396,4 @@ jobs:
   # https://blog.kotlin-academy.com/automating-deletion-of-github-packages-with-kotlin-script-84900e1bf115
 
   ## TODO Implement untagged cleanup, but currently it's a pain
+  

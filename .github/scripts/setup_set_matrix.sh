@@ -12,8 +12,6 @@ set -o pipefail
 # - INPUT_MATRIX_BOX86
 # - INPUT_MATRIX_BOX64
 
-echo "TESTME"
-
 main() {
   # Process the multiline env vars into JSON arrays for matrix strategy
   # Remove empty lines, add quotes, convert to JSON array

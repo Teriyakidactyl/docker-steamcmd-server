@@ -43,49 +43,16 @@ env:
   # Registry information
   REGISTRY_IMAGE: ghcr.io/teriyakidactyl/docker-steamcmd-server
   
-  # Box86/Box64 versions (for ARM compatibility)
-  # NOTE browse files by commit to get more permanent link!
-  # TODO In 'linux/arm64' for BOX86, BOX64 provide variable 'versions', like BOX86-0.3.7="https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb" 
-    # Then call $BOX86-0.3.7 as variable and track it's name as a tag adding _BOX86-0.3.7 to build tag
-    # Add variables to BOX64 and BOX86 matrixes MATRIX_BOX64, MATRIX_BOX86
-
-  # BOX86_VERSION: "0.3.9"      
-  # BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
-  # # 0.3.7 "https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
-  # # History: https://github.com/ryanfortner/box86-debs/commits/master/debian , https://github.com/ryanfortner/box86-debs/tree/master/debian
-
-  # # https://github.com/ryanfortner/box64-debs/tree/master/debian
-  # BOX64_VERSION: "0.3.5"      
-  # BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
-  # # History: https://github.com/ryanfortner/box64-debs/commits/master/debian , https://github.com/ryanfortner/box64-debs/tree/master/debian
-
-  # Box86/Box64 version matrices
-  # FIXME: Currently, the matrix is only using the first version of each ([0] index) instead of creating separate builds for each box86/box64 version combination.
-    # To fully implement the TODO, we should modify the matrix configuration to build separate images for different box86/box64 version combinations. Here's how I would adjust it:
-  MATRIX_BOX86: |
-    0.3.9-d0aad67=https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb
-  # 0.3.7-fcbebfa=https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb
-
-  MATRIX_BOX64: |
-    0.3.5-3542c88=https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb
-  # 0.3.4-fecaaae=https://github.com/ryanfortner/box64-debs/raw/08f1e8bfd73b8cfa35b4f4d0a61a0ddaf1239b54/debian/box64_0.3.4+20240117.fecaaae-1_arm64.deb
-
-  # Wine configurations
-  # Source: https://gitlab.winehq.org/wine/wine/-/releases
-  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
-  WINE_ID: "debian"
-  WINE_TAG: "-1"
-
-  # Proton versions:
-  # Source: https://github.com/GloriousEggroll/proton-ge-custom/releases
-  PROTON_VERSION: "9.26"
-
   # ===== Matrix Configuration =====
   # Debian Tags: https://hub.docker.com/_/debian
   MATRIX_IMAGES: |
     trixie-20250407-slim
     bookworm-20250407-slim
-
+  
+  # Compatibility layers with specific versions
+  # Wine configurations
+  # Source: https://gitlab.winehq.org/wine/wine/-/releases
+  # Example: https://dl.winehq.org/wine-builds/debian/dists/bookworm/main/binary-amd64/
   MATRIX_COMPAT_LAYERS: |
     native
     wine-staging-10.5
@@ -97,6 +64,30 @@ env:
   MATRIX_PLATFORMS: |
     linux/amd64
     linux/arm64
+  
+  # ===== Software Versions =====
+  # Wine configuration (defaults, may be overridden by matrix values)
+  WINE_ID: "debian"
+  WINE_TAG: "-1"
+
+  # Proton configuration
+  # Source: https://github.com/GloriousEggroll/proton-ge-custom/releases
+  PROTON_VERSION: "9.26"
+  
+  # Box86/Box64 versions (for ARM compatibility)
+  # NOTE browse files by commit to get more permanent link!
+  BOX86_VERSION: "0.3.9"
+      # https://github.com/ptitSeb/box86/releases
+  BOX86_DEB_URL: "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+      # "https://github.com/ryanfortner/box86-debs/raw/18b3e83832df6b29af218913f0d7047f3bde2a48/debian/box86-generic-arm_0.3.7+20240706.fcbebfa-1_armhf.deb"
+      # 
+      # https://github.com/ryanfortner/box86-debs/tree/master/debian
+      # History: https://github.com/ryanfortner/box86-debs/commits/master/debian
+
+  BOX64_VERSION: "0.3.5"
+      # Source: https://github.com/ptitSeb/box6d4/releases
+  BOX64_DEB_URL: "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
+      # https://github.com/ryanfortner/box64-debs/tree/master/debian
 
   # Runner architecture (will be set in jobs)
   RUNNER_ARCH: amd64
@@ -110,8 +101,6 @@ jobs:
       image-tags: ${{ steps.set-matrix.outputs.image-tags }}
       compat-layers: ${{ steps.set-matrix.outputs.compat-layers }}
       platforms: ${{ steps.set-matrix.outputs.platforms }}
-      box86-versions: ${{ steps.set-matrix.outputs.box86-versions }}
-      box64-versions: ${{ steps.set-matrix.outputs.box64-versions }}
       runner-arch: ${{ steps.set-runner-arch.outputs.arch }}
     steps:
       - id: set-matrix
@@ -122,9 +111,7 @@ jobs:
           echo "image-tags=$(echo '${{ env.MATRIX_IMAGES }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
           echo "compat-layers=$(echo '${{ env.MATRIX_COMPAT_LAYERS }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
           echo "platforms=$(echo '${{ env.MATRIX_PLATFORMS }}' | grep -v '^$' | awk '{print "\""$0"\""}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
-          echo "box86-versions=$(echo '${{ env.MATRIX_BOX86 }}' | grep -v '^$' | awk -F'=' '{print "{\""$1"\":\""$2"\"}"}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
-          echo "box64-versions=$(echo '${{ env.MATRIX_BOX64 }}' | grep -v '^$' | awk -F'=' '{print "{\""$1"\":\""$2"\"}"}' | paste -sd, | awk '{print "["$0"]"}')" >> $GITHUB_OUTPUT
-
+      
       - id: set-runner-arch
         name: Determine runner architecture
         run: |
@@ -151,10 +138,6 @@ jobs:
         image: ${{ fromJson(needs.setup.outputs.image-tags) }}
         compat_layer: ${{ fromJson(needs.setup.outputs.compat-layers) }}
         platform: ${{ fromJson(needs.setup.outputs.platforms) }}
-        include:
-          - platform: linux/arm64
-            box86: ${{ fromJson(needs.setup.outputs.box86-versions)[0] }}
-            box64: ${{ fromJson(needs.setup.outputs.box64-versions)[0] }}
       fail-fast: false  # Continue other matrix builds if one fails
 
     steps:
@@ -191,27 +174,6 @@ jobs:
           # Strip "linux/" prefix to get architecture (amd64 or arm64)
           ARCHITECTURE=$(echo ${{ matrix.platform }} | cut -d'/' -f2)
           echo "ARCHITECTURE=$ARCHITECTURE" >> $GITHUB_ENV
-
-          # Only process Box86/Box64 for ARM architecture
-          if [[ "$ARCHITECTURE" == "arm64" ]]; then
-            # Extract Box86 version from matrix
-            if [[ "${{ matrix.box86 }}" =~ ^(.+)=(.+)$ ]]; then
-              BOX86_VERSION="${BASH_REMATCH[1]}"
-              BOX86_DEB_URL="${BASH_REMATCH[2]}"
-              echo "BOX86_VERSION=$BOX86_VERSION" >> $GITHUB_ENV
-              echo "BOX86_DEB_URL=$BOX86_DEB_URL" >> $GITHUB_ENV
-              echo "Using Box86 version: $BOX86_VERSION"
-            fi
-            
-            # Extract Box64 version from matrix
-            if [[ "${{ matrix.box64 }}" =~ ^(.+)=(.+)$ ]]; then
-              BOX64_VERSION="${BASH_REMATCH[1]}"
-              BOX64_DEB_URL="${BASH_REMATCH[2]}"
-              echo "BOX64_VERSION=$BOX64_VERSION" >> $GITHUB_ENV
-              echo "BOX64_DEB_URL=$BOX64_DEB_URL" >> $GITHUB_ENV
-              echo "Using Box64 version: $BOX64_VERSION"
-            fi
-          fi
 
           # ===== Extract Debian Version =====
           # Get codename from image tag (e.g., "bookworm" from "bookworm-20250407-slim")
@@ -257,7 +219,7 @@ jobs:
           if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
             TAG_VERSIONED="${TAG_VERSIONED}_dev"
           fi
-          echo "TAG_VERSIONED=$TAG_VERSIONED-$ARCHITECTURE" >> $GITHUB_ENV  
+          echo "TAG_VERSIONED=$TAG_VERSIONED-$ARCHITECTURE" >> $GITHUB_ENV
       
           # ===== Build Codename Tags =====
           # Format: <debian_codename>[-compat_layer][_branch]
@@ -282,12 +244,6 @@ jobs:
           if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
             TAG_CODENAME="${TAG_CODENAME}_dev"
           fi
-
-          if [[ "$ARCHITECTURE" == "arm64" && -n "$BOX86_VERSION" && -n "$BOX64_VERSION" ]]; then
-            # Add Box86/Box64 version to tags
-            TAG_CODENAME="${TAG_CODENAME}_BOX86-${BOX86_VERSION}_BOX64-${BOX64_VERSION}"
-          fi
-          
           echo "TAG_CODENAME=$TAG_CODENAME-$ARCHITECTURE" >> $GITHUB_ENV
       
           # ===== Build Latest Tag =====

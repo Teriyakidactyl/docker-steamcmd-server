@@ -102,10 +102,11 @@ def generate_build_matrix(github_ref, registry_image_base):
                 tag_versioned_parts = [base_image_name]
                 if compat_def["type"] != "native":
                     tag_versioned_parts.append(compat_def["id"])
-                versioned_tag_base = "_".join(tag_versioned_parts)
+                versioned_tag_base_arch = f"{'_'.join(tag_versioned_parts)}-{arch}" # Combine base and arch first
+                final_versioned_tag = versioned_tag_base_arch
                 if is_dev_branch:
-                    versioned_tag_base += "_dev"
-                item["tag_versioned_arch"] = f"{versioned_tag_base}-{arch}"
+                    final_versioned_tag += "_dev"
+                item["tag_versioned_arch"] = final_versioned_tag
 
                 tag_codename_parts = [debian_codename]
                 if compat_def["type"] == "wine":
@@ -113,10 +114,12 @@ def generate_build_matrix(github_ref, registry_image_base):
                 elif compat_def["type"] == "proton":
                     pv = compat_def['proton_version']
                     tag_codename_parts.append(f"proton-{pv}")
-                codename_tag_base = "-".join(tag_codename_parts)
+                codename_tag_base_arch = f"{'-'.join(tag_codename_parts)}-{arch}" # Combine base and arch first
+
+                final_codename_tag = codename_tag_base_arch
                 if is_dev_branch:
-                    codename_tag_base += "_dev"
-                item["tag_codename_arch"] = f"{codename_tag_base}-{arch}"
+                    final_codename_tag += "_dev" # Add _dev at the very end
+                item["tag_codename_arch"] = final_codename_tag
 
                 item["has_latest_tag_arch"] = (not is_dev_branch and compat_def["type"] == "native")
                 item["tag_latest_arch"] = f"latest-{arch}" if item["has_latest_tag_arch"] else ""

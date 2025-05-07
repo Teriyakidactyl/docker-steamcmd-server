@@ -43,7 +43,7 @@ jobs:
       build_matrix_json: ${{ steps.generate_matrices.outputs.build_matrix }}
       manifest_matrix_json: ${{ steps.generate_matrices.outputs.manifest_matrix }}
     steps:
-      - name: Check out repository
+      - name: Git clone '${{ env.REGISTRY_IMAGE }}' repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -57,7 +57,7 @@ jobs:
           echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
           
           # Make script executable
-          chmod +x ${{ github.workspace }}/.github/scripts/generate_matrix.py
+          # chmod +x ${{ github.workspace }}/.github/scripts/generate_matrix.py
           
           # Generate build matrix - ONLY capture the JSON output, no debug messages
           build_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
@@ -296,4 +296,3 @@ jobs:
           echo "::notice::Workflow completed. Overall manifest creation status: ${{ steps.status.outputs.status }}"
           echo "::notice::${{ steps.status.outputs.message }}"
           # TODO: Add additional notification methods
-          

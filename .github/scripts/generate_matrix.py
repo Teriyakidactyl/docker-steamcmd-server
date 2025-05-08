@@ -1,10 +1,38 @@
 #!/usr/bin/env python3
+
+"""
+Generates build and manifest matrices for GitHub Actions CI/CD pipelines.
+
+This script defines configurations for Docker image builds, including:
+- Base Debian images (e.g., Trixie, Bookworm).
+- Compatibility layers (Native, Wine, Proton with specific versions).
+- Emulators (Box86, Box64) for cross-architecture support, including hash-based versioning.
+- Target platforms (e.g., linux/amd64, linux/arm64).
+
+It produces JSON output suitable for GitHub Actions `strategy.matrix.include` directives
+for two main types of jobs:
+1.  **Build Jobs**: Compiling individual Docker images for each configured variant.
+    This includes generating specific, descriptive tags for each image.
+2.  **Manifest Jobs**: Creating Docker manifest lists that group multiple
+    architecture-specific images under common multi-arch tags.
+
+Tagging Philosophy:
+All conceptual elements within a generated tag are separated by underscores ('_').
+Internal structures within a single conceptual element (e.g., a version number
+like "10.0.0.0" or a name with a date like "trixie-20250407-slim") can use hyphens ('-').
+Example of a detailed arch-specific tag:
+  trixie-20250407-slim_proton-9.27_box64-0.3.5-3542c88_box86-0.3.9-d0aad67_arm64
+"""
+
+
 import json
 import argparse
 import datetime
 import os
 import re
 import sys
+
+# TODO this script generates tags that will be used in multiarch.
 
 # --- Configuration Section (Easy to Edit by User) ---
 BASE_IMAGES = [
@@ -65,28 +93,28 @@ BUILD_ARG_DEFAULTS = {
 }
 # --- End Configuration Section ---
 
-def _get_tag_codename_arch_specific_elements(base_image_name, compat_def, arch, current_emulator_defs):
-    parts = [base_image_name]
+def _get_tag_codename_conceptual_elements(base_image_name, compat_def, arch, current_emulator_defs):
+    """
+    Returns a list of conceptual elements for the codename-style tag.
+    Each element in the list is a string, which itself might contain hyphens.
+    """
+    elements = [base_image_name]
     if compat_def["type"] != "native":
-        parts.append(compat_def["id"])
+        elements.append(compat_def["id"])
 
     if arch == "arm64":
-        # Add box64 info
         box64_emu_def = next((e for e in current_emulator_defs if e["id"] == "box64"), None)
         if box64_emu_def:
             emu_hash_64 = box64_emu_def.get("hash")
             if emu_hash_64 and emu_hash_64 not in ["unknown", "no_url"]:
-                emulator_tag_part_64 = f"{box64_emu_def['id']}-{box64_emu_def['version_default']}-{emu_hash_64}"
-                parts.append(emulator_tag_part_64)
+                elements.append(f"{box64_emu_def['id']}-{box64_emu_def['version_default']}-{emu_hash_64}")
         
-        # Add box86 info
         box86_emu_def = next((e for e in current_emulator_defs if e["id"] == "box86"), None)
         if box86_emu_def:
             emu_hash_86 = box86_emu_def.get("hash")
             if emu_hash_86 and emu_hash_86 not in ["unknown", "no_url"]:
-                emulator_tag_part_86 = f"{box86_emu_def['id']}-{box86_emu_def['version_default']}-{emu_hash_86}"
-                parts.append(emulator_tag_part_86)
-    return parts
+                elements.append(f"{box86_emu_def['id']}-{box86_emu_def['version_default']}-{emu_hash_86}")
+    return elements
 
 def generate_build_matrix(github_ref, registry_image_base):
     matrix_items = []
@@ -151,31 +179,27 @@ def generate_build_matrix(github_ref, registry_image_base):
 
                 item["app_command_prefix_build_arg"] = " ".join(app_cmd_prefix_parts)
 
-                # --- Tag Generation ---
-                # 1. tag_versioned_arch
-                tag_versioned_parts = [base_image_name]
+                # --- Tag Generation (all conceptual elements separated by _) ---
+                
+                # 1. tag_versioned_arch: base_image_name[_compat_id]_arch
+                versioned_elements_stem = [base_image_name]
                 if compat_def["type"] != "native":
-                    tag_versioned_parts.append(compat_def["id"])
-                versioned_tag_with_arch = f"{'_'.join(tag_versioned_parts)}-{arch}" # Keeps '-' for arch here
-                if is_dev_branch:
-                    item["tag_versioned_arch"] = f"{versioned_tag_with_arch}_dev"
-                else:
-                    item["tag_versioned_arch"] = versioned_tag_with_arch
+                    versioned_elements_stem.append(compat_def["id"])
+                versioned_tag_value = '_'.join(versioned_elements_stem + [arch])
+                item["tag_versioned_arch"] = f"{versioned_tag_value}_dev" if is_dev_branch else versioned_tag_value
 
-                # 2. tag_codename_arch
-                tag_elements = _get_tag_codename_arch_specific_elements(base_image_name, compat_def, arch, EMULATOR_DEFS)
-                codename_tag_stem = '-'.join(tag_elements)
-                # Arch is now added with an underscore for this tag type
-                codename_tag_with_arch = f"{codename_tag_stem}_{arch}" 
+                # 2. tag_codename_arch: base_image_name[_compat_id][_box64-info][_box86-info]_arch
+                codename_elements = _get_tag_codename_conceptual_elements(base_image_name, compat_def, arch, EMULATOR_DEFS)
+                codename_tag_value = '_'.join(codename_elements + [arch])
+                item["tag_codename_arch"] = f"{codename_tag_value}_dev" if is_dev_branch else codename_tag_value
                 
-                if is_dev_branch:
-                    item["tag_codename_arch"] = f"{codename_tag_with_arch}_dev"
-                else:
-                    item["tag_codename_arch"] = codename_tag_with_arch
-                
-                # 3. tag_latest_arch
+                # 3. tag_latest_arch: latest_debian_codename_arch
                 item["has_latest_tag_arch"] = (not is_dev_branch and compat_def["type"] == "native")
-                item["tag_latest_arch"] = f"latest-{debian_codename}-{arch}" if item["has_latest_tag_arch"] else "" # Keeps '-' for arch here
+                if item["has_latest_tag_arch"]:
+                    latest_elements = ["latest", debian_codename, arch]
+                    item["tag_latest_arch"] = '_'.join(latest_elements)
+                else:
+                    item["tag_latest_arch"] = ""
 
                 item["job_display_name"] = item["tag_codename_arch"]
                 matrix_items.append(item)
@@ -191,55 +215,57 @@ def generate_manifest_matrix(github_ref, registry_image_base):
         for compat_def in COMPAT_LAYERS_DEFS:
             item = { "architectures": all_arches }
 
-            # Versioned Tags (manifest source/target)
-            tag_versioned_parts = [base_image_name]
+            # --- Versioned Tags ---
+            # Target: base_image_name[_compat_id]
+            target_versioned_elements = [base_image_name]
             if compat_def["type"] != "native":
-                tag_versioned_parts.append(compat_def["id"])
-            versioned_tag_base = "_".join(tag_versioned_parts)
+                target_versioned_elements.append(compat_def["id"])
+            target_versioned_base = '_'.join(target_versioned_elements)
             if is_dev_branch:
-                versioned_tag_base += "_dev"
-            item["target_tag_versioned"] = f"{registry_image_base}:{versioned_tag_base}"
-            item["source_images_versioned"] = []
-            for plat_def in PLATFORM_DEFS: 
-                arch = plat_def["arch"]
-                src_tag_versioned_parts = [base_image_name]
+                target_versioned_base += "_dev"
+            item["target_tag_versioned"] = f"{registry_image_base}:{target_versioned_base}"
+
+            # Sources: base_image_name[_compat_id]_arch
+            current_source_images_versioned = []
+            for arch_val in all_arches:
+                source_versioned_elements_stem = [base_image_name]
                 if compat_def["type"] != "native":
-                    src_tag_versioned_parts.append(compat_def["id"])
-                src_versioned_tag_with_arch = f"{'_'.join(src_tag_versioned_parts)}-{arch}" # Keeps '-' for arch here
+                    source_versioned_elements_stem.append(compat_def["id"])
+                source_versioned_tag_value = '_'.join(source_versioned_elements_stem + [arch_val])
                 if is_dev_branch:
-                    item["source_images_versioned"].append(f"{registry_image_base}:{src_versioned_tag_with_arch}_dev")
-                else:
-                    item["source_images_versioned"].append(f"{registry_image_base}:{src_versioned_tag_with_arch}")
+                    source_versioned_tag_value += "_dev"
+                current_source_images_versioned.append(f"{registry_image_base}:{source_versioned_tag_value}")
+            item["source_images_versioned"] = current_source_images_versioned
 
-            # Codename Tags (manifest source/target)
-            target_tag_codename_parts = [debian_codename]
+            # --- Codename Tags ---
+            # Target: debian_codename[_compat-type-branch/version]
+            target_codename_elements = [debian_codename]
             if compat_def["type"] == "wine":
-                target_tag_codename_parts.append(f"wine-{compat_def['wine_branch']}")
+                target_codename_elements.append(f"wine-{compat_def['wine_branch']}") # e.g., wine-staging
             elif compat_def["type"] == "proton":
-                pv = compat_def['proton_version'] 
-                target_tag_codename_parts.append(f"proton-{pv}")
-            
-            codename_tag_base_for_target = "-".join(target_tag_codename_parts)
+                target_codename_elements.append(f"proton-{compat_def['proton_version']}") # e.g., proton-9.27
+            target_codename_base = '_'.join(target_codename_elements)
             if is_dev_branch:
-                codename_tag_base_for_target += "_dev"
-            item["target_tag_codename"] = f"{registry_image_base}:{codename_tag_base_for_target}"
-
+                target_codename_base += "_dev"
+            item["target_tag_codename"] = f"{registry_image_base}:{target_codename_base}"
+            
+            # Sources: base_image_name[_compat_id][_box64-info][_box86-info]_arch
             current_source_images_codename = []
-            for plat_def in PLATFORM_DEFS:
-                current_arch = plat_def["arch"]
-                tag_elements = _get_tag_codename_arch_specific_elements(base_image_name, compat_def, current_arch, EMULATOR_DEFS)
-                # Arch is now added with an underscore for these source tags
-                arch_specific_tag_name = f"{'-'.join(tag_elements)}_{current_arch}" 
-                
+            for arch_val in all_arches:
+                codename_elements_for_source = _get_tag_codename_conceptual_elements(base_image_name, compat_def, arch_val, EMULATOR_DEFS)
+                source_codename_tag_value = '_'.join(codename_elements_for_source + [arch_val])
                 if is_dev_branch:
-                    arch_specific_tag_name += "_dev"
-                current_source_images_codename.append(f"{registry_image_base}:{arch_specific_tag_name}")
+                    source_codename_tag_value += "_dev"
+                current_source_images_codename.append(f"{registry_image_base}:{source_codename_tag_value}")
             item["source_images_codename"] = current_source_images_codename
             
+            # --- Latest Tags ---
             item["create_latest_tag"] = (not is_dev_branch and compat_def["type"] == "native")
             if item["create_latest_tag"]:
-                item["target_tag_latest"] = f"{registry_image_base}:{debian_codename}-latest" 
-                item["source_images_latest"] = [f"{registry_image_base}:latest-{debian_codename}-{arch}" for arch in all_arches] # Keeps '-' for arch here
+                # Target: latest_debian_codename
+                item["target_tag_latest"] = f"{registry_image_base}:{'_'.join(['latest', debian_codename])}" 
+                # Sources: latest_debian_codename_arch
+                item["source_images_latest"] = [f"{registry_image_base}:{'_'.join(['latest', debian_codename, arch_val])}" for arch_val in all_arches]
             else:
                 item["target_tag_latest"] = ""
                 item["source_images_latest"] = []
@@ -273,4 +299,3 @@ if __name__ == "__main__":
         print(f"Error generating matrix: {str(e)}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         exit(1)
-        

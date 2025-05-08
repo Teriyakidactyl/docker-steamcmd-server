@@ -53,6 +53,7 @@ jobs:
 
       - name: Generate Matrices
         id: generate_matrices
+        # TODO which of the 'run' commands below are needed? Can any be moved into generate_matrix.py
         run: |
           echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
           
@@ -185,10 +186,12 @@ jobs:
 
             DEBUGGER=${{ matrix.debugger_build_arg }}
             APP_COMMAND_PREFIX=${{ matrix.app_command_prefix_build_arg }}
+            
             BOX86_VERSION=${{ matrix.box86_version_arg }}
             BOX64_VERSION=${{ matrix.box64_version_arg }}
             BOX86_DEB_URL=${{ matrix.box86_deb_url_arg }}
             BOX64_DEB_URL=${{ matrix.box64_deb_url_arg }}
+
           platforms: ${{ matrix.platform_name }}
           cache-from: type=gha,scope=${{ matrix.base_image_name }}-${{ matrix.compat_layer_id }}-${{ matrix.platform_name }}
           cache-to: type=gha,scope=${{ matrix.base_image_name }}-${{ matrix.compat_layer_id }}-${{ matrix.platform_name }},mode=max
@@ -251,6 +254,7 @@ jobs:
           fi
         continue-on-error: false
 
+       # TODO one day try to resolve unknown/unknown repo as 3rd arch in multi-arch containers
       - name: Create and push multi-architecture manifests
         if: steps.verify_images.outcome == 'success' # Only run if images were verified
         run: |

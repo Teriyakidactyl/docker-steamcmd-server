@@ -4,6 +4,9 @@ import argparse
 import datetime
 import os
 
+# TODO figure out how to assign latest and default tags to a given combo
+# TODO identify how job_display_name gets value of 'trixie-amd64_dev' or 'bookworm-amd64_dev'
+
 # --- Configuration Section (Easy to Edit by User) ---
 BASE_IMAGES = [
     "trixie-20250407-slim",
@@ -23,23 +26,32 @@ PLATFORM_DEFS = [
     {"name": "linux/arm64", "arch": "arm64"},
 ]
 
-# Default versions for build arguments if not specified by a compat_layer_def
-# These correspond to the old global ENV vars in the YAML
+# TODO box86,64 change to json data types like COMPAT_LAYERS_DEFS (Done in this revision)
+EMULATOR_DEFS = [
+    {
+        "id": "box86",
+        "version_default": "0.3.9",
+        "deb_url_default": "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+    },
+    {
+        "id": "box64",
+        "version_default": "0.3.5",
+        "deb_url_default": "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
+    }
+]
+
 BUILD_ARG_DEFAULTS = {
     "WINE_ID_DEFAULT": "debian",
     "WINE_TAG_SUFFIX_DEFAULT": "-1",
     "PROTON_VERSION_DEFAULT": "9.26", # Default if compat_def type is proton but no version
-    "BOX86_VERSION_DEFAULT": "0.3.9",
-    "BOX86_DEB_URL_DEFAULT": "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb",
-    "BOX64_VERSION_DEFAULT": "0.3.5",
-    "BOX64_DEB_URL_DEFAULT": "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb",
+    # BOX86_VERSION_DEFAULT, BOX86_DEB_URL_DEFAULT, BOX64_VERSION_DEFAULT, BOX64_DEB_URL_DEFAULT removed
 }
 # --- End Configuration Section ---
 
 def generate_build_matrix(github_ref, registry_image_base):
     matrix_items = []
     build_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    is_dev_branch = not github_ref.endswith("/main") 
+    is_dev_branch = not github_ref.endswith("/main")
 
     for base_image_name in BASE_IMAGES:
         debian_codename = base_image_name.split('-')[0]
@@ -59,34 +71,44 @@ def generate_build_matrix(github_ref, registry_image_base):
                     "compat_layer_type": compat_def["type"],
                 }
 
-                # --- Build Args & Specific Configs (Copied from your script) ---
+                # --- Build Args & Specific Configs ---
                 item["wine_version_arg"] = compat_def.get("wine_version", "")
                 item["wine_branch_arg"] = compat_def.get("wine_branch", "")
                 item["proton_version_arg"] = compat_def.get("proton_version", BUILD_ARG_DEFAULTS["PROTON_VERSION_DEFAULT"])
                 item["wine_id_arg"] = BUILD_ARG_DEFAULTS["WINE_ID_DEFAULT"]
                 item["wine_tag_suffix_arg"] = BUILD_ARG_DEFAULTS["WINE_TAG_SUFFIX_DEFAULT"]
-                item["box86_version_arg"] = BUILD_ARG_DEFAULTS["BOX86_VERSION_DEFAULT"]
-                item["box86_deb_url_arg"] = BUILD_ARG_DEFAULTS["BOX86_DEB_URL_DEFAULT"]
-                item["box64_version_arg"] = BUILD_ARG_DEFAULTS["BOX64_VERSION_DEFAULT"]
-                item["box64_deb_url_arg"] = BUILD_ARG_DEFAULTS["BOX64_DEB_URL_DEFAULT"]
+                
+                # Initialize box args
+                item["box86_version_arg"] = ""
+                item["box86_deb_url_arg"] = ""
+                item["box64_version_arg"] = ""
+                item["box64_deb_url_arg"] = ""
+                item["debugger_build_arg"] = "" # Default to no debugger
+
+                app_cmd_prefix_parts = []
+
+                if arch == "arm64":
+                    # Populate Box86/Box64 arguments for arm64
+                    for emu_def in EMULATOR_DEFS:
+                        if emu_def["id"] == "box86":
+                            item["box86_version_arg"] = emu_def.get("version_default", "")
+                            item["box86_deb_url_arg"] = emu_def.get("deb_url_default", "")
+                        elif emu_def["id"] == "box64":
+                            item["box64_version_arg"] = emu_def.get("version_default", "")
+                            item["box64_deb_url_arg"] = emu_def.get("deb_url_default", "")
+                    
+                    item["debugger_build_arg"] = "box86" # box86 is used as debugger on arm64
+                    app_cmd_prefix_parts.append("box64") # box64 is part of the command prefix on arm64
 
                 if item["compat_layer_type"] == "wine":
                     item["compat_layer_build_arg"] = "wine"
+                    app_cmd_prefix_parts.insert(0, "wine")
                 elif item["compat_layer_type"] == "proton":
                     item["compat_layer_build_arg"] = "proton"
+                    app_cmd_prefix_parts.insert(0, "proton")
                 else: # native
                     item["compat_layer_build_arg"] = ""
 
-                item["debugger_build_arg"] = ""
-                app_cmd_prefix_parts = []
-                if arch == "arm64":
-                    item["debugger_build_arg"] = "box86"
-                    app_cmd_prefix_parts.append("box64")
-
-                if item["compat_layer_type"] == "wine":
-                    app_cmd_prefix_parts.insert(0, "wine")
-                elif item["compat_layer_type"] == "proton":
-                    app_cmd_prefix_parts.insert(0, "proton")
                 item["app_command_prefix_build_arg"] = " ".join(app_cmd_prefix_parts)
 
                 # --- Tag Generation (with _dev suffix for dev branches) ---
@@ -159,6 +181,7 @@ def generate_manifest_matrix(github_ref, registry_image_base):
             item["target_tag_codename"] = f"{registry_image_base}:{codename_tag_base}"
             item["source_images_codename"] = [f"{registry_image_base}:{codename_tag_base}-{arch}" for arch in all_arches]
 
+            # TODO put some thought into 'target_tag_latest'
             item["create_latest_tag"] = (not is_dev_branch and compat_def["type"] == "native")
             if item["create_latest_tag"]:
                 item["target_tag_latest"] = f"{registry_image_base}:latest"
@@ -200,3 +223,4 @@ if __name__ == "__main__":
         print(f"Error generating matrix: {str(e)}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         exit(1)
+        

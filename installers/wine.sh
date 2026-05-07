@@ -39,13 +39,14 @@ PACKAGES_WINE="\
     fontconfig \
     `# Libraries frequently needed by Windows applications`
     libfreetype6 \
-    libpng16-16 \
+    `# libpng16-16 (Bookworm) / libpng16-16t64 (Trixie)`
+    libpng16-1[6]* \
     libjpeg62-turbo"
 
 PACKAGES_WINE_I386="\
     `# 32-bit libraries needed for i386 Wine`
     libfreetype6:i386 \
-    libpng16-16:i386 \
+    libpng16-1[6]*:i386 \
     libjpeg62-turbo:i386 \
     `# Additional dependencies for 32-bit applications`
     libglib2.0-0:i386 \
@@ -142,8 +143,16 @@ mkdir -p "$WINE_PATH" "$WINEPREFIX" /tmp/wine_debs
 echo "Step 6: Downloading and installing Wine packages..."
 
 TEMP_DIR="/tmp/wine_debs"
-WINEHQ_LINK_AMD64="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-amd64/"
-WINEHQ_LINK_I386="https://dl.winehq.org/wine-builds/${WINE_ID}/dists/${WINE_DIST}/main/binary-i386/"
+# Define the pool directory based on the branch
+# Stable is in 'pool/main/w/wine/', Staging is in 'pool/main/w/wine-staging/'
+WINE_POOL_DIR="wine"
+if [ "$WINE_BRANCH" = "staging" ]; then
+    WINE_POOL_DIR="wine-staging"
+fi
+
+WINEHQ_REPO_URL="https://dl.winehq.org/wine-builds/${WINE_ID}/"
+WINEHQ_LINK_AMD64="${WINEHQ_REPO_URL}pool/main/w/${WINE_POOL_DIR}/"
+WINEHQ_LINK_I386="${WINEHQ_REPO_URL}pool/main/w/${WINE_POOL_DIR}/"
 
 # Define package names
 WINE_64_MAIN_BIN="wine-${WINE_BRANCH}-amd64_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_amd64.deb"
@@ -162,7 +171,6 @@ curl -sL "${WINEHQ_LINK_AMD64}${WINE_64_SUPPORT_BIN}" -o "${TEMP_DIR}/${WINE_64_
 # Install the 64-bit packages
 dpkg-deb -x "${TEMP_DIR}/${WINE_64_MAIN_BIN}" /
 dpkg-deb -x "${TEMP_DIR}/${WINE_64_SUPPORT_BIN}" /
-echo "✓ Wine 64-bit packages installed"
 echo "✓ Wine 64-bit packages installed"
 
 # Install i386 support if requested

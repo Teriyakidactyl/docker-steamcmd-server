@@ -42,8 +42,8 @@ BASE_IMAGES = [
 
 COMPAT_LAYERS_DEFS = [
     {"id": "native", "type": "native"},
-    {"id": "wine-staging-10.5", "type": "wine", "wine_branch": "staging", "wine_version": "10.5"},
-    {"id": "wine-stable-11.0", "type": "wine", "wine_branch": "stable", "wine_version": "11.0"},
+    {"id": "wine-staging-11.8", "type": "wine", "wine_branch": "staging", "wine_version": "11.8"},
+    {"id": "wine-stable-11.0.0.0", "type": "wine", "wine_branch": "stable", "wine_version": "11.0.0.0"},
     {"id": "proton-9.27", "type": "proton", "proton_version": "9.27"},
     {"id": "proton-9.25", "type": "proton", "proton_version": "9.25"},
 ]

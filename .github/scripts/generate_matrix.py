@@ -21,7 +21,7 @@ All conceptual elements within a generated tag are separated by underscores ('_'
 Internal structures within a single conceptual element (e.g., a version number
 like "10.0.0.0" or a name with a date like "trixie-20250407-slim") can use hyphens ('-').
 Example of a detailed arch-specific tag:
-  trixie-20250407-slim_proton-9.27_box64-0.3.5-3542c88_box86-0.3.9-d0aad67_arm64
+  trixie-20260421-slim_proton-9.27_box64-0.4.3-ae18999_box86-0.3.9-0579f8b_arm64
 """
 
 
@@ -36,14 +36,14 @@ import sys
 
 # --- Configuration Section (Easy to Edit by User) ---
 BASE_IMAGES = [
-    "trixie-20250407-slim",
-    "bookworm-20250407-slim",
+    "trixie-20260421-slim",
+    "bookworm-20260421-slim",
 ]
 
 COMPAT_LAYERS_DEFS = [
     {"id": "native", "type": "native"},
     {"id": "wine-staging-10.5", "type": "wine", "wine_branch": "staging", "wine_version": "10.5"},
-    {"id": "wine-stable-10.0.0.0", "type": "wine", "wine_branch": "stable", "wine_version": "10.0.0.0"},
+    {"id": "wine-stable-11.0", "type": "wine", "wine_branch": "stable", "wine_version": "11.0"},
     {"id": "proton-9.27", "type": "proton", "proton_version": "9.27"},
     {"id": "proton-9.25", "type": "proton", "proton_version": "9.25"},
 ]
@@ -57,12 +57,12 @@ _EMULATOR_DEFS_CONFIG = [
     {
         "id": "box86",
         "version_default": "0.3.9",
-        "deb_url_default": "https://github.com/ryanfortner/box86-debs/raw/2c23402be23090b484f3bc87da61e76a163a0dfc/debian/box86-generic-arm_0.3.9+20250308.d0aad67-1_armhf.deb"
+        "deb_url_default": "https://github.com/ryanfortner/box86-debs/raw/58b968252fdab79ef427516a2dec9556946e2bfe/debian/box86-generic-arm_0.3.9+20260108.0579f8b-1_armhf.deb"
     },
     {
         "id": "box64",
-        "version_default": "0.3.5",
-        "deb_url_default": "https://github.com/ryanfortner/box64-debs/raw/9e39e5a8ac7069f80757510d3f186c775334d9a9/debian/box64_0.3.5+20250425.3542c88-1_arm64.deb"
+        "version_default": "0.4.3",
+        "deb_url_default": "https://github.com/ryanfortner/box64-debs/raw/730de57e9209d67aa68e5f3db5192ae7f2e628f6/debian/box64_0.4.3+20260507.ae18999-1_arm64.deb"
     }
 ]
 

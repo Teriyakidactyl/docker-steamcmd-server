@@ -29,3 +29,8 @@ base image
     steamcmd
     wine
     boxes
+
+
+# SteamCMD check if updated needed
+https://github.com/mornedhels/enshrouded-server/blob/main/scripts/proton/enshrouded-updater
+https://github.com/mornedhels/enshrouded-server/blob/main/scripts/default/common

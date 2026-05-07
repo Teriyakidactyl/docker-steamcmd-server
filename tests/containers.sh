@@ -105,28 +105,28 @@ done
 # Each tag will be tested in sequence
 TAGS_TO_TEST=(
     # Bookworm - Native - Development
-    "bookworm-20250407-slim_dev-amd64"
-    "bookworm-20250407-slim_dev-arm64"
+    "bookworm-20260421-slim_dev-amd64"
+    "bookworm-20260421-slim_dev-arm64"
     
     # Bookworm - Wine Staging - Development
-    "bookworm-20250407-slim_wine-staging-10.5_dev-amd64"
-    "bookworm-20250407-slim_wine-staging-10.5_dev-arm64"
+    "bookworm-20260421-slim_wine-staging-10.5_dev-amd64"
+    "bookworm-20260421-slim_wine-staging-10.5_dev-arm64"
     
     # Bookworm - Wine Stable - Development
-    "bookworm-20250407-slim_wine-stable-10.0.0.0_dev-amd64"
-    "bookworm-20250407-slim_wine-stable-10.0.0.0_dev-arm64"
+    "bookworm-20260421-slim_wine-stable-11.0_dev-amd64"
+    "bookworm-20260421-slim_wine-stable-11.0_dev-arm64"
     
     # Trixie - Native - Development
-    "trixie-20250407-slim_dev-amd64"
-    "trixie-20250407-slim_dev-arm64"
+    "trixie-20260421-slim_dev-amd64"
+    "trixie-20260421-slim_dev-arm64"
     
     # Trixie - Wine Staging - Development
-    "trixie-20250407-slim_wine-staging-10.5_dev-amd64"
-    "trixie-20250407-slim_wine-staging-10.5_dev-arm64"
+    "trixie-20260421-slim_wine-staging-10.5_dev-amd64"
+    "trixie-20260421-slim_wine-staging-10.5_dev-arm64"
     
     # Trixie - Wine Stable - Development
-    "trixie-20250407-slim_wine-stable-10.0.0.0_dev-amd64"
-    "trixie-20250407-slim_wine-stable-10.0.0.0_dev-arm64"
+    "trixie-20260421-slim_wine-stable-11.0_dev-amd64"
+    "trixie-20260421-slim_wine-stable-11.0_dev-arm64"
     
     # Codename tags - if you need to test these as well
     "bookworm-dev-amd64"

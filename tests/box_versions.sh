@@ -9,7 +9,7 @@
 # Breaking down your example:
 
 # box64-android - The platform/device specific build
-# 0.3.5 - The Box64 version
+# 0.4.3 - The Box64 version
 # 20250417 - Build date (April 17, 2025)
 # 9579dd9 - The commit hash from ptitSeb's repository that this package was built from
 # -1 - The package revision

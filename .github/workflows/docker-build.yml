@@ -181,7 +181,13 @@ jobs:
                 echo "::error::SteamCMD smoke test exited $steamcmd_rc"
                 exit "$steamcmd_rc"
               }
-              if command -v wine >/dev/null 2>&1; then wine --version; fi
+              if command -v wine >/dev/null 2>&1; then
+                if [ "${{ matrix.platform_name }}" = "linux/arm64" ]; then
+                  box64 "$(command -v wine)" --version
+                else
+                  wine --version
+                fi
+              fi
               if command -v proton >/dev/null 2>&1; then command -v proton; fi
               if command -v box64 >/dev/null 2>&1; then box64 --version; fi
               if command -v box86 >/dev/null 2>&1; then box86 --version; fi

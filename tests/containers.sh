@@ -310,7 +310,6 @@ test_directory_permissions() {
             \"\$WORLD_DIRECTORIES\"
             \"\$STEAM_LIBRARY\"
             \"\$LOGS\"
-            \"\$SCRIPTS\"
         )
         
         # Add WINEPREFIX if it exists as an environment variable
@@ -350,10 +349,17 @@ test_directory_permissions() {
         if [ \"\$PERM_ERRORS\" = true ]; then
             echo \"One or more directories have permission issues!\"
             exit 1
-        else
-            echo \"All directories have correct permissions\"
         fi
-        
+
+        RUNTIME_DIR=\"\$SCRIPTS/\$CONTAINER_USER\"
+        RUNTIME_TEST_FILE=\"\$RUNTIME_DIR/test_runtime_write\"
+        if touch \"\$RUNTIME_TEST_FILE\" 2>/dev/null; then
+            echo \"✗ Runtime scripts are unexpectedly writable at \$RUNTIME_DIR\"
+            rm -f \"\$RUNTIME_TEST_FILE\"
+            exit 1
+        fi
+        echo \"✓ Runtime scripts are root-owned and not writable by the game user\"
+
         echo 'Directory permissions verified'
     " "$image"
     

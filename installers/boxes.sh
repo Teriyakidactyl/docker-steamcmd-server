@@ -17,7 +17,6 @@ cat >> /etc/environment <<'EOF'
 
 export BOX86_LOG=1
 export BOX86_TRACE_FILE=/var/log/box86.log
-export DEBUGGER=box86
 export BOX64_LOG=1
 export BOX64_DYNAREC=1
 export BOX64_DYNAREC_BLEEDING_EDGE=0

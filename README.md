@@ -93,7 +93,7 @@ Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Win
 | --- | --- |
 | `/app` | Game files, Steam state, compatibility prefixes |
 | `/world` | Saves and administrator-owned game configuration |
-| `/var/log` | Runtime logs; normally ephemeral |
+| `/var/log/container` | Writable runtime logs; normally ephemeral |
 
 Derivative images should link game-specific save/configuration locations into `/world`.
 

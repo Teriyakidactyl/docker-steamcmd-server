@@ -26,7 +26,14 @@ if [ "$TARGETARCH" = "arm64" ]; then
 #!/bin/bash
 set -e
 cd /opt/steamcmd
-exec box86 /opt/steamcmd/linux32/steamcmd "$@"
+
+# Valve's launcher handles SteamCMD's magic exit code 42 by relaunching after a
+# self-update. Keep that restart contract on arm64 while forcing the packaged
+# 32-bit client through Box86; the installer archive does not provision a
+# linuxarm64 bootstrap.
+export STEAM_PLATFORM=linux32
+export DEBUGGER=box86
+exec /opt/steamcmd/steamcmd.sh "$@"
 EOF
 else
     cat > "$STEAMCMD_EXEC" <<'EOF'

@@ -64,7 +64,7 @@ ENV CONTAINER_USER="container" \
     WORLD_FILES="/world" \
     TAIL_PGID="" \
     PACKAGES_BUILD="git" \
-    PACKAGES_BASE="tini curl ca-certificates tzdata locales tar gettext-base" \
+    PACKAGES_BASE="tini util-linux curl ca-certificates tzdata locales tar gettext-base" \
     PACKAGES_DEV="ncdu btop nano" \
     PACKAGES_AMD64_ONLY="lib32gcc-s1"
 
@@ -130,5 +130,5 @@ USER ${CONTAINER_USER}
 HEALTHCHECK --interval=1m --timeout=5s --start-period=5m --retries=3 \
     CMD /bin/bash -c 'test -s "$APP_PID_FILE" && kill -0 "$(cat "$APP_PID_FILE")" 2>/dev/null'
 
-ENTRYPOINT ["/usr/bin/tini", "-s", "--"]
+ENTRYPOINT ["/usr/bin/tini", "-s", "-g", "--"]
 CMD ["/usr/local/bin/container/up.sh"]

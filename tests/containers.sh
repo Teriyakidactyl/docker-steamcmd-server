@@ -1,4 +1,6 @@
 #!/bin/bash
+
+set -uo pipefail
 #
 # streamlined_test_steamcmd_container.sh
 #
@@ -101,43 +103,13 @@ for arg in "$@"; do
     fi
 done
 
-# Define the tags to test - use _dev suffix for dev branch
-# Each tag will be tested in sequence
-TAGS_TO_TEST=(
-    # Bookworm - Native - Development
-    "bookworm-20260421-slim_dev-amd64"
-    "bookworm-20260421-slim_dev-arm64"
-    
-    # Bookworm - Wine Staging - Development
-    "bookworm-20260421-slim_wine-staging-11.8_dev-amd64"
-    "bookworm-20260421-slim_wine-staging-11.8_dev-arm64"
-    
-    # Bookworm - Wine Stable - Development
-    "bookworm-20260421-slim_wine-stable-11.0.0.0_dev-amd64"
-    "bookworm-20260421-slim_wine-stable-11.0.0.0_dev-arm64"
-    
-    # Trixie - Native - Development
-    "trixie-20260421-slim_dev-amd64"
-    "trixie-20260421-slim_dev-arm64"
-    
-    # Trixie - Wine Staging - Development
-    "trixie-20260421-slim_wine-staging-11.8_dev-amd64"
-    "trixie-20260421-slim_wine-staging-11.8_dev-arm64"
-    
-    # Trixie - Wine Stable - Development
-    "trixie-20260421-slim_wine-stable-11.0.0.0_dev-amd64"
-    "trixie-20260421-slim_wine-stable-11.0.0.0_dev-arm64"
-    
-    # Codename tags - if you need to test these as well
-    "bookworm-dev-amd64"
-    "bookworm-dev-arm64"
-    "bookworm-wine-staging-dev-amd64"
-    "bookworm-wine-staging-dev-arm64"
-    "trixie-dev-amd64"
-    "trixie-dev-arm64"
-    "trixie-wine-staging-dev-amd64"
-    "trixie-wine-staging-dev-arm64"
-)
+# Generate tags from the same matrix source used by CI.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MATRIX_JSON="$(python3 "$REPO_ROOT/.github/scripts/generate_matrix.py" \
+    --job build \
+    --github-ref refs/heads/dev \
+    --registry-image-base "$BASE_IMAGE")"
+mapfile -t TAGS_TO_TEST < <(printf '%s\n' "$MATRIX_JSON" | jq -r '.include[].tag_versioned_arch')
 
 # Create test directories
 TEST_DIR=$(mktemp -d)
@@ -211,9 +183,9 @@ run_test() {
     
     # Extract architecture from tag
     local arch=""
-    if [[ "$tag" == *"-amd64" ]]; then
+    if [[ "$tag" == *"_amd64" ]]; then
         arch="amd64"
-    elif [[ "$tag" == *"-arm64" ]]; then
+    elif [[ "$tag" == *"_arm64" ]]; then
         arch="arm64"
     else
         # Default to amd64 if not specified
@@ -524,7 +496,7 @@ test_wine_prefix() {
         
         # Initialize the prefix with wineboot
         echo \"Initializing Wine prefix...\"
-        wine wineboot -iuf
+        xvfb-run --auto-servernum wineboot -iuf
         
         # Verify the prefix was created successfully
         if [ -f \$WINEPREFIX/system.reg ]; then
@@ -546,7 +518,7 @@ test_box86_version() {
     local tag=$(echo "$image" | cut -d ':' -f2)
     
     # Only run this test for ARM images
-    if [[ "$tag" != *"-arm64"* ]]; then
+    if [[ "$tag" != *"_arm64"* ]]; then
         echo -e "\n${YELLOW}Skipping Box86 tests for non-ARM image${NC}"
         return 0
     fi
@@ -573,7 +545,7 @@ test_box64_version() {
     local tag=$(echo "$image" | cut -d ':' -f2)
     
     # Only run this test for ARM images
-    if [[ "$tag" != *"-arm64"* ]]; then
+    if [[ "$tag" != *"_arm64"* ]]; then
         echo -e "\n${YELLOW}Skipping Box64 tests for non-ARM image${NC}"
         return 0
     fi
@@ -605,9 +577,9 @@ test_container() {
     
     # Extract architecture from tag
     local arch=""
-    if [[ "$tag" == *"-amd64" ]]; then
+    if [[ "$tag" == *"_amd64" ]]; then
         arch="amd64"
-    elif [[ "$tag" == *"-arm64" ]]; then
+    elif [[ "$tag" == *"_arm64" ]]; then
         arch="arm64"
     else
         # Default to amd64 if not specified
@@ -670,9 +642,9 @@ inspect_container() {
     
     # Extract architecture from tag
     local arch=""
-    if [[ "$tag" == *"-amd64" ]]; then
+    if [[ "$tag" == *"_amd64" ]]; then
         arch="amd64"
-    elif [[ "$tag" == *"-arm64" ]]; then
+    elif [[ "$tag" == *"_arm64" ]]; then
         arch="arm64"
     else
         # Default to amd64 if not specified

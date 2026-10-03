@@ -179,8 +179,9 @@ stop_application() {
 
     run_hooks "shutdown" nonfatal
 
-    log "Stopping application process group $APP_PGID" "up.sh"
-    kill -TERM -- "-$APP_PGID" 2>/dev/null || kill -TERM "$APP_PID" 2>/dev/null || true
+    local stop_signal=${APP_STOP_SIGNAL:-TERM}
+    log "Stopping application process group $APP_PGID with SIG$stop_signal" "up.sh"
+    kill -s "$stop_signal" -- "-$APP_PGID" 2>/dev/null || kill -s "$stop_signal" "$APP_PID" 2>/dev/null || true
 
     local timeout=${SHUTDOWN_TIMEOUT:-10}
     local waited=0

@@ -21,7 +21,23 @@ rm -f "$tmp_archive"
 ln -sf "$STEAMCMD_PATH/linux32/steamclient.so" "$STEAMCMD_PROFILE/sdk32/steamclient.so"
 ln -sf "$STEAMCMD_PATH/linux64/steamclient.so" "$STEAMCMD_PROFILE/sdk64/steamclient.so"
 
+if [ "$TARGETARCH" = "arm64" ]; then
+    cat > "$STEAMCMD_EXEC" <<'EOF'
+#!/bin/bash
+set -e
+cd /opt/steamcmd
+exec box86 /opt/steamcmd/linux32/steamcmd "$@"
+EOF
+else
+    cat > "$STEAMCMD_EXEC" <<'EOF'
+#!/bin/bash
+set -e
+cd /opt/steamcmd
+exec /opt/steamcmd/steamcmd.sh "$@"
+EOF
+fi
 chmod 0755 "$STEAMCMD_EXEC"
+chown root:root "$STEAMCMD_EXEC"
 chown -R "$CONTAINER_USER:$CONTAINER_USER" "$STEAMCMD_PATH" "$STEAMCMD_PROFILE"
 
 mkdir -p "$HOOK_DIRECTORIES/pre-startup"

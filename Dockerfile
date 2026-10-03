@@ -60,6 +60,7 @@ ENV CONTAINER_USER="container" \
     APP_USE_XVFB="false" \
     APP_PID_FILE="/tmp/container/app.pid" \
     SHUTDOWN_TIMEOUT="10" \
+    APP_STOP_SIGNAL="TERM" \
     WORLD_FILES="/world" \
     TAIL_PGID="" \
     PACKAGES_BUILD="git" \
@@ -69,7 +70,7 @@ ENV CONTAINER_USER="container" \
 
 ENV WORLD_DIRECTORIES="$WORLD_FILES" \
     HOOK_DIRECTORIES="$SCRIPTS/$CONTAINER_USER/hooks" \
-    STEAMCMD_EXEC="$STEAMCMD_PATH/steamcmd.sh" \
+    STEAMCMD_EXEC="/usr/local/bin/steamcmd" \
     STEAMCMD_PROFILE="$APP_FILES/.steam/profile" \
     STEAMCMD_LOGS="$APP_FILES/.steam/profile/logs" \
     STEAM_LIBRARY="$APP_FILES/.steam/library" \

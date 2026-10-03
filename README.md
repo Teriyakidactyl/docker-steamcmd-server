@@ -45,6 +45,7 @@ A Windows server should use a Wine base tag such as `trixie_wine-staging` and se
 | `APP_USE_XVFB` | `false` | Run through an Xvfb virtual display |
 | `APP_PID_FILE` | `/tmp/container/app.pid` | PID used by the generic health check |
 | `SHUTDOWN_TIMEOUT` | `10` | Seconds before the process group is force-killed |
+| `APP_STOP_SIGNAL` | `TERM` | Signal forwarded to the application process group during container shutdown |
 
 New images should use `APP_ARGS_FILE`. Each non-comment line is one argument, so an expanded value such as a server name containing spaces remains one argument.
 
@@ -80,7 +81,7 @@ The runtime composes launches in this order:
 Xvfb -> ARCH_COMMAND_PREFIX -> COMPAT_COMMAND -> executable -> arguments
 ```
 
-On arm64, `ARCH_COMMAND_PREFIX=box64`. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
+On arm64, `ARCH_COMMAND_PREFIX=box64` for 64-bit game processes. SteamCMD itself is launched explicitly through Box86. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
 
 Wine prefixes are persisted in `/app/.compat/wine`. Proton prefixes are persisted in `/app/.compat/proton`.
 

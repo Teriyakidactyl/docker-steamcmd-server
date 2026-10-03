@@ -102,8 +102,8 @@ jobs:
 
       - uses: docker/setup-qemu-action@v3
         with:
-          # ARM64 images execute ARMHF Box86 for the 32-bit SteamCMD client.
-          # Register both AArch64 and ARM binfmt handlers on x64 CI runners.
+          # Register emulation handlers for ARM64 images on x64 CI runners.
+          # Box64/Box32 handles SteamCMD's x86 client inside the ARM64 container.
           platforms: all
 
       - uses: docker/setup-buildx-action@v3

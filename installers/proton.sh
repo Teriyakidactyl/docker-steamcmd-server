@@ -74,4 +74,5 @@ install -m 0755 /tmp/installers/hooks/pre-startup/20_proton_prefix.sh \
     "$HOOK_DIRECTORIES/pre-startup/20_proton_prefix.sh"
 chown root:root "$HOOK_DIRECTORIES/pre-startup/20_proton_prefix.sh"
 
-chown -R "$CONTAINER_USER:$CONTAINER_USER" "$PROTON_PATH" "$WINEPREFIX"
+chown -R root:root "$PROTON_PATH"
+chown -R "$CONTAINER_USER:$CONTAINER_USER" "$WINEPREFIX"

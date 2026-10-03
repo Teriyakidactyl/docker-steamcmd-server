@@ -81,7 +81,7 @@ The runtime composes launches in this order:
 Xvfb -> ARCH_COMMAND_PREFIX -> COMPAT_COMMAND -> executable -> arguments
 ```
 
-On arm64, `ARCH_COMMAND_PREFIX=box64` for 64-bit game processes. SteamCMD itself is launched explicitly through Box86. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
+On arm64, `ARCH_COMMAND_PREFIX=box64` for 64-bit game processes. SteamCMD's 32-bit client is launched through Box64's Box32 mode while Valve's launcher retains its self-update/restart behavior. Box86 remains installed for derivative images that need it. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
 
 Wine prefixes are persisted in `/app/.compat/wine`. Proton prefixes are persisted in `/app/.compat/proton`.
 

@@ -29,10 +29,10 @@ cd /opt/steamcmd
 
 # Valve's launcher handles SteamCMD's magic exit code 42 by relaunching after a
 # self-update. Keep that restart contract on arm64 while forcing the packaged
-# 32-bit client through Box86; the installer archive does not provision a
-# linuxarm64 bootstrap.
+# 32-bit client through Box64's Box32 mode. Box32 also avoids SteamCMD's
+# robust-mutex/glibc compatibility failure seen with Box86 on Bookworm.
 export STEAM_PLATFORM=linux32
-export DEBUGGER=box86
+export DEBUGGER=box64
 exec /opt/steamcmd/steamcmd.sh "$@"
 EOF
 else

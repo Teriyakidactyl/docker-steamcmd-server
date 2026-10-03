@@ -28,7 +28,7 @@ ARG PROTON_INSTALL_I386=false
 ARG DEBIAN_FRONTEND=noninteractive
 
 ENV CONTAINER_USER="container" \
-    LOGS="/var/log" \
+    LOGS="/var/log/container" \
     LANG="en_US.UTF-8" \
     LC_ALL="en_US.UTF-8" \
     LANGUAGE="en_US.UTF-8" \

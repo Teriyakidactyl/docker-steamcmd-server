@@ -182,6 +182,50 @@ jobs:
               if command -v box86 >/dev/null 2>&1; then box86 --version; fi
             '
 
+
+      - name: Smoke test supervisor contract
+        if: github.event_name == 'pull_request' && matrix.compat_layer_type == 'native'
+        env:
+          IMAGE: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag_versioned_arch }}
+          PLATFORM: ${{ matrix.platform_name }}
+        run: |
+          common=(
+            --rm
+            --platform "$PLATFORM"
+            -e UPDATE_ON_START=false
+            -e STEAM_SERVER_APPID=0
+            -e STEAM_PLATFORM_TYPE=linux
+            -e APP_NAME=runtime-smoke
+          )
+
+          docker run "${common[@]}" -e APP_EXECUTABLE=/bin/true "$IMAGE"
+
+          set +e
+          docker run "${common[@]}" -e APP_COMMAND='exit 23' "$IMAGE"
+          app_rc=$?
+          set -e
+          if [ "$app_rc" -ne 23 ]; then
+            echo "::error::Expected application exit 23, got $app_rc"
+            exit 1
+          fi
+
+          failing_hook="$(mktemp)"
+          cat > "$failing_hook" <<'EOF'
+          #!/bin/bash
+          false
+          echo "fatal hook continued unexpectedly" >&2
+          EOF
+          chmod 0755 "$failing_hook"
+
+          if docker run "${common[@]}" \
+              -e APP_EXECUTABLE=/bin/sleep \
+              -e APP_ARGS='10' \
+              -v "$failing_hook:/usr/local/bin/container/hooks/pre-startup/99_fail.sh:ro" \
+              "$IMAGE"; then
+            echo "::error::Fatal pre-startup hook was incorrectly treated as successful"
+            exit 1
+          fi
+
   create-manifest:
     needs: [setup, build]
     if: github.event_name != 'pull_request'

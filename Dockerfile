@@ -1,4 +1,4 @@
-ARG DEBIAN_TAG
+ARG DEBIAN_TAG=trixie-20260421-slim
 
 FROM debian:${DEBIAN_TAG}
 

@@ -28,11 +28,12 @@ run_hooks() {
     while IFS= read -r hook; do
         [ -n "$hook" ] || continue
         log "Sourcing $(basename "$hook")" "hooks"
-        if ! source "$hook"; then
+        if [ "$failure_mode" = "fatal" ]; then
+            # Keep fatal hooks out of a conditional command context so Bash
+            # errexit semantics inside the sourced hook remain effective.
+            source "$hook"
+        elif ! source "$hook"; then
             log "ERROR sourcing $(basename "$hook")" "hooks"
-            if [ "$failure_mode" = "fatal" ]; then
-                return 1
-            fi
         fi
     done < <(find "$hook_dir" -type f -executable -print | sort)
 }

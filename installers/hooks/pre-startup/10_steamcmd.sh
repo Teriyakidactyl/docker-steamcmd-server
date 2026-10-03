@@ -1,73 +1,64 @@
 #!/bin/bash
 
-# Verify each required environment variable
 REQUIRED_VARS=("STEAM_SERVER_APPID" "STEAM_PLATFORM_TYPE" "APP_NAME" "APP_FILES")
-log "Verifying required environment variables..." "10_steamcmd.sh"
 for var in "${REQUIRED_VARS[@]}"; do
-  if [ -z "${!var}" ]; then
-    log "Error: Required environment variable '$var' is not set or is empty." "10_steamcmd.sh"
-    exit 1
-  fi
+    if [ -z "${!var:-}" ]; then
+        log "ERROR: required environment variable '$var' is not set" "10_steamcmd.sh"
+        return 1
+    fi
 done
-log "All required environment variables are set."  "10_steamcmd.sh"
 
-# Initialize SteamCMD if needed
-if [ ! -d "$STEAMCMD_PROFILE" ]; then
-    log "$STEAMCMD_PROFILE directory not complete, presuming first run." "10_steamcmd.sh"
-    $STEAMCMD_EXEC +login anonymous +quit | log_stdout "10_steamcmd.sh"
+if [ "${UPDATE_ON_START:-true}" != "true" ]; then
+    log "SteamCMD update skipped because UPDATE_ON_START=${UPDATE_ON_START:-false}" "10_steamcmd.sh"
+    return 0
 fi
 
-# Create appinfo directory if it doesn't exist
-APPINFO_DIR="$APP_FILES/appinfo"
-mkdir -p "$APPINFO_DIR"
+mkdir -p "$APP_FILES"
 
-# Set file paths for storing app info
-APPINFO_FILE="$APPINFO_DIR/$STEAM_SERVER_APPID"
-APPINFO_FILE_NEW="$APPINFO_DIR/${STEAM_SERVER_APPID}-new"
+declare -a update_args=(
+    +@ShutdownOnFailedCommand 1
+    +@NoPromptForPassword 1
+    +@sSteamCmdForcePlatformType "$STEAM_PLATFORM_TYPE"
+    +force_install_dir "$APP_FILES"
+    +login anonymous
+    +app_update "$STEAM_SERVER_APPID"
+)
 
-log "Checking for needed updates for game id $STEAM_SERVER_APPID" "10_steamcmd.sh"
-
-# Get current app info from API
-if ! curl "https://api.steamcmd.net/v1/info/$STEAM_SERVER_APPID" --silent --output "$APPINFO_FILE_NEW"; then
-    log "Error getting app info for game" "10_steamcmd.sh"
+if [ "${STEAM_VALIDATE:-false}" = "true" ]; then
+    update_args+=(validate)
 fi
+update_args+=(+quit)
 
-# Check if an update is needed by comparing the new info with the stored info
-NEEDS_UPDATE=1
-if [ -f "$APPINFO_FILE" ]; then
-    if cmp -s "$APPINFO_FILE" "$APPINFO_FILE_NEW"; then
-        NEEDS_UPDATE=0
-    fi
-fi
+retries="${STEAMCMD_RETRIES:-5}"
+attempt=1
+success=0
+output_file="$(mktemp)"
 
-if [ $NEEDS_UPDATE -ne 0 ]; then
-    log "Update required, installing $APP_NAME, APPID $STEAM_SERVER_APPID, to $APP_FILES" "10_steamcmd.sh"
-    UPDATE_OUTPUT_FILE=$(mktemp)
-   
-    # Run SteamCMD to update the app
-    $STEAMCMD_EXEC \
-    +@sSteamCmdForcePlatformType "$STEAM_PLATFORM_TYPE" \
-    +force_install_dir "$APP_FILES" \
-    +login anonymous \
-    +app_update "$STEAM_SERVER_APPID" \
-    validate \
-    +quit | tee "$UPDATE_OUTPUT_FILE" | log_stdout "10_steamcmd.sh"
-   
-    # Check for success message in the output
-    if grep -q "Success! App $APP_NAME, APPID $STEAM_SERVER_APPID, fully installed" "$UPDATE_OUTPUT_FILE"; then
-        # Save the new app info file since update succeeded
-        mv "$APPINFO_FILE_NEW" "$APPINFO_FILE"
-        # TODO include verions info?
-        log "Version was out-of-date, update applied successfully" "10_steamcmd.sh"
+while (( attempt <= retries )); do
+    : > "$output_file"
+    log "SteamCMD update attempt $attempt/$retries for $APP_NAME ($STEAM_SERVER_APPID)" "10_steamcmd.sh"
+
+    if "$STEAMCMD_EXEC" "${update_args[@]}" 2>&1 | tee "$output_file" | log_stdout "10_steamcmd.sh"; then
+        if grep -Eq "Success! App '?${STEAM_SERVER_APPID}'? (fully installed|already up to date)" "$output_file"; then
+            success=1
+            break
+        fi
+        log "SteamCMD exited successfully but did not report a successful app update" "10_steamcmd.sh"
     else
-        # If success message not found, assume failure
-        log "Error updating app via steamcmd (success message not found)" "10_steamcmd.sh"
-        rm "$APPINFO_FILE_NEW"  # Remove the new appinfo file since update failed
+        log "SteamCMD command failed" "10_steamcmd.sh"
     fi
-    
-    # Clean up temp file
-    rm "$UPDATE_OUTPUT_FILE"
-else
-    log "Version up-to-date, no update needed" "10_steamcmd.sh"
-    rm "$APPINFO_FILE_NEW"
+
+    attempt=$((attempt + 1))
+    if (( attempt <= retries )); then
+        sleep 5
+    fi
+done
+
+rm -f "$output_file"
+
+if [ "$success" -ne 1 ]; then
+    log "ERROR: SteamCMD failed after $retries attempts" "10_steamcmd.sh"
+    return 1
 fi
+
+log "SteamCMD update completed successfully" "10_steamcmd.sh"

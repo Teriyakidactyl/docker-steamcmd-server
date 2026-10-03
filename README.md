@@ -1,259 +1,122 @@
 # Steam-based Dedicated Server Base Image
 
-![Repo Image](/images/repo.png)
+Common runtime for TeriyakiDactyl Steam dedicated-server images.
 
-**_Teriyakidactyl Delivers!™_**
+## What the base provides
 
-## Table of Contents
-- [Steam-based Dedicated Server Base Image](#steam-based-dedicated-server-base-image)
-  - [Table of Contents](#table-of-contents)
-  - [Introduction](#introduction)
-  - [Features](#features)
-  - [Usage](#usage)
-  - [Environment Variables and Arguments](#environment-variables-and-arguments)
-    - [Base Variables and Arguments](#base-variables-and-arguments)
-- [FIXME CONTAINER\_USER needs to be documented. It may not be able to be variable either.](#fixme-container_user-needs-to-be-documented-it-may-not-be-able-to-be-variable-either)
-      - [Environment Variables](#environment-variables)
-      - [Build Arguments](#build-arguments)
-    - [SteamCMD Variables and Arguments](#steamcmd-variables-and-arguments)
-      - [Environment Variables](#environment-variables-1)
-      - [Build Arguments](#build-arguments-1)
-    - [Emulation Variables and Arguments](#emulation-variables-and-arguments)
-      - [Wine](#wine)
-        - [Environment Variables](#environment-variables-2)
-        - [Build Arguments](#build-arguments-2)
-      - [Box86 and Box64](#box86-and-box64)
-        - [Environment Variables](#environment-variables-3)
-    - [Application Specific Variables and Arguments](#application-specific-variables-and-arguments)
-      - [Environment Variables](#environment-variables-4)
-    - [Container Specific Variables and Arguments](#container-specific-variables-and-arguments)
-      - [Environment Variables](#environment-variables-5)
-  - [File Structure](#file-structure)
-    - [Directory Purposes](#directory-purposes)
-    - [Build Diagram](#build-diagram)
+- SteamCMD installation and update-on-start with retries
+- Debian amd64 and arm64 images
+- Box86/Box64 support on arm64
+- Wine staging/stable variants on amd64 and arm64
+- Experimental GE-Proton variants on amd64
+- Non-root game execution under Tini
+- Ordered lifecycle hooks
+- PID-file health checks and process-group shutdown
+- Persistent Steam and Wine/Proton state under `/app`
 
-## Introduction
-This Docker image serves as a base for creating Steam-based dedicated game servers. It provides a common foundation for managing SteamCMD, emulation layers (Wine, Proton, Box86, Box64), and server operations, simplifying the process of setting up and maintaining game servers across different architectures.
+## Derivative image contract
 
-## Features
-- SteamCMD integration for server updates
-- Cross-architecture support (x86_64, ARM)
-- Emulation layer support (Wine, Proton, Box86, Box64)
-- Non-root user execution for improved security
-- Flexible configuration through environment variables and build arguments
-- Multi-file logging system with color syntax highlighting
-
-## Usage
-To use this base image, extend it in your game-specific Dockerfile:
+A native Linux server normally needs:
 
 ```dockerfile
-FROM docker-steamcmd-server:latest
+ARG BASE_TAG=trixie
+FROM ghcr.io/teriyakidactyl/docker-steamcmd-server:${BASE_TAG}
 
-ENV
-    # Add Application Specific Variables and Arguments (see below)
-    # Add Container Specific Variables and Arguments (see below)
+ENV APP_NAME="example" \
+    APP_EXE="example_server" \
+    STEAM_SERVER_APPID="123456" \
+    STEAM_PLATFORM_TYPE="linux"
 ```
 
-## Environment Variables and Arguments
+A Windows server should use a Wine base tag such as `trixie_wine-staging` and set `STEAM_PLATFORM_TYPE=windows`.
 
-Case notes: any ENV variables that will be visible in a running container should be `SCREAMING_SNAKE_CASE` and variables or args used only in the build process should be `snake_case`
+### Application variables
 
-### Base Variables and Arguments
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_NAME` | empty | Application identifier |
+| `APP_FILES` | `/app` | Steam install directory |
+| `APP_EXE` | empty | Executable path relative to `APP_FILES`; nested paths are supported |
+| `APP_EXECUTABLE` | empty | Optional absolute executable path |
+| `APP_LOG_NAME` | executable basename | Log filename under `/var/log` |
+| `APP_ARGS_FILE` | empty | Preferred argument file: one argument per line, expanded with `envsubst` |
+| `APP_ARGS` | empty | Legacy shell-string arguments for existing child images |
+| `APP_COMMAND` | empty | Legacy complete command override |
+| `APP_USE_XVFB` | `false` | Run through an Xvfb virtual display |
+| `APP_PID_FILE` | `/tmp/container/app.pid` | PID used by the generic health check |
+| `SHUTDOWN_TIMEOUT` | `10` | Seconds before the process group is force-killed |
+| `APP_STOP_SIGNAL` | `TERM` | Signal forwarded to the application process group during container shutdown |
 
-# FIXME CONTAINER_USER needs to be documented. It may not be able to be variable either.
+New images should use `APP_ARGS_FILE`. Each non-comment line is one argument, so an expanded value such as a server name containing spaces remains one argument.
 
-#### Environment Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DISPLAY` | X display | `:0` |
-| `LOGS` | Directory for log files | `/var/log` |
-| `PUID` | User ID for the non-root user | `1000` |
-| `SCRIPTS` | Directory for utility scripts | `/usr/local/bin` |
-| `TERM` | Terminal type | `xterm-256color` |
+Example:
 
-#### Build Arguments
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `debian_frontend` | Debian frontend configuration | `noninteractive` |
-| `packages_base` | Base packages to install | (see Dockerfile) |
-| `packages_base_build` | Base build packages to install | (see Dockerfile) |
-| `packages_dev` | Development packages to install | (see Dockerfile) |
-| `target_arch` | Target architecture for the build | |
-
-### SteamCMD Variables and Arguments
-
-#### Environment Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `STEAM_LIBRARY` | Steam library directory | `$APP_FILES/Steam` |
-| `STEAMCMD_PATH` | Path to SteamCMD installation | `/opt/steamcmd` |
-| `STEAMCMD_PROFILE` | SteamCMD profile directory | `/home/$APP_USER/Steam` |
-
-#### Build Arguments
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `packages_amd64_only` | Packages required for AMD64 architecture | (see Dockerfile) |
-| `packages_arm_only` | Packages required for ARM architecture | (see Dockerfile) |
-
-
-### Emulation Variables and Arguments
-
-#### Wine
-
-##### Environment Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `WINE_PATH` | Path to Wine installation | `/opt/wine-staging/bin` |
-| `WINEPREFIX` | Wine prefix directory | `/app/Wine` |
-
-##### Build Arguments
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `WINE_BRANCH` | Wine branch to install | `staging` |
-| `WINE_DIST` | Wine distribution | `bookworm` |
-| `WINE_ID` | Wine ID | `debian` |
-| `WINE_TAG` | Wine tag | `-1` |
-| `WINE_VERSION` | Wine version to install | `9.13` |
-
-#### Box86 and Box64
-
-##### Environment Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BOX86_LOG` | Box86 log level | `1` |
-| `BOX86_TRACE_FILE` | Box86 trace file location | `$LOGS/box86.log` |
-| `BOX64_LOG` | Box64 log level | `1` |
-| `BOX64_TRACE_FILE` | Box64 trace file location | `$LOGS/box64.log` |
-
-### Application Specific Variables and Arguments
-
-#### Environment Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_COMMAND` | Command to run the application | [conditional emulator syntax]/$APP_FILES/$APP_EXE |
-| `APP_EXE` | Executable name of the server | |
-| `APP_FILES` | Directory for application files | `/app` |
-| `APP_NAME` | Name of the application/game server | |
-| `APP_USER` | Username for the non-root user | $APP_NAME |
-| `STEAM_CONAN_CLIENT_APPID` | SteamCMD Client (game) AppID download mods with | |
-| `STEAM_SERVER_APPID` | SteamCMD AppID for dedicated server download | |
-| `WORLD_FILES` | Directory for world/save files | `/world` |
-
-### Container Specific Variables and Arguments
-
-#### Environment Variables
-
-This section shows probable variables that will be defined by derivitive containers.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SERVER_PUBLIC` | Whether the server is public | `0` |
-| `SERVER_PLAYER_PASS` | Server password | |
-| `SERVER_NAME` | Server name | |
-| `WORLD_NAME` | World/save name | |
-
-## File Structure
-```
-/
-├── app/
-│   ├── Steam/
-│   └── Wine/
-├── home/
-│   └── container/
-│       └── Steam/
-├── opt/
-│   ├── steamcmd/
-│   └── wine-staging/
-│       └── bin/
-├── usr/
-│   └── local/
-│       └── bin/
-├── var/
-│   └── log/
-└── world/
+```text
+-name
+$SERVER_NAME
+-port
+$SERVER_PORT
 ```
 
-### Directory Purposes
+### SteamCMD variables
 
-| Path | Variable | Description |
-|------|----------|-------------|
-| `/app` | `$APP_FILES` | Where SteamCMD will download the game server files to. **This is a volume mount point.** |
-| `/app/Steam` | `$STEAM_LIBRARY` | Steam 'library', where SteamCMD will store modules (if relevant) |
-| `/app/Wine` | `$WINEPREFIX` | Wine prefix for running Windows-based game servers (if applicable). |
-| `/home/${APP_USER}` | `$HOME` | Home directory for the non-root user (named after the game/app), containing user-specific configurations and the Steam user profile. |
-| `/home/${APP_USER}/Steam` | `$STEAMCMD_PROFILE` | User-specific Steam files and configurations. |
-| `/opt/steamcmd` | `$STEAMCMD_PATH` | Contains the SteamCMD installation for managing game server updates. |
-| `/opt/wine-staging/bin` | `$WINE_PATH` | Stores the Wine installation (if used) for running Windows applications. |
-| `/usr/local/bin` | `$SCRIPTS` | Scripts and functions in support of the base image, and derivative containers |
-| `/var/log` | `$LOGS` | Stores log files for the game server, SteamCMD, and other components, facilitating troubleshooting and monitoring. |
-| `/world` | `$WORLD_FILES` | Stores world data, save files, and other persistent game-specific data that should be preserved across container restarts. **This is a volume mount point.** |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `STEAM_SERVER_APPID` | empty | Dedicated-server AppID |
+| `STEAM_PLATFORM_TYPE` | `linux` | Steam platform type, typically `linux` or `windows` |
+| `UPDATE_ON_START` | `true` | Run SteamCMD `app_update` before launch |
+| `STEAM_VALIDATE` | `false` | Add `validate` to the update |
+| `STEAMCMD_RETRIES` | `5` | Update attempts |
+| `STEAMCMD_PATH` | `/opt/steamcmd` | SteamCMD installation |
+| `STEAMCMD_PROFILE` | `/app/.steam/profile` | Persistent Steam state |
+| `STEAM_LIBRARY` | `/app/.steam/library` | Persistent Steam/workshop cache |
 
+SteamCMD update failures are fatal; the application is not launched after an incomplete update.
 
-This structure separates application files, persistent data, tools, scripts, logs, and user-specific content, promoting organization and making it easier to manage volumes and updates. The use of environment variables for these paths allows for easier configuration and maintenance across different deployments.
+### Compatibility layers
 
+The runtime composes launches in this order:
 
-### Build Diagram
+```text
+Xvfb -> ARCH_COMMAND_PREFIX -> COMPAT_COMMAND -> executable -> arguments
+```
 
-```mermaid
-flowchart TD
-    %% Define starting point
-    start[["Dockerfile Build Process"]]
-    
-    %% First-level selection
-    start --> platforms["Platform Selection\nTARGETPLATFORM"]
-    start --> compat["Compatibility Layer Selection\nCOMPAT_LAYER"]
-    
-    %% Platform branches
-    platforms --> amd64["AMD64"]
-    platforms --> arm64["ARM64"]
-    
-    %% Compatibility layer branches
-    compat --> wine["Wine"]
-    compat --> proton["Proton"]
-    compat --> none["None"]
-    
-    %% Platform-specific builders
-    amd64 --> amd64_base["base-amd64\n(lib32gcc-s1)"]
-    arm64 --> arm64_base["base-arm64\n(Box86/Box64)"]
-    
-    %% Compatibility layer builders
-    wine --> wine_builder["wine-builder"]
-    proton --> proton_builder["proton-builder"]
-    
-    %% Connect platform bases to compatibility layers
-    amd64_base --> compat_wine["compat-wine"]
-    amd64_base --> compat_proton["compat-proton"]
-    amd64_base --> compat_none["compat-none"]
-    
-    arm64_base --> compat_wine
-    arm64_base --> compat_proton
-    arm64_base --> compat_none
-    
-    %% Connect compatibility builders to their respective compat stages
-    wine_builder --> compat_wine
-    proton_builder --> compat_proton
-    
-    %% Final image selection based on COMPAT_LAYER
-    compat_wine --> |"if COMPAT_LAYER=wine"| final["Final Image\n(FROM compat-${COMPAT_LAYER})"]
-    compat_proton --> |"if COMPAT_LAYER=proton"| final
-    compat_none --> |"if COMPAT_LAYER=none or unset"| final
-    
-    %% Common component for all configurations
-    steamcmd["steamcmd-builder\n(Always on amd64)"] --> final
-    
-    classDef startClass fill:#f5f5f5,stroke:#333,stroke-width:2px
-    classDef platformClass fill:#d5e8d4,stroke:#333,stroke-width:1px
-    classDef compatClass fill:#ffe6cc,stroke:#333,stroke-width:1px
-    classDef baseClass fill:#dae8fc,stroke:#333,stroke-width:1px
-    classDef builderClass fill:#e1d5e7,stroke:#333,stroke-width:1px
-    classDef compatStageClass fill:#d4e1f5,stroke:#333,stroke-width:1px
-    classDef finalClass fill:#f8cecc,stroke:#333,stroke-width:2px
-    
-    class start startClass
-    class platforms,amd64,arm64 platformClass
-    class compat,wine,proton,none compatClass
-    class amd64_base,arm64_base baseClass
-    class wine_builder,proton_builder,steamcmd builderClass
-    class compat_wine,compat_proton,compat_none compatStageClass
-    class final finalClass
-    ```
+On arm64, `ARCH_COMMAND_PREFIX=box64` for 64-bit game processes. SteamCMD's 32-bit client is launched through Box64's Box32 mode while Valve's launcher retains its self-update/restart behavior. Box86 remains installed for derivative images that need it. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
+
+Wine prefixes are persisted in `/app/.compat/wine`. Proton prefixes are persisted in `/app/.compat/proton`.
+
+Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Wine variant.
+
+## Persistence
+
+| Path | Purpose |
+| --- | --- |
+| `/app` | Game files, Steam state, compatibility prefixes |
+| `/world` | Saves and administrator-owned game configuration |
+| `/var/log/container` | Writable runtime logs; normally ephemeral |
+
+Derivative images should link game-specific save/configuration locations into `/world`.
+
+## Hooks
+
+Hooks live under `/usr/local/bin/container/hooks`. Supported hook directories include `pre-startup`, `startup`, `shutdown`, `hourly`, `daily`, `weekly`, and `monthly`.
+
+`pre-startup` and `startup` are strict: a failing hook prevents launch. Scheduled and shutdown hooks are best-effort. Game images should use numbered hooks such as `30_game_config.sh`, leaving the lower numbers for base initialization.
+
+## Tags
+
+The build matrix publishes fully versioned tags, stable codename aliases such as `trixie_wine-staging`, architecture-specific build tags, and detailed arm64 tags that include Box86/Box64 versions.
+
+Development tags use `_dev` before the architecture suffix.
+
+## Build-time settings and reproducibility
+
+`CONTAINER_UID` defaults to `1000`. It is a build argument; this image does not pretend to provide runtime UID remapping.
+
+The base pins the `docker-up` helper checkout with `DOCKER_UP_REF`, while the process supervisor itself is maintained in this repository. Runtime scripts are root-owned and not writable by the game account.
+
+Binary downloads use fail-fast/retry behavior and validate archive/package structure before extraction. Box86/Box64 sources are commit-pinned.
+
+## Development
+
+GitHub Actions runs Bash syntax checks, ShellCheck, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. `tests/containers.sh` derives its tag list from the same matrix generator for broader local smoke testing.

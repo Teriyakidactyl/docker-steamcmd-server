@@ -2,30 +2,30 @@ name: Build Docker Images
 
 on:
   push:
-    branches:
-      - dev
-      - main
+    branches: [dev, main]
     paths:
       - 'Dockerfile'
-      - 'dockerfile'
+      - '.dockerignore'
       - '.github/workflows/**'
       - '.github/scripts/**'
-      - 'docker/**'
       - 'installers/**'
-      - 'scripts/**'
+      - 'runtime/**'
+      - 'tests/**'
   pull_request:
-    branches:
-      - dev
-      - main
+    branches: [dev, main]
     paths:
       - 'Dockerfile'
-      - 'dockerfile'
+      - '.dockerignore'
       - '.github/workflows/**'
       - '.github/scripts/**'
-      - 'docker/**'
       - 'installers/**'
-      - 'scripts/**'
+      - 'runtime/**'
+      - 'tests/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -33,94 +33,77 @@ concurrency:
 
 env:
   REGISTRY_IMAGE: ghcr.io/teriyakidactyl/docker-steamcmd-server
-  RUNNER_ARCH: amd64
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate shell scripts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          find installers runtime tests -type f -name '*.sh' -print0 | xargs -0 -r bash -n
+          shellcheck --severity=error installers/*.sh installers/hooks/pre-startup/*.sh runtime/container/*.sh
+
+      - name: Test matrix generator
+        run: python .github/scripts/test_generate_matrix.py
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: error
+
   setup:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      build_matrix_json: ${{ steps.generate_matrices.outputs.build_matrix }}
-      manifest_matrix_json: ${{ steps.generate_matrices.outputs.manifest_matrix }}
+      build_matrix_json: ${{ steps.generate.outputs.build_matrix }}
+      manifest_matrix_json: ${{ steps.generate.outputs.manifest_matrix }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Generate Matrices
-        id: generate_matrices
-        # TODO which of the 'run' commands below are needed? Can any be moved into generate_matrix.py
+      - id: generate
+        name: Generate build matrices
         run: |
-          echo "Generating matrices for ref: ${{ github.ref }} and image base: ${{ env.REGISTRY_IMAGE }}"
-          
-          # Make script executable
-          # chmod +x ${{ github.workspace }}/.github/scripts/generate_matrix.py
-          
-          # Generate build matrix - ONLY capture the JSON output, no debug messages
-          build_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job build --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
-          
-          # Generate manifest matrix - ONLY capture the JSON output, no debug messages
-          manifest_matrix_output=$(python ${{ github.workspace }}/.github/scripts/generate_matrix.py --job manifest --github-ref "${{ github.ref }}" --registry-image-base "${{ env.REGISTRY_IMAGE }}")
-          
-          # Validate JSON outputs (this will fail if the output is not valid JSON)
-          echo "Validating build matrix JSON..."
-          echo "$build_matrix_output" | jq . > /dev/null
-          
-          echo "Validating manifest matrix JSON..."
-          echo "$manifest_matrix_output" | jq . > /dev/null
-          
-          # Storing multiline JSON output safely
-          echo "build_matrix<<EOF" >> $GITHUB_OUTPUT
-          echo "$build_matrix_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          echo "manifest_matrix<<EOF" >> $GITHUB_OUTPUT
-          echo "$manifest_matrix_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Determine runner architecture
-        id: set-runner-arch
-        run: |
-          ARCH=$(uname -m)
-          if [[ "$ARCH" == "x86_64" ]]; then
-            echo "arch=amd64" >> $GITHUB_OUTPUT
-          elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
-            echo "arch=arm64" >> $GITHUB_OUTPUT
-          else
-            echo "arch=$ARCH" >> $GITHUB_OUTPUT
-          fi
-          # Fix: Corrected echo statement to use step outputs correctly
-          echo "Running on architecture determined as: ${{ steps.set-runner-arch.outputs.arch }}"
-
+          build_matrix="$(python .github/scripts/generate_matrix.py \
+            --job build \
+            --github-ref "${{ github.ref }}" \
+            --registry-image-base "${{ env.REGISTRY_IMAGE }}")"
+          manifest_matrix="$(python .github/scripts/generate_matrix.py \
+            --job manifest \
+            --github-ref "${{ github.ref }}" \
+            --registry-image-base "${{ env.REGISTRY_IMAGE }}")"
+          echo "$build_matrix" | jq . >/dev/null
+          echo "$manifest_matrix" | jq . >/dev/null
+          {
+            echo 'build_matrix<<EOF'
+            echo "$build_matrix"
+            echo 'EOF'
+            echo 'manifest_matrix<<EOF'
+            echo "$manifest_matrix"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
   build:
-    needs: setup
-    name: build (${{ matrix.job_display_name }}) 
-    runs-on: ubuntu-latest
+    needs: [quality, setup]
+    name: build (${{ matrix.job_display_name }})
+    # Run each image on the matching native CPU architecture. In particular,
+    # nesting Box64/Box32 inside QEMU-user ARM emulation changes futex robust-list
+    # behavior and is not representative of an ARM64 production host.
+    runs-on: ${{ matrix.platform_name == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 120
-    outputs:
-      image-built: ${{ steps.build-status.outputs.image-built }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.build_matrix_json) }}
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: ${{ matrix.platform_name }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          install: true
+      - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -128,177 +111,171 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate Docker metadata
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY_IMAGE }}
-          # TODO review if there is any redundant process in RE: to generate_matrix.py >  item["job_display_name"] = item["tag_codename_arch"]
           tags: |
             type=raw,value=${{ matrix.tag_versioned_arch }}
+            type=raw,value=${{ matrix.tag_detailed_arch }}
             type=raw,value=${{ matrix.tag_codename_arch }}
             type=raw,value=${{ matrix.tag_latest_arch }},enable=${{ matrix.has_latest_tag_arch }}
           labels: |
             org.opencontainers.image.title=SteamCMD Server Base Images
-            org.opencontainers.image.description=A base image with common elements for game servers
+            org.opencontainers.image.description=A base image with common elements for dedicated game servers
             org.opencontainers.image.vendor=TeriyakiDactyl
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.created=${{ matrix.build_date }}
             org.opencontainers.image.revision=${{ github.sha }}
-            com.example.git.branch=${{ github.ref_name }}
 
-      - name: Lint Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: Dockerfile
-          failure-threshold: warning
-        continue-on-error: true
-
-      - name: Build and push Docker image
-        id: docker_build
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ matrix.build_date }}
             BUILD_VERSION=${{ matrix.tag_versioned_arch }}
-            TARGETPLATFORM=${{ matrix.platform_name }}
-
             DEBIAN_TAG=${{ matrix.base_image_name }}
             DEBIAN_VERSION_CODENAME=${{ matrix.debian_codename }}
-
             COMPAT_LAYER=${{ matrix.compat_layer_build_arg }}
-
             WINE_VERSION=${{ matrix.wine_version_arg }}
             WINE_DIST=${{ matrix.debian_codename }}
             WINE_BRANCH=${{ matrix.wine_branch_arg }}
             WINE_ID=${{ matrix.wine_id_arg }}
             WINE_TAG=${{ matrix.wine_tag_suffix_arg }}
-
+            WINE_INSTALL_I386=${{ matrix.wine_install_i386_arg }}
             PROTON_VERSION=${{ matrix.proton_version_arg }}
-
-            DEBUGGER=${{ matrix.debugger_build_arg }}
-            APP_COMMAND_PREFIX=${{ matrix.app_command_prefix_build_arg }}
-            
+            PROTON_INSTALL_I386=${{ matrix.proton_install_i386_arg }}
             BOX86_VERSION=${{ matrix.box86_version_arg }}
             BOX64_VERSION=${{ matrix.box64_version_arg }}
             BOX86_DEB_URL=${{ matrix.box86_deb_url_arg }}
             BOX64_DEB_URL=${{ matrix.box64_deb_url_arg }}
-
           platforms: ${{ matrix.platform_name }}
           cache-from: type=gha,scope=${{ matrix.base_image_name }}-${{ matrix.compat_layer_id }}-${{ matrix.platform_name }}
           cache-to: type=gha,scope=${{ matrix.base_image_name }}-${{ matrix.compat_layer_id }}-${{ matrix.platform_name }},mode=max
 
-      - name: Set build status
-        id: build-status
-        if: always() # Ensure this runs to set output
+      - name: Smoke test built image
+        if: github.event_name == 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag_versioned_arch }}
         run: |
-          if [[ "${{ steps.docker_build.outcome }}" == "success" ]]; then
-            echo "image-built=true" >> $GITHUB_OUTPUT
-          else
-            echo "image-built=false" >> $GITHUB_OUTPUT
+          docker run --rm --platform "${{ matrix.platform_name }}" \
+            --entrypoint /bin/bash "$IMAGE" -lc '
+              set -euo pipefail
+              command -v steamcmd
+              timeout 600 steamcmd +login anonymous +quit >/tmp/steamcmd-smoke.log 2>&1 || {
+                steamcmd_rc=$?
+                cat /tmp/steamcmd-smoke.log
+                if [ -f "$HOME/Steam/logs/stderr.txt" ]; then
+                  echo "----- SteamCMD stderr.txt -----"
+                  cat "$HOME/Steam/logs/stderr.txt"
+                fi
+                echo "::error::SteamCMD smoke test exited $steamcmd_rc"
+                exit "$steamcmd_rc"
+              }
+              if command -v wine >/dev/null 2>&1; then
+                if [ "${{ matrix.platform_name }}" = "linux/arm64" ]; then
+                  box64 "$(command -v wine)" --version
+                else
+                  wine --version
+                fi
+              fi
+              if command -v proton >/dev/null 2>&1; then command -v proton; fi
+              if command -v box64 >/dev/null 2>&1; then box64 --version; fi
+              if command -v box86 >/dev/null 2>&1; then box86 --version; fi
+            '
+
+
+      - name: Smoke test supervisor contract
+        if: github.event_name == 'pull_request' && matrix.compat_layer_type == 'native'
+        env:
+          IMAGE: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag_versioned_arch }}
+          PLATFORM: ${{ matrix.platform_name }}
+        run: |
+          common=(
+            --rm
+            --platform "$PLATFORM"
+            -e UPDATE_ON_START=false
+            -e STEAM_SERVER_APPID=0
+            -e STEAM_PLATFORM_TYPE=linux
+            -e APP_NAME=runtime-smoke
+          )
+
+          docker run "${common[@]}" -e APP_EXECUTABLE=/bin/true "$IMAGE"
+
+          set +e
+          docker run "${common[@]}" -e APP_COMMAND='exit 23' "$IMAGE"
+          app_rc=$?
+          set -e
+          if [ "$app_rc" -ne 23 ]; then
+            echo "::error::Expected application exit 23, got $app_rc"
+            exit 1
           fi
 
-      - name: Handle build failure
-        if: steps.docker_build.outcome == 'failure'
-        run: |
-          echo "::error::Docker build failed for ${{ matrix.base_image_name }} with compat ${{ matrix.compat_layer_id }} on ${{ matrix.platform_name }}"
-          exit 1 # Explicitly fail the job
+          failing_hook="$(mktemp)"
+          cat > "$failing_hook" <<'EOF'
+          #!/bin/bash
+          false
+          echo "fatal hook continued unexpectedly" >&2
+          EOF
+          chmod 0755 "$failing_hook"
+
+          if docker run "${common[@]}" \
+              -e APP_EXECUTABLE=/bin/sleep \
+              -e APP_ARGS='10' \
+              -v "$failing_hook:/usr/local/bin/container/hooks/pre-startup/99_fail.sh:ro" \
+              "$IMAGE"; then
+            echo "::error::Fatal pre-startup hook was incorrectly treated as successful"
+            exit 1
+          fi
 
   create-manifest:
     needs: [setup, build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
     if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.manifest_matrix_json) }}
 
     steps:
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify architecture images exist
-        id: verify_images
+      - name: Verify source images
         run: |
-          echo "Verifying source images for versioned manifest: ${{ matrix.target_tag_versioned }}"
-          for img in ${{ join(matrix.source_images_versioned, ' ') }}; do
-            docker buildx imagetools inspect "$img" || { echo "::error::Image $img not found"; exit 1; }
+          for img in ${{ join(matrix.source_images_versioned, ' ') }} ${{ join(matrix.source_images_codename, ' ') }}; do
+            docker buildx imagetools inspect "$img" >/dev/null
           done
-          echo "Source images for versioned manifest verified."
-
-          echo "Verifying source images for codename manifest: ${{ matrix.target_tag_codename }}"
-          for img in ${{ join(matrix.source_images_codename, ' ') }}; do
-            docker buildx imagetools inspect "$img" || { echo "::error::Image $img not found"; exit 1; }
-          done
-          echo "Source images for codename manifest verified."
-
           if [[ "${{ matrix.create_latest_tag }}" == "true" ]]; then
-            echo "Verifying source images for latest manifest: ${{ matrix.target_tag_latest }}"
             for img in ${{ join(matrix.source_images_latest, ' ') }}; do
-              docker buildx imagetools inspect "$img" || { echo "::error::Image $img not found"; exit 1; }
+              docker buildx imagetools inspect "$img" >/dev/null
             done
-            echo "Source images for latest manifest verified."
           fi
-        continue-on-error: false
 
-       # TODO one day try to resolve unknown/unknown repo as 3rd arch in multi-arch containers
-      - name: Create and push multi-architecture manifests
-        if: steps.verify_images.outcome == 'success' # Only run if images were verified
+      - name: Create manifests
         run: |
-          echo "Creating manifest for versioned tag: ${{ matrix.target_tag_versioned }}"
-          docker buildx imagetools create --tag ${{ matrix.target_tag_versioned }} ${{ join(matrix.source_images_versioned, ' ') }}
-          echo "::notice::Successfully created version manifest for ${{ matrix.target_tag_versioned }}"
-
-          echo "Creating manifest for codename tag: ${{ matrix.target_tag_codename }}"
-          docker buildx imagetools create --tag ${{ matrix.target_tag_codename }} ${{ join(matrix.source_images_codename, ' ') }}
-          echo "::notice::Successfully created codename manifest for ${{ matrix.target_tag_codename }}"
-
+          docker buildx imagetools create \
+            --tag "${{ matrix.target_tag_versioned }}" \
+            ${{ join(matrix.source_images_versioned, ' ') }}
+          docker buildx imagetools create \
+            --tag "${{ matrix.target_tag_codename }}" \
+            ${{ join(matrix.source_images_codename, ' ') }}
           if [[ "${{ matrix.create_latest_tag }}" == "true" ]]; then
-            echo "Creating manifest for latest tag: ${{ matrix.target_tag_latest }}"
-            docker buildx imagetools create --tag ${{ matrix.target_tag_latest }} ${{ join(matrix.source_images_latest, ' ') }}
-            echo "::notice::Successfully created 'latest' multi-architecture manifest ${{ matrix.target_tag_latest }}"
+            docker buildx imagetools create \
+              --tag "${{ matrix.target_tag_latest }}" \
+              ${{ join(matrix.source_images_latest, ' ') }}
           fi
-
-      - name: Handle manifest failure
-        if: failure() # Catches failure in verify_images or create_and_push
-        run: |
-          echo "::error::Failed to create multi-architecture manifest for image ${{ matrix.target_tag_versioned }} or ${{ matrix.target_tag_codename }}"
-          echo "::error::Check if all architecture-specific images were successfully built and pushed, and verified."
-          exit 1
-
-  notify:
-    needs: [create-manifest]
-    runs-on: ubuntu-latest
-    if: always() # Run regardless of manifest job success/failure to give a summary
-    steps:
-      - name: Set status based on create-manifest job outcome
-        id: status
-        run: |
-          # Note: needs.create-manifest.result will be 'success' only if ALL matrix jobs in create-manifest succeeded.
-          if [[ "${{ needs.create-manifest.result }}" == "success" ]]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "message=All Docker images and manifests successfully built and pushed." >> $GITHUB_OUTPUT
-          else
-            # This means at least one manifest matrix job failed, or the job itself had an issue.
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "message=Failed to build or push some Docker images/manifests. Check logs." >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update status
-        run: |
-          echo "::notice::Workflow completed. Overall manifest creation status: ${{ steps.status.outputs.status }}"
-          echo "::notice::${{ steps.status.outputs.message }}"
-          # TODO: Add additional notification methods

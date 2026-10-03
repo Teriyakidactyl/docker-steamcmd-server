@@ -175,8 +175,14 @@ jobs:
               set -euo pipefail
               command -v steamcmd
               timeout 600 steamcmd +login anonymous +quit >/tmp/steamcmd-smoke.log 2>&1 || {
+                steamcmd_rc=$?
                 cat /tmp/steamcmd-smoke.log
-                exit 1
+                if [ -f "$HOME/Steam/logs/stderr.txt" ]; then
+                  echo "----- SteamCMD stderr.txt -----"
+                  cat "$HOME/Steam/logs/stderr.txt"
+                fi
+                echo "::error::SteamCMD smoke test exited $steamcmd_rc"
+                exit "$steamcmd_rc"
               }
               if command -v wine >/dev/null 2>&1; then wine --version; fi
               if command -v proton >/dev/null 2>&1; then command -v proton; fi

@@ -102,7 +102,9 @@ jobs:
 
       - uses: docker/setup-qemu-action@v3
         with:
-          platforms: ${{ matrix.platform_name }}
+          # ARM64 images execute ARMHF Box86 for the 32-bit SteamCMD client.
+          # Register both AArch64 and ARM binfmt handlers on x64 CI runners.
+          platforms: all
 
       - uses: docker/setup-buildx-action@v3
 

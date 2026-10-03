@@ -137,6 +137,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -161,6 +162,25 @@ jobs:
           platforms: ${{ matrix.platform_name }}
           cache-from: type=gha,scope=${{ matrix.base_image_name }}-${{ matrix.compat_layer_id }}-${{ matrix.platform_name }}
           cache-to: type=gha,scope=${{ matrix.base_image_name }}-${{ matrix.compat_layer_id }}-${{ matrix.platform_name }},mode=max
+
+      - name: Smoke test built image
+        if: github.event_name == 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag_versioned_arch }}
+        run: |
+          docker run --rm --platform "${{ matrix.platform_name }}" \
+            --entrypoint /bin/bash "$IMAGE" -lc '
+              set -euo pipefail
+              command -v steamcmd
+              timeout 600 steamcmd +login anonymous +quit >/tmp/steamcmd-smoke.log 2>&1 || {
+                cat /tmp/steamcmd-smoke.log
+                exit 1
+              }
+              if command -v wine >/dev/null 2>&1; then wine --version; fi
+              if command -v proton >/dev/null 2>&1; then command -v proton; fi
+              if command -v box64 >/dev/null 2>&1; then box64 --version; fi
+              if command -v box86 >/dev/null 2>&1; then box86 --version; fi
+            '
 
   create-manifest:
     needs: [setup, build]

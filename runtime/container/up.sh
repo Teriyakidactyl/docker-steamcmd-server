@@ -237,8 +237,10 @@ main() {
 
     sleep 1
     if ! kill -0 "$APP_PID" 2>/dev/null; then
-        log "ERROR: application failed immediately after launch" "up.sh"
-        wait "$APP_PID" || return $?
+        local early_rc=0
+        wait "$APP_PID" || early_rc=$?
+        log "Application exited during startup verification with status $early_rc" "up.sh"
+        return "$early_rc"
     fi
 
     log_tails

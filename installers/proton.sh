@@ -83,6 +83,13 @@ export COMPAT_COMMAND="proton runinprefix"
 export APP_USE_XVFB=true
 EOF
 
+# GE-Proton 11 uses Wine's new WoW64 layout. Its launcher only exports
+# WINEARCH=wow64 when PROTON_USE_WOW64 is enabled; otherwise older hosts can
+# fall back to the legacy flat Wine library lookup (for example ntdll.so).
+if [[ "$PROTON_VERSION_MAJOR" =~ ^[0-9]+$ ]] && [ "$PROTON_VERSION_MAJOR" -ge 11 ]; then
+    printf '\nexport PROTON_USE_WOW64=1\n' >> /etc/environment
+fi
+
 mkdir -p "$HOOK_DIRECTORIES/pre-startup"
 install -m 0755 /tmp/installers/hooks/pre-startup/20_proton_prefix.sh \
     "$HOOK_DIRECTORIES/pre-startup/20_proton_prefix.sh"

@@ -91,7 +91,7 @@ Wine prefix initialization defaults `WINE_BOOT_DLL_OVERRIDES` to `mscoree,mshtml
 
 Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Wine variant.
 
-The support matrix carries one stable Wine line and one staging Wine line per Debian base. WineHQ discontinued Bookworm packages after 11.10, so Bookworm staging remains on 11.10 while Trixie staging follows the current development release.
+The support matrix carries one stable Wine line and one staging Wine line per Debian base. WineHQ discontinued Bookworm packages after 11.10, so Bookworm staging remains on 11.10 while Trixie staging follows the current development release. WineHQ's current Bookworm/Trixie packaging is split by PE architecture; the image extracts the i386 PE payload as well as the amd64 payload for new-WoW64 prefixes, without installing a separate 32-bit Unix runtime.
 
 ## Persistence
 

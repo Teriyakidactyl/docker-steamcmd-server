@@ -22,7 +22,7 @@ case "${DEBIAN_VERSION_CODENAME:-}" in
 esac
 
 apt-get install -y --no-install-recommends \
-    xvfb xauth fontconfig python3 libegl1 libfreetype6 "$LIBPNG_PACKAGE" \
+    xvfb xauth fontconfig python3 libegl1 libvulkan1 libfreetype6 "$LIBPNG_PACKAGE" \
     libjpeg62-turbo libglib2.0-0 libdbus-1-3 libnss3 libx11-6
 
 if [ "$INSTALL_I386" = "true" ]; then

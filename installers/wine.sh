@@ -47,7 +47,7 @@ if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" = "amd64" ] && [ "$WINEARCH" 
         libfreetype6:i386 "${LIBPNG_PACKAGE}:i386" libjpeg62-turbo:i386 \
         libglib2.0-0:i386 libgstreamer1.0-0:i386
 elif [ "$INSTALL_I386" = "true" ]; then
-    echo "WINE_INSTALL_I386 requested, but new WoW64/ARM builds do not require separate i386 Wine packages."
+    echo "WINE_INSTALL_I386 requested, but new WoW64/ARM builds do not install separate 32-bit Unix runtime libraries."
 fi
 
 cat >> /etc/environment <<EOF
@@ -82,6 +82,18 @@ download_deb() {
 
 download_deb "$WINE_64_MAIN_BIN"
 download_deb "$WINE_64_SUPPORT_BIN"
+
+# WineHQ's supported Bookworm/Trixie packages are still split into amd64 and
+# i386 payloads even when Wine itself is run in the new WoW64 mode. The i386
+# package supplies the 32-bit PE builtins that populate C:\\windows\\syswow64.
+# Extract it first so any overlapping launcher files are replaced by the amd64
+# package afterwards. New WoW64 continues to use 64-bit Unix libraries.
+if [ "$WINEARCH" = "wow64" ]; then
+    WINE_32_MAIN_BIN="wine-${WINE_BRANCH}-i386_${WINE_VERSION}~${WINE_DIST}${WINE_TAG}_i386.deb"
+    download_deb "$WINE_32_MAIN_BIN"
+    dpkg-deb -x "/tmp/wine_debs/$WINE_32_MAIN_BIN" /
+fi
+
 dpkg-deb -x "/tmp/wine_debs/$WINE_64_MAIN_BIN" /
 dpkg-deb -x "/tmp/wine_debs/$WINE_64_SUPPORT_BIN" /
 

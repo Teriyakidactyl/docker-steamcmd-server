@@ -31,7 +31,7 @@ case "$WINE_DIST" in
     *)       LIBPNG_PACKAGE="libpng16-16" ;;
 esac
 
-PACKAGES_WINE="xvfb xauth fontconfig libfreetype6 ${LIBPNG_PACKAGE} libjpeg62-turbo"
+PACKAGES_WINE="xvfb xauth fontconfig libegl1 libfreetype6 ${LIBPNG_PACKAGE} libjpeg62-turbo"
 apt-get install -y --no-install-recommends $PACKAGES_WINE
 
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" = "amd64" ] && [ "$WINEARCH" != "wow64" ]; then

@@ -13,10 +13,16 @@ BASE_IMAGES = [
 
 COMPAT_LAYERS = [
     {"id": "native", "type": "native", "architectures": ["amd64", "arm64"]},
-    {"id": "wine-staging-11.8", "type": "wine", "wine_branch": "staging", "wine_version": "11.8", "architectures": ["amd64", "arm64"]},
+    {
+        "id": "wine-staging",
+        "type": "wine",
+        "wine_branch": "staging",
+        "wine_versions": {"trixie": "11.19", "bookworm": "11.10"},
+        "architectures": ["amd64", "arm64"],
+    },
     {"id": "wine-stable-11.0.0.0", "type": "wine", "wine_branch": "stable", "wine_version": "11.0.0.0", "architectures": ["amd64", "arm64"]},
+    {"id": "proton-11.7", "type": "proton", "proton_version": "11.7", "architectures": ["amd64"]},
     {"id": "proton-10.34", "type": "proton", "proton_version": "10.34", "architectures": ["amd64"]},
-    {"id": "proton-9.27", "type": "proton", "proton_version": "9.27", "architectures": ["amd64"]},
 ]
 
 PLATFORMS = {
@@ -27,11 +33,11 @@ PLATFORMS = {
 EMULATORS = {
     "box86": {
         "version": "0.3.9",
-        "url": "https://github.com/ryanfortner/box86-debs/raw/58b968252fdab79ef427516a2dec9556946e2bfe/debian/box86-generic-arm_0.3.9+20260108.0579f8b-1_armhf.deb",
+        "url": "https://github.com/ryanfortner/box86-debs/raw/e8c2c790274f37f642fa66b39712767d5770b5dc/debian/box86-generic-arm_0.3.9+20260927.7dec081-1_armhf.deb",
     },
     "box64": {
-        "version": "0.4.3",
-        "url": "https://github.com/ryanfortner/box64-debs/raw/730de57e9209d67aa68e5f3db5192ae7f2e628f6/debian/box64_0.4.3+20260507.ae18999-1_arm64.deb",
+        "version": "0.4.5",
+        "url": "https://github.com/ryanfortner/box64-debs/raw/0afc90842ada83a9b60d1d7114a9044ae2a3dd07/debian/box64_0.4.5+20261001.f5ffcd0-1_arm64.deb",
     },
 }
 
@@ -49,6 +55,22 @@ def branch_suffix(github_ref: str) -> str:
     return "_dev" if github_ref.endswith("/dev") else ""
 
 
+def wine_version_for_base(base_image: str, compat: dict) -> str:
+    if compat["type"] != "wine":
+        return ""
+    versions = compat.get("wine_versions")
+    if versions:
+        codename = base_image.split("-", 1)[0]
+        return versions[codename]
+    return compat.get("wine_version", "")
+
+
+def compat_id_for_base(base_image: str, compat: dict) -> str:
+    if compat["type"] == "wine":
+        return f"wine-{compat['wine_branch']}-{wine_version_for_base(base_image, compat)}"
+    return compat["id"]
+
+
 def compat_alias(compat: dict) -> str:
     if compat["type"] == "native":
         return ""
@@ -60,7 +82,7 @@ def compat_alias(compat: dict) -> str:
 def build_stem(base_image: str, compat: dict) -> str:
     parts = [base_image]
     if compat["type"] != "native":
-        parts.append(compat["id"])
+        parts.append(compat_id_for_base(base_image, compat))
     return "_".join(parts)
 
 
@@ -99,10 +121,10 @@ def generate_build_matrix(github_ref: str, registry_image_base: str) -> dict:
                     "debian_codename": codename,
                     "platform_name": PLATFORMS[arch],
                     "architecture": arch,
-                    "compat_layer_id": compat["id"],
+                    "compat_layer_id": compat_id_for_base(base_image, compat),
                     "compat_layer_type": compat["type"],
                     "compat_layer_build_arg": "" if compat["type"] == "native" else compat["type"],
-                    "wine_version_arg": compat.get("wine_version", ""),
+                    "wine_version_arg": wine_version_for_base(base_image, compat),
                     "wine_branch_arg": compat.get("wine_branch", ""),
                     "wine_id_arg": WINE_ID,
                     "wine_tag_suffix_arg": WINE_TAG_SUFFIX,

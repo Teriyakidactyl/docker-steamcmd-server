@@ -83,9 +83,13 @@ Xvfb -> ARCH_COMMAND_PREFIX -> COMPAT_COMMAND -> executable -> arguments
 
 On arm64, `ARCH_COMMAND_PREFIX=box64` for 64-bit game processes. SteamCMD's 32-bit client is launched through Box64's Box32 mode while Valve's launcher retains its self-update/restart behavior. Box86 remains installed for derivative images that need it. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
 
-Wine prefixes are persisted in `/app/.compat/wine`. Proton prefixes are persisted in `/app/.compat/proton`.
+Wine prefixes are persisted in `/app/.compat/wine`. Proton compatibility data is persisted in `/app/.compat/proton`, with Proton's Windows prefix under `pfx/`.
+
+Prefix initialization is completion-marked rather than inferred from a non-empty directory. If an earlier initialization was interrupted, the next start retries it non-destructively and writes the readiness marker only after the compatibility layer passes an operational check. `COMPAT_PREFIX_TIMEOUT` controls the initialization/verification ceiling in seconds and defaults to `300`.
 
 Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Wine variant.
+
+The support matrix carries one stable Wine line and one staging Wine line per Debian base. WineHQ discontinued Bookworm packages after 11.10, so Bookworm staging remains on 11.10 while Trixie staging follows the current development release.
 
 ## Persistence
 

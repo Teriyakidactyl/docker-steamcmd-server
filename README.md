@@ -87,6 +87,8 @@ Wine prefixes are persisted in `/app/.compat/wine`. Proton compatibility data is
 
 Prefix initialization is completion-marked rather than inferred from a non-empty directory. If an earlier initialization was interrupted, the next start retries it non-destructively and writes the readiness marker only after the compatibility layer passes an operational check. `COMPAT_PREFIX_TIMEOUT` controls the initialization/verification ceiling in seconds and defaults to `300`.
 
+Wine prefix initialization defaults `WINE_BOOT_DLL_OVERRIDES` to `mscoree,mshtml=` so optional Wine Mono/Gecko installer dialogs cannot block a headless first boot. A derivative that intentionally manages those components may set `WINE_BOOT_DLL_OVERRIDES` explicitly, including to an empty value.
+
 Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Wine variant.
 
 The support matrix carries one stable Wine line and one staging Wine line per Debian base. WineHQ discontinued Bookworm packages after 11.10, so Bookworm staging remains on 11.10 while Trixie staging follows the current development release.

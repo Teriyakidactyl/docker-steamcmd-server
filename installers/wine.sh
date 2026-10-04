@@ -31,7 +31,13 @@ case "$WINE_DIST" in
     *)       LIBPNG_PACKAGE="libpng16-16" ;;
 esac
 
-PACKAGES_WINE="xvfb xauth fontconfig libegl1 libfreetype6 ${LIBPNG_PACKAGE} libjpeg62-turbo"
+# WineHQ packages are extracted rather than installed through apt, so this image
+# must carry the native runtime libraries Wine would otherwise receive through
+# dependency resolution. Keep this closure explicit for both native amd64 Wine
+# and Box64-wrapped Wine on arm64.
+PACKAGES_WINE="xvfb xauth fontconfig libegl1 libfreetype6 ${LIBPNG_PACKAGE} libjpeg62-turbo \
+libglib2.0-0 libdbus-1-3 libnss3 libx11-6 libxext6 libxcursor1 libxfixes3 \
+libxi6 libxinerama1 libxrandr2 libxrender1 libxcomposite1 libvulkan1"
 apt-get install -y --no-install-recommends $PACKAGES_WINE
 
 if [ "$INSTALL_I386" = "true" ] && [ "$TARGETARCH" = "amd64" ] && [ "$WINEARCH" != "wow64" ]; then

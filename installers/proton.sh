@@ -38,7 +38,16 @@ VERSION_CLEANED="${VERSION_CLEANED#Proton}"
 VERSION_CLEANED="${VERSION_CLEANED#-}"
 VERSION_FORMATTED="${VERSION_CLEANED//./-}"
 PROTON_TAG_NAME="GE-Proton${VERSION_FORMATTED}"
-PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${PROTON_TAG_NAME}/${PROTON_TAG_NAME}.tar.gz"
+PROTON_VERSION_MAJOR="${VERSION_CLEANED%%.*}"
+PROTON_ARCHIVE_NAME="${PROTON_TAG_NAME}.tar.gz"
+
+# GE-Proton 11 introduced architecture-qualified release archives. Proton is
+# currently amd64-only in this base, so select the x86_64 artifact for 11+.
+if [[ "$PROTON_VERSION_MAJOR" =~ ^[0-9]+$ ]] && [ "$PROTON_VERSION_MAJOR" -ge 11 ]; then
+    PROTON_ARCHIVE_NAME="${PROTON_TAG_NAME}-x86_64.tar.gz"
+fi
+
+PROTON_URL="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${PROTON_TAG_NAME}/${PROTON_ARCHIVE_NAME}"
 
 mkdir -p "$PROTON_PATH" "$WINEPREFIX" /tmp/proton_ge
 curl --fail --show-error --silent --location \
@@ -46,7 +55,12 @@ curl --fail --show-error --silent --location \
     "$PROTON_URL" --output /tmp/proton_ge/proton.tar.gz
 tar -tzf /tmp/proton_ge/proton.tar.gz >/dev/null
 tar -xzf /tmp/proton_ge/proton.tar.gz -C /tmp/proton_ge
-cp -a "/tmp/proton_ge/${PROTON_TAG_NAME}/." "$PROTON_PATH/"
+PROTON_SOURCE_DIR="$(find /tmp/proton_ge -mindepth 1 -maxdepth 1 -type d -name "${PROTON_TAG_NAME}*" -print -quit)"
+if [ -z "$PROTON_SOURCE_DIR" ]; then
+    echo "Unable to locate extracted Proton directory for ${PROTON_TAG_NAME}" >&2
+    exit 1
+fi
+cp -a "${PROTON_SOURCE_DIR}/." "$PROTON_PATH/"
 rm -rf /tmp/proton_ge
 
 cat > /usr/local/bin/proton <<EOF

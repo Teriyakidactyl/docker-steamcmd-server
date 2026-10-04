@@ -7,6 +7,10 @@ fi
 
 PREFIX_TIMEOUT="${COMPAT_PREFIX_TIMEOUT:-300}"
 READY_MARKER="$WINEPREFIX/.steamcmd-server-wine-ready"
+# Headless Wine initialization can otherwise block indefinitely on the optional
+# Mono/Gecko installer dialogs. Derivatives can set this variable explicitly,
+# including to an empty string, when they intentionally want those prompts.
+BOOT_DLL_OVERRIDES="${WINE_BOOT_DLL_OVERRIDES-mscoree,mshtml=}"
 
 if ! [[ "$PREFIX_TIMEOUT" =~ ^[0-9]+$ ]] || [ "$PREFIX_TIMEOUT" -lt 1 ]; then
     log "ERROR: COMPAT_PREFIX_TIMEOUT must be a positive integer" "20_wine_prefix.sh"
@@ -36,7 +40,11 @@ if [ ! -f "$READY_MARKER" ]; then
         init_cmd+=("${arch_parts[@]}")
     fi
     init_cmd+=(wineboot -iuf)
-    "${init_cmd[@]}" | log_stdout "20_wine_prefix.sh"
+    if [ -n "$BOOT_DLL_OVERRIDES" ]; then
+        WINEDLLOVERRIDES="$BOOT_DLL_OVERRIDES" "${init_cmd[@]}" | log_stdout "20_wine_prefix.sh"
+    else
+        "${init_cmd[@]}" | log_stdout "20_wine_prefix.sh"
+    fi
 
     declare -a verify_cmd=(
         timeout

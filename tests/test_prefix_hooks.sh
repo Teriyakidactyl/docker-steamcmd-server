@@ -38,6 +38,10 @@ EOF
 cat > "$MOCK_BIN/wineboot" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
+if [ "${MOCK_EXPECT_WINE_BOOT_OVERRIDES:-0}" = "1" ] && [ "${WINEDLLOVERRIDES:-}" != "mscoree,mshtml=" ]; then
+    echo "unexpected WINEDLLOVERRIDES: ${WINEDLLOVERRIDES:-<unset>}" >&2
+    exit 18
+fi
 printf 'wineboot\n' >> "$MOCK_COUNTER"
 mkdir -p "$WINEPREFIX/drive_c/windows/syswow64"
 printf 'registry\n' > "$WINEPREFIX/system.reg"
@@ -93,6 +97,7 @@ run_hook() {
     COMPAT_PREFIX_TIMEOUT=5 \
     MOCK_COUNTER="$counter" \
     MOCK_FAIL_PREFIX="$fail_prefix" \
+    MOCK_EXPECT_WINE_BOOT_OVERRIDES="$([ "$hook" = "$WINE_HOOK" ] && printf 1 || printf 0)" \
     HOOK="$hook" \
     bash -c '
         set -Eeuo pipefail

@@ -168,6 +168,7 @@ jobs:
           PLATFORM: ${{ matrix.platform_name }}
         run: |
           docker run --rm --platform "$PLATFORM" \
+            -e PLATFORM="$PLATFORM" \
             --entrypoint /bin/bash "$IMAGE" -lc '
               set -euo pipefail
               command -v steamcmd

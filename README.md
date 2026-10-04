@@ -68,10 +68,14 @@ $SERVER_PORT
 | `STEAM_VALIDATE` | `false` | Add `validate` to the update |
 | `STEAMCMD_RETRIES` | `5` | Update attempts |
 | `STEAMCMD_PATH` | `/opt/steamcmd` | SteamCMD installation |
-| `STEAMCMD_PROFILE` | `/app/.steam/profile` | Persistent Steam state |
+| `STEAMCMD_PROFILE` | `/app/.steam/profile` | Canonical persistent Steam client/profile state |
 | `STEAM_LIBRARY` | `/app/.steam/library` | Persistent Steam/workshop cache |
 
 SteamCMD update failures are fatal; the application is not launched after an incomplete update.
+
+The base treats `STEAMCMD_PROFILE` as authoritative. Before SteamCMD runs, the normal Linux client path `$HOME/Steam` is redirected to that profile, and the Steam SDK client-library links are recreated there at runtime. This keeps Steam client/profile state inside the declared persistent application boundary even when `/app` is a bind mount or an existing volume. If a derivative overrides `STEAMCMD_PROFILE`, the redirect follows that override.
+
+The SteamCMD program itself remains image-owned under `/opt/steamcmd`. SteamCMD may still self-update those program files after a container is recreated; that is distinct from downloading the game depot again.
 
 ### Compatibility layers
 
@@ -97,11 +101,11 @@ The support matrix carries one stable Wine line and one staging Wine line per De
 
 | Path | Purpose |
 | --- | --- |
-| `/app` | Game files, Steam state, compatibility prefixes |
+| `/app` | Persistent application installation state: game files, Steam state, compatibility prefixes |
 | `/world` | Saves and administrator-owned game configuration |
 | `/var/log/container` | Writable runtime logs; normally ephemeral |
 
-Derivative images should link game-specific save/configuration locations into `/world`.
+The base reserves `$APP_FILES/.steam` for Steam management state and `$APP_FILES/.compat` for compatibility-layer state. Derivative images should link game-specific save/configuration locations into `/world`.
 
 ## Hooks
 

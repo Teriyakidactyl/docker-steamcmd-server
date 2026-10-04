@@ -51,10 +51,14 @@ jobs:
             installers/hooks/pre-startup/*.sh \
             runtime/container/*.sh \
             tests/test_prefix_hooks.sh \
+            tests/test_steamcmd_profile.sh \
             tests/compat-prefix-smoke.sh
 
       - name: Test compatibility prefix hooks
         run: bash tests/test_prefix_hooks.sh
+
+      - name: Test SteamCMD profile contract
+        run: bash tests/test_steamcmd_profile.sh
 
       - name: Test matrix generator
         run: python .github/scripts/test_generate_matrix.py
@@ -205,7 +209,19 @@ jobs:
                 --name "$container_name" \
                 --platform "$PLATFORM" \
                 --entrypoint /bin/bash \
-                "$IMAGE" -lc 'set -euo pipefail; steamcmd +login anonymous +quit' \
+                "$IMAGE" -lc '
+                  set -euo pipefail
+                  source /etc/environment
+                  source "$SCRIPTS/container/logging.sh"
+                  export UPDATE_ON_START=false
+                  export STEAM_SERVER_APPID=0
+                  export STEAM_PLATFORM_TYPE=linux
+                  export APP_NAME=steamcmd-smoke
+                  source "$HOOK_DIRECTORIES/pre-startup/10_steamcmd.sh"
+                  test -L "$HOME/Steam"
+                  test "$(realpath -m "$HOME/Steam")" = "$(realpath -m "$STEAMCMD_PROFILE")"
+                  steamcmd +login anonymous +quit
+                ' \
                 >"$output_file" 2>&1
             last_rc=$?
             set -e
@@ -213,7 +229,7 @@ jobs:
             cat "$output_file" || true
 
             if docker cp \
-                "$container_name:/home/container/Steam/logs/stderr.txt" \
+                "$container_name:/app/.steam/profile/logs/stderr.txt" \
                 "$stderr_file" >/dev/null 2>&1; then
               echo "----- SteamCMD stderr.txt -----"
               cat "$stderr_file" || true
@@ -233,6 +249,52 @@ jobs:
 
           echo "::error::SteamCMD smoke failed after 2 attempts; last exit $last_rc"
           exit "$last_rc"
+
+
+      - name: Smoke test SteamCMD profile persistence
+        if: matrix.compat_layer_type == 'native'
+        env:
+          IMAGE: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag_versioned_arch }}
+          PLATFORM: ${{ matrix.platform_name }}
+        run: |
+          set -euo pipefail
+          volume_name="steamcmd-profile-${GITHUB_RUN_ID}-${RANDOM}"
+
+          cleanup() {
+            docker volume rm -f "$volume_name" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker volume create "$volume_name" >/dev/null
+
+          for phase in seed verify; do
+            docker run --rm \
+              --platform "$PLATFORM" \
+              -v "$volume_name:/app" \
+              -e PROFILE_PHASE="$phase" \
+              --entrypoint /bin/bash \
+              "$IMAGE" -lc '
+                set -euo pipefail
+                source /etc/environment
+                source "$SCRIPTS/container/logging.sh"
+                export UPDATE_ON_START=false
+                export STEAM_SERVER_APPID=0
+                export STEAM_PLATFORM_TYPE=linux
+                export APP_NAME=steamcmd-profile-smoke
+                source "$HOOK_DIRECTORIES/pre-startup/10_steamcmd.sh"
+
+                test -L "$HOME/Steam"
+                test "$(realpath -m "$HOME/Steam")" = "$(realpath -m "$STEAMCMD_PROFILE")"
+                test "$(readlink "$STEAMCMD_PROFILE/sdk32/steamclient.so")" = "$STEAMCMD_PATH/linux32/steamclient.so"
+                test "$(readlink "$STEAMCMD_PROFILE/sdk64/steamclient.so")" = "$STEAMCMD_PATH/linux64/steamclient.so"
+
+                if [ "$PROFILE_PHASE" = "seed" ]; then
+                  printf "%s\n" persisted > "$STEAMCMD_PROFILE/.persistence-probe"
+                else
+                  grep -qx persisted "$STEAMCMD_PROFILE/.persistence-probe"
+                fi
+              '
+          done
 
       - name: Smoke test compatibility prefix
         if: matrix.compat_layer_type == 'wine' || matrix.compat_layer_type == 'proton'

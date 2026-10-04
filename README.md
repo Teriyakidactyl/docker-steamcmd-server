@@ -107,6 +107,21 @@ The support matrix carries one stable Wine line and one staging Wine line per De
 
 The base reserves `$APP_FILES/.steam` for Steam management state and `$APP_FILES/.compat` for compatibility-layer state. Derivative images should link game-specific save/configuration locations into `/world`.
 
+### Persistence lifecycle
+
+`UPDATE_ON_START=true` means SteamCMD performs an update check before every application launch. Seeing SteamCMD initialize, log in, or report update activity on every start does not by itself mean the game depot was downloaded again.
+
+With the default layout:
+
+- game files and their `steamapps/appmanifest_*.acf` metadata live under `$APP_FILES` and survive container recreation when that path is mounted persistently;
+- Steam client/profile state lives under `$STEAMCMD_PROFILE`, with `$HOME/Steam` redirected there at runtime;
+- Wine/Proton state lives under `$APP_FILES/.compat`;
+- the SteamCMD program itself remains image-owned under `/opt/steamcmd` and may perform its own client self-update again after an image/container recreation.
+
+A plain container restart preserves the container filesystem as well as mounted volumes. Recreating or replacing a container preserves application state only when the same persistent `$APP_FILES` and `$WORLD_FILES` storage is attached.
+
+Derivative images should avoid relying on files or symlinks baked into image layers beneath persistent mount points such as `$APP_FILES` or `$WORLD_FILES`. Runtime hooks should create or repair persistence topology idempotently so named volumes, existing volumes, and bind mounts behave consistently.
+
 ## Hooks
 
 Hooks live under `/usr/local/bin/container/hooks`. Supported hook directories include `pre-startup`, `startup`, `shutdown`, `hourly`, `daily`, `weekly`, and `monthly`.

@@ -142,6 +142,14 @@ The base pins the `docker-up` helper checkout with `DOCKER_UP_REF`, while the pr
 
 Binary downloads use fail-fast/retry behavior and validate archive/package structure before extraction. Box86/Box64 sources are commit-pinned.
 
+## Derivative authoring
+
+Authors building game-server images on this base should begin at
+[`docs/README.md`](docs/README.md). That documentation owns the reusable
+authoring patterns for derivative images, including configuration APIs,
+persistence topology, lifecycle validation, and the boundary between generic
+base behavior and game-specific behavior.
+
 ## Development
 
 GitHub Actions runs Bash syntax checks, ShellCheck, prefix-hook regression tests, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. Every Wine and Proton matrix row must initialize a clean compatibility prefix through the same pre-start hook used in production before a push run may publish its architecture tags. SteamCMD's network/self-update smoke runs only on the native row for each Debian/architecture pair because the compatibility rows reuse the same SteamCMD runtime; this avoids multiplying a network- and Box32-sensitive check across unrelated Wine/Proton cells.

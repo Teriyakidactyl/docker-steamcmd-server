@@ -22,7 +22,15 @@ COMPAT_LAYERS = [
         "architectures": ["amd64", "arm64"],
     },
     {"id": "wine-stable-11.0.0.0", "type": "wine", "wine_branch": "stable", "wine_version": "11.0.0.0", "architectures": ["amd64", "arm64"]},
-    {"id": "proton-11.7", "type": "proton", "proton_version": "11.7", "architectures": ["amd64"]},
+    {
+        # Proton 11 targets Steam Runtime 4 (Debian 13/Trixie). This image runs
+        # Proton directly rather than nesting Valve's pressure-vessel runtime.
+        "id": "proton-11.7",
+        "type": "proton",
+        "proton_version": "11.7",
+        "architectures": ["amd64"],
+        "base_codenames": ["trixie"],
+    },
     {"id": "proton-10.34", "type": "proton", "proton_version": "10.34", "architectures": ["amd64"]},
 ]
 
@@ -64,6 +72,14 @@ def wine_version_for_base(base_image: str, compat: dict) -> str:
         codename = base_image.split("-", 1)[0]
         return versions[codename]
     return compat.get("wine_version", "")
+
+
+def compat_supports_base(base_image: str, compat: dict) -> bool:
+    base_codenames = compat.get("base_codenames")
+    if not base_codenames:
+        return True
+    codename = base_image.split("-", 1)[0]
+    return codename in base_codenames
 
 
 def compat_id_for_base(base_image: str, compat: dict) -> str:
@@ -110,6 +126,8 @@ def generate_build_matrix(github_ref: str, registry_image_base: str) -> dict:
     for base_image in BASE_IMAGES:
         codename = base_image.split("-", 1)[0]
         for compat in COMPAT_LAYERS:
+            if not compat_supports_base(base_image, compat):
+                continue
             for arch in compat["architectures"]:
                 alias = compat_alias(compat)
                 versioned_stem = build_stem(base_image, compat)
@@ -155,6 +173,8 @@ def generate_manifest_matrix(github_ref: str, registry_image_base: str) -> dict:
     for base_image in BASE_IMAGES:
         codename = base_image.split("-", 1)[0]
         for compat in COMPAT_LAYERS:
+            if not compat_supports_base(base_image, compat):
+                continue
             alias = compat_alias(compat)
             versioned_stem = build_stem(base_image, compat)
             codename_stem = codename if not alias else f"{codename}_{alias}"

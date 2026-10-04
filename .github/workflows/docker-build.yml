@@ -190,34 +190,49 @@ jobs:
           IMAGE: ${{ env.REGISTRY_IMAGE }}:${{ matrix.tag_versioned_arch }}
           PLATFORM: ${{ matrix.platform_name }}
         run: |
-          docker run --rm --platform "$PLATFORM" \
-            --entrypoint /bin/bash "$IMAGE" -lc '
-              set -euo pipefail
-              last_rc=1
-              for attempt in 1 2; do
-                echo "SteamCMD smoke attempt $attempt/2"
-                if timeout --signal=TERM --kill-after=10s 300s \
-                    steamcmd +login anonymous +quit \
-                    >/tmp/steamcmd-smoke.log 2>&1; then
-                  exit 0
-                else
-                  last_rc=$?
-                fi
+          set -euo pipefail
+          last_rc=1
 
-                cat /tmp/steamcmd-smoke.log || true
-                if [ -f "$HOME/Steam/logs/stderr.txt" ]; then
-                  echo "----- SteamCMD stderr.txt -----"
-                  cat "$HOME/Steam/logs/stderr.txt"
-                fi
+          for attempt in 1 2; do
+            echo "SteamCMD smoke attempt $attempt/2"
+            container_name="steamcmd-smoke-${GITHUB_RUN_ID}-${attempt}-${RANDOM}"
+            output_file="$(mktemp)"
+            stderr_file="$(mktemp)"
 
-                pkill -9 -f "[/]opt/steamcmd" >/dev/null 2>&1 || true
-                if [ "$attempt" -lt 2 ]; then
-                  sleep 5
-                fi
-              done
-              echo "::error::SteamCMD smoke failed after 2 attempts; last exit $last_rc"
-              exit "$last_rc"
-            '
+            set +e
+            timeout --signal=TERM --kill-after=15s 330s \
+              docker run \
+                --name "$container_name" \
+                --platform "$PLATFORM" \
+                --entrypoint /bin/bash \
+                "$IMAGE" -lc 'set -euo pipefail; steamcmd +login anonymous +quit' \
+                >"$output_file" 2>&1
+            last_rc=$?
+            set -e
+
+            cat "$output_file" || true
+
+            if docker cp \
+                "$container_name:/home/container/Steam/logs/stderr.txt" \
+                "$stderr_file" >/dev/null 2>&1; then
+              echo "----- SteamCMD stderr.txt -----"
+              cat "$stderr_file" || true
+            fi
+
+            docker rm -f "$container_name" >/dev/null 2>&1 || true
+            rm -f "$output_file" "$stderr_file"
+
+            if [ "$last_rc" -eq 0 ]; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 2 ]; then
+              sleep 5
+            fi
+          done
+
+          echo "::error::SteamCMD smoke failed after 2 attempts; last exit $last_rc"
+          exit "$last_rc"
 
       - name: Smoke test compatibility prefix
         if: matrix.compat_layer_type == 'wine' || matrix.compat_layer_type == 'proton'

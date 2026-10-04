@@ -68,10 +68,14 @@ $SERVER_PORT
 | `STEAM_VALIDATE` | `false` | Add `validate` to the update |
 | `STEAMCMD_RETRIES` | `5` | Update attempts |
 | `STEAMCMD_PATH` | `/opt/steamcmd` | SteamCMD installation |
-| `STEAMCMD_PROFILE` | `/app/.steam/profile` | Persistent Steam state |
+| `STEAMCMD_PROFILE` | `/app/.steam/profile` | Canonical persistent Steam client/profile state |
 | `STEAM_LIBRARY` | `/app/.steam/library` | Persistent Steam/workshop cache |
 
 SteamCMD update failures are fatal; the application is not launched after an incomplete update.
+
+The base treats `STEAMCMD_PROFILE` as authoritative. Before SteamCMD runs, the normal Linux client path `$HOME/Steam` is redirected to that profile, and the Steam SDK client-library links are recreated there at runtime. This keeps Steam client/profile state inside the declared persistent application boundary even when `/app` is a bind mount or an existing volume. If a derivative overrides `STEAMCMD_PROFILE`, the redirect follows that override.
+
+The SteamCMD program itself remains image-owned under `/opt/steamcmd`. SteamCMD may still self-update those program files after a container is recreated; that is distinct from downloading the game depot again.
 
 ### Compatibility layers
 
@@ -83,19 +87,40 @@ Xvfb -> ARCH_COMMAND_PREFIX -> COMPAT_COMMAND -> executable -> arguments
 
 On arm64, `ARCH_COMMAND_PREFIX=box64` for 64-bit game processes. SteamCMD's 32-bit client is launched through Box64's Box32 mode while Valve's launcher retains its self-update/restart behavior. Box86 remains installed for derivative images that need it. Wine variants set `COMPAT_COMMAND=wine` (or `wine64` for older Wine). Keeping these separate also allows Wine helper tools such as `wineboot` to run correctly through Box64.
 
-Wine prefixes are persisted in `/app/.compat/wine`. Proton prefixes are persisted in `/app/.compat/proton`.
+Wine prefixes are persisted in `/app/.compat/wine`. Proton compatibility data is persisted in `/app/.compat/proton`, with Proton's Windows prefix under `pfx/`.
 
-Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Wine variant.
+Prefix initialization is completion-marked rather than inferred from a non-empty directory. If an earlier initialization was interrupted, the next start retries it non-destructively and writes the readiness marker only after the compatibility layer passes an operational check. `COMPAT_PREFIX_TIMEOUT` controls the initialization/verification ceiling in seconds and defaults to `300`.
+
+Wine prefix initialization defaults `WINE_BOOT_DLL_OVERRIDES` to `mscoree,mshtml=` so optional Wine Mono/Gecko installer dialogs cannot block a headless first boot. A derivative that intentionally manages those components may set `WINE_BOOT_DLL_OVERRIDES` explicitly, including to an empty value.
+
+Proton is currently amd64-only. ARM64 Windows dedicated servers should use a Wine variant. GE-Proton 11 targets Steam Runtime 4, which is based on Debian 13/Trixie; because this base runs Proton directly rather than embedding Valve's pressure-vessel runtime, Proton 11 is published only on Trixie. GE-Proton 10.34 remains available on both Trixie and Bookworm.
+
+The support matrix carries one stable Wine line and one staging Wine line per Debian base. WineHQ discontinued Bookworm packages after 11.10, so Bookworm staging remains on 11.10 while Trixie staging follows the current development release. WineHQ's current Bookworm/Trixie packaging is split by PE architecture; the image extracts the i386 PE payload as well as the amd64 payload for new-WoW64 prefixes, without installing a separate 32-bit Unix runtime.
 
 ## Persistence
 
 | Path | Purpose |
 | --- | --- |
-| `/app` | Game files, Steam state, compatibility prefixes |
+| `/app` | Persistent application installation state: game files, Steam state, compatibility prefixes |
 | `/world` | Saves and administrator-owned game configuration |
 | `/var/log/container` | Writable runtime logs; normally ephemeral |
 
-Derivative images should link game-specific save/configuration locations into `/world`.
+The base reserves `$APP_FILES/.steam` for Steam management state and `$APP_FILES/.compat` for compatibility-layer state. Derivative images should link game-specific save/configuration locations into `/world`.
+
+### Persistence lifecycle
+
+`UPDATE_ON_START=true` means SteamCMD performs an update check before every application launch. Seeing SteamCMD initialize, log in, or report update activity on every start does not by itself mean the game depot was downloaded again.
+
+With the default layout:
+
+- game files and their `steamapps/appmanifest_*.acf` metadata live under `$APP_FILES` and survive container recreation when that path is mounted persistently;
+- Steam client/profile state lives under `$STEAMCMD_PROFILE`, with `$HOME/Steam` redirected there at runtime;
+- Wine/Proton state lives under `$APP_FILES/.compat`;
+- the SteamCMD program itself remains image-owned under `/opt/steamcmd` and may perform its own client self-update again after an image/container recreation.
+
+A plain container restart preserves the container filesystem as well as mounted volumes. Recreating or replacing a container preserves application state only when the same persistent `$APP_FILES` and `$WORLD_FILES` storage is attached.
+
+Derivative images should avoid relying on files or symlinks baked into image layers beneath persistent mount points such as `$APP_FILES` or `$WORLD_FILES`. Runtime hooks should create or repair persistence topology idempotently so named volumes, existing volumes, and bind mounts behave consistently.
 
 ## Hooks
 
@@ -119,4 +144,8 @@ Binary downloads use fail-fast/retry behavior and validate archive/package struc
 
 ## Development
 
-GitHub Actions runs Bash syntax checks, ShellCheck, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. `tests/containers.sh` derives its tag list from the same matrix generator for broader local smoke testing.
+GitHub Actions runs Bash syntax checks, ShellCheck, prefix-hook regression tests, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. Every Wine and Proton matrix row must initialize a clean compatibility prefix through the same pre-start hook used in production before a push run may publish its architecture tags. SteamCMD's network/self-update smoke runs only on the native row for each Debian/architecture pair because the compatibility rows reuse the same SteamCMD runtime; this avoids multiplying a network- and Box32-sensitive check across unrelated Wine/Proton cells.
+
+`tests/compat-prefix-smoke.sh IMAGE PLATFORM TYPE` runs that compatibility-prefix gate locally for a built image, where `TYPE` is `wine` or `proton`. `tests/containers.sh` derives its broader tag list from the same matrix generator.
+
+Pull-request and manual-dispatch runs validate without publishing. Only push events on the configured publication branches may push architecture tags and create manifests.

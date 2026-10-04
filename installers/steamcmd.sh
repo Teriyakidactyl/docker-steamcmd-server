@@ -7,7 +7,7 @@ set -Eeuo pipefail
 : "${STEAMCMD_PROFILE:?STEAMCMD_PROFILE is required}"
 : "${CONTAINER_USER:?CONTAINER_USER is required}"
 
-mkdir -p "$STEAMCMD_PATH" "$STEAMCMD_PROFILE/sdk32" "$STEAMCMD_PROFILE/sdk64"
+mkdir -p "$STEAMCMD_PATH"
 
 tmp_archive="$(mktemp)"
 curl --fail --show-error --silent --location \
@@ -17,9 +17,6 @@ curl --fail --show-error --silent --location \
 
 tar -xzf "$tmp_archive" -C "$STEAMCMD_PATH"
 rm -f "$tmp_archive"
-
-ln -sf "$STEAMCMD_PATH/linux32/steamclient.so" "$STEAMCMD_PROFILE/sdk32/steamclient.so"
-ln -sf "$STEAMCMD_PATH/linux64/steamclient.so" "$STEAMCMD_PROFILE/sdk64/steamclient.so"
 
 if [ "$TARGETARCH" = "arm64" ]; then
     cat > "$STEAMCMD_EXEC" <<'EOF'
@@ -45,7 +42,7 @@ EOF
 fi
 chmod 0755 "$STEAMCMD_EXEC"
 chown root:root "$STEAMCMD_EXEC"
-chown -R "$CONTAINER_USER:$CONTAINER_USER" "$STEAMCMD_PATH" "$STEAMCMD_PROFILE"
+chown -R "$CONTAINER_USER:$CONTAINER_USER" "$STEAMCMD_PATH"
 
 mkdir -p "$HOOK_DIRECTORIES/pre-startup"
 install -m 0755 /tmp/installers/hooks/pre-startup/10_steamcmd.sh \

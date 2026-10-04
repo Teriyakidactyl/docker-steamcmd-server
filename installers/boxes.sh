@@ -16,13 +16,13 @@ fi
 cat >> /etc/environment <<'EOF'
 
 export BOX86_LOG=1
-export BOX86_TRACE_FILE=/var/log/box86.log
+export BOX86_TRACE_FILE=${LOGS:-/var/log/container}/box86.log
 export BOX64_LOG=1
 export BOX64_DYNAREC=1
 export BOX64_DYNAREC_BLEEDING_EDGE=0
 export BOX64_DYNAREC_BIGBLOCK=0
 export BOX64_DYNAREC_STRONGMEM=2
-export BOX64_TRACE_FILE=/var/log/box64.log
+export BOX64_TRACE_FILE=${LOGS:-/var/log/container}/box64.log
 export SDL_AUDIODRIVER=dummy
 export ARCH_COMMAND_PREFIX=box64
 EOF

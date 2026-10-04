@@ -88,7 +88,9 @@ if [ ! -f "$READY_MARKER" ]; then
         ver
     )
 
-    if ! run_logged "20_proton_prefix.sh" "${verify_cmd[@]}"; then
+    if run_logged "20_proton_prefix.sh" "${verify_cmd[@]}"; then
+        verify_rc=0
+    else
         verify_rc=$?
         stop_proton_wineserver
         log "ERROR: Proton prefix operational verification failed with exit $verify_rc" "20_proton_prefix.sh"

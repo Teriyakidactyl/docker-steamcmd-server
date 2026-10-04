@@ -210,7 +210,7 @@ jobs:
                   cat "$HOME/Steam/logs/stderr.txt"
                 fi
 
-                pkill -9 -f "/opt/steamcmd" >/dev/null 2>&1 || true
+                pkill -9 -f "[/]opt/steamcmd" >/dev/null 2>&1 || true
                 if [ "$attempt" -lt 2 ]; then
                   sleep 5
                 fi

@@ -120,7 +120,9 @@ if [ ! -f "$READY_MARKER" ]; then
     read -r -a compat_parts <<< "${COMPAT_COMMAND:-wine}"
     verify_cmd+=("${compat_parts[@]}" cmd /c ver)
 
-    if ! run_logged "20_wine_prefix.sh" "${verify_cmd[@]}"; then
+    if run_logged "20_wine_prefix.sh" "${verify_cmd[@]}"; then
+        verify_rc=0
+    else
         verify_rc=$?
         stop_wineserver
         log "ERROR: Wine prefix operational verification failed with exit $verify_rc" "20_wine_prefix.sh"

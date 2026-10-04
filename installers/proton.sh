@@ -21,6 +21,10 @@ case "${DEBIAN_VERSION_CODENAME:-}" in
     *)       LIBPNG_PACKAGE="libpng16-16" ;;
 esac
 
+# Keep these host dependencies explicit because GE-Proton is unpacked directly
+# rather than installed through a distro package manager. GE-Proton 11.7, for
+# example, imports libvulkan.so.1 from its launcher/runtime path and failed at
+# prefix creation until libvulkan1 was part of this closure.
 apt-get install -y --no-install-recommends \
     xvfb xauth fontconfig python3 libegl1 libvulkan1 libfreetype6 "$LIBPNG_PACKAGE" \
     libjpeg62-turbo libglib2.0-0 libdbus-1-3 libnss3 libx11-6
@@ -41,6 +45,9 @@ PROTON_TAG_NAME="GE-Proton${VERSION_FORMATTED}"
 PROTON_VERSION_MAJOR="${VERSION_CLEANED%%.*}"
 PROTON_ARCHIVE_NAME="${PROTON_TAG_NAME}.tar.gz"
 
+# GE-Proton changed its release-asset naming at major 11. Older releases use
+# "GE-ProtonX-Y.tar.gz"; 11+ uses architecture-qualified archives. A generic
+# "latest-looking" URL therefore 404s even when the release itself exists.
 # GE-Proton 11 introduced architecture-qualified release archives. Proton is
 # currently amd64-only in this base, so select the x86_64 artifact for 11+.
 if [[ "$PROTON_VERSION_MAJOR" =~ ^[0-9]+$ ]] && [ "$PROTON_VERSION_MAJOR" -ge 11 ]; then

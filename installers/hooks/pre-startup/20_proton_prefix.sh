@@ -6,6 +6,10 @@ if [ -z "${WINEPREFIX:-}" ]; then
 fi
 
 PREFIX_TIMEOUT="${COMPAT_PREFIX_TIMEOUT:-300}"
+# Proton has the same interrupted-prefix hazard as Wine: wineboot can leave
+# non-empty compatibility data without producing a usable prefix. A completion
+# marker is therefore written only after an independent Windows command and
+# registry assertion succeed.
 READY_MARKER="$WINEPREFIX/.steamcmd-server-proton-ready"
 PROTON_PREFIX="$WINEPREFIX/pfx"
 
@@ -34,8 +38,21 @@ run_logged() {
 }
 
 stop_proton_wineserver() {
-    timeout         --signal=TERM         --kill-after=5s         15s         proton runinprefix wineserver -k         >/dev/null 2>&1 || true
-    timeout         --signal=TERM         --kill-after=5s         15s         proton runinprefix wineserver -w         >/dev/null 2>&1 || true
+    # Proton/Wine may leave helper processes or inherited output descriptors
+    # alive after wineboot. Kill and then wait before verification so cmd /c ver
+    # proves that the persisted prefix can start cleanly in a fresh invocation.
+    timeout \
+        --signal=TERM \
+        --kill-after=5s \
+        15s \
+        proton runinprefix wineserver -k \
+        >/dev/null 2>&1 || true
+    timeout \
+        --signal=TERM \
+        --kill-after=5s \
+        15s \
+        proton runinprefix wineserver -w \
+        >/dev/null 2>&1 || true
 }
 
 mkdir -p "$WINEPREFIX"
@@ -61,6 +78,10 @@ if [ ! -f "$READY_MARKER" ]; then
         -iuf
     )
 
+    # As with Wine, initialization output/exit can be noisy even when the
+    # resulting prefix is usable. Treat the later operational command as the
+    # authoritative capability check instead of accepting/rejecting on wineboot
+    # alone.
     init_rc=0
     if run_logged "20_proton_prefix.sh" "${init_cmd[@]}"; then
         init_rc=0

@@ -134,6 +134,10 @@ jobs:
             org.opencontainers.image.created=${{ matrix.build_date }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      # Build/load first and exercise the exact candidate locally. Production
+      # tags must not move until runtime capability checks pass. Push events do
+      # a second Buildx invocation later from this warm cache so normal registry
+      # manifests/attestations are produced only for a validated candidate.
       - name: Build test image
         uses: docker/build-push-action@v6
         with:
@@ -197,6 +201,10 @@ jobs:
           set -euo pipefail
           last_rc=1
 
+          # Keep retry control on the GitHub runner, outside SteamCMD's
+          # container. An earlier implementation tried to pkill SteamCMD from
+          # inside the same container; process matching/cleanup terminated the
+          # shell responsible for starting attempt 2 on every native row.
           for attempt in 1 2; do
             echo "SteamCMD smoke attempt $attempt/2"
             container_name="steamcmd-smoke-${GITHUB_RUN_ID}-${attempt}-${RANDOM}"
@@ -251,6 +259,9 @@ jobs:
           exit "$last_rc"
 
 
+      # This is intentionally a two-container test sharing one /app volume.
+      # A same-container check cannot prove recreation semantics, which is the
+      # failure mode the STEAMCMD_PROFILE redirect is meant to close.
       - name: Smoke test SteamCMD profile persistence
         if: matrix.compat_layer_type == 'native'
         env:
@@ -347,6 +358,9 @@ jobs:
             exit 1
           fi
 
+      # Pull requests and workflow_dispatch are validation-only. Only pushes to
+      # the configured publication branches reach this point; this prevents a
+      # manually-dispatched feature branch from overwriting production aliases.
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -355,6 +369,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_PAT }}
 
+      # Rebuild from the warm GHA cache rather than pushing before smoke tests.
+      # This deliberately trades a small amount of duplicate orchestration for
+      # the stronger guarantee that normal architecture tags only reference a
+      # candidate that passed its runtime contract.
       - name: Publish validated image
         if: github.event_name == 'push'
         uses: docker/build-push-action@v6

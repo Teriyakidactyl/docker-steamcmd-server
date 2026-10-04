@@ -18,6 +18,10 @@ WINE_VER_MAJOR="${WINE_VERSION%%.*}"
 WINE_VER_MINOR="$(printf '%s' "$WINE_VERSION" | cut -d. -f2)"
 WINE_VER_MINOR="${WINE_VER_MINOR:-0}"
 
+# Wine 10.2+ uses the new WoW64 architecture model for these images. Do not
+# confuse this runtime model with WineHQ's Debian package split: new WoW64 avoids
+# 32-bit *Unix libraries*, but WineHQ still ships required 32-bit Windows PE
+# builtins in the i386 package (handled below).
 if [ "$WINE_VER_MAJOR" -gt 10 ] || { [ "$WINE_VER_MAJOR" -eq 10 ] && [ "$WINE_VER_MINOR" -ge 2 ]; }; then
     WINEARCH="wow64"
     WINE_EXECUTABLE="wine"
@@ -83,6 +87,7 @@ download_deb() {
 download_deb "$WINE_64_MAIN_BIN"
 download_deb "$WINE_64_SUPPORT_BIN"
 
+# This distinction is easy to regress:
 # WineHQ's supported Bookworm/Trixie packages are still split into amd64 and
 # i386 payloads even when Wine itself is run in the new WoW64 mode. The i386
 # package supplies the 32-bit PE builtins that populate C:\\windows\\syswow64.

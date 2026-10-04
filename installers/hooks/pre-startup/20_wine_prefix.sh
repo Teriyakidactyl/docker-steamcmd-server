@@ -6,6 +6,10 @@ if [ -z "${WINEPREFIX:-}" ]; then
 fi
 
 PREFIX_TIMEOUT="${COMPAT_PREFIX_TIMEOUT:-300}"
+# Never use "directory is non-empty" as the readiness test. wineboot creates
+# registry/directories incrementally, so an interrupted first boot can leave a
+# convincing-looking but unusable prefix. This exact state originally caused
+# later starts to skip initialization and Moria/Winetricks to fail.
 READY_MARKER="$WINEPREFIX/.steamcmd-server-wine-ready"
 BOOT_DLL_OVERRIDES="${WINE_BOOT_DLL_OVERRIDES-mscoree,mshtml=}"
 
@@ -94,6 +98,7 @@ if [ ! -f "$READY_MARKER" ]; then
         init_rc=$?
     fi
 
+    # Do not make wineboot's exit status the sole capability contract.
     # Wineboot can finish the useful prefix work while a detached Wine process
     # keeps its process tree or output descriptors alive. Always end that
     # initialization server before verification so the next command proves the
@@ -135,6 +140,11 @@ if [ ! -f "$READY_MARKER" ]; then
         return 1
     fi
 
+    # cmd /c ver proves 64-bit Wine can execute, but that alone can still
+    # false-pass a partial new-WoW64 prefix. Moria exposed this when Winetricks
+    # needed SysWOW64/regedit.exe and the amd64-only WineHQ extraction had never
+    # populated the 32-bit PE builtins. Keep this assertion unless the WineHQ
+    # packaging/layout contract is deliberately changed and re-proven.
     if [ "${WINEARCH:-}" = "wow64" ] && [ ! -f "$WINEPREFIX/drive_c/windows/syswow64/regedit.exe" ]; then
         log "ERROR: WoW64 prefix is missing C:\\windows\\syswow64\\regedit.exe" "20_wine_prefix.sh"
         return 1

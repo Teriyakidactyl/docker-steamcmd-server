@@ -8,6 +8,19 @@ for var in "${REQUIRED_VARS[@]}"; do
     fi
 done
 
+# SteamCMD derives part of its client state from $HOME/Steam. Merely declaring
+# STEAMCMD_PROFILE does not make SteamCMD use it; CI originally proved that the
+# client was still writing under /home/container/Steam while our documented
+# persistent profile lived under /app.
+#
+# Keep HOME itself unchanged because Wine/Winetricks/game processes may also use
+# it. Instead, make SteamCMD's conventional path resolve to the API-controlled
+# STEAMCMD_PROFILE. This must happen at runtime: /app is commonly a named volume
+# or bind mount, so links/files created there during image build may be hidden.
+#
+# Migration is deliberately conservative. A normal directory is copied into the
+# persistent profile, but an unexpected symlink is treated as operator/consumer
+# intent and causes a hard failure rather than silently redirecting it.
 ensure_steamcmd_profile() {
     local steam_home="$HOME/Steam"
     local profile_path
@@ -56,6 +69,9 @@ ensure_steamcmd_profile() {
         fi
     fi
 
+    # These SDK links also belong to the runtime profile contract. Creating
+    # them here (rather than in the image layer) makes fresh bind mounts,
+    # pre-existing volumes, and recreated containers converge to the same state.
     mkdir -p "$profile_path/sdk32" "$profile_path/sdk64"
     ln -sfn "$STEAMCMD_PATH/linux32/steamclient.so" "$profile_path/sdk32/steamclient.so"
     ln -sfn "$STEAMCMD_PATH/linux64/steamclient.so" "$profile_path/sdk64/steamclient.so"

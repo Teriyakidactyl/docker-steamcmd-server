@@ -6,6 +6,10 @@ import json
 import re
 import sys
 
+# This is a publication/support matrix, not a historical compatibility farm.
+# Keep rows only for combinations we intentionally support. Old versions remain
+# available through immutable/versioned registry history; do not keep adding
+# matrix dimensions merely to preserve historical test coverage.
 BASE_IMAGES = [
     "trixie-20260421-slim",
     "bookworm-20260421-slim",
@@ -14,7 +18,10 @@ BASE_IMAGES = [
 COMPAT_LAYERS = [
     {"id": "native", "type": "native", "architectures": ["amd64", "arm64"]},
     {
-        # WineHQ discontinued Bookworm binaries after 11.10.
+        # Wine staging must be base-aware. WineHQ discontinued Bookworm
+        # binaries after 11.10, while Trixie continues on the current line.
+        # Do not "simplify" this into one global staging version without first
+        # verifying that WineHQ publishes that exact version for both bases.
         "id": "wine-staging",
         "type": "wine",
         "wine_branch": "staging",
@@ -39,6 +46,10 @@ PLATFORMS = {
     "arm64": "linux/arm64",
 }
 
+# Box86/Box64 are one pinned ARM compatibility bundle shared by all ARM64 rows,
+# not independent matrix dimensions. Making emulator versions dimensions would
+# multiply the publication matrix without representing additional supported
+# products; temporary comparisons belong in test-only work instead.
 EMULATORS = {
     "box86": {
         "version": "0.3.9",

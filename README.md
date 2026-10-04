@@ -125,7 +125,7 @@ Binary downloads use fail-fast/retry behavior and validate archive/package struc
 
 ## Development
 
-GitHub Actions runs Bash syntax checks, ShellCheck, prefix-hook regression tests, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. Every Wine and Proton matrix row must initialize a clean compatibility prefix through the same pre-start hook used in production before a push run may publish its architecture tags.
+GitHub Actions runs Bash syntax checks, ShellCheck, prefix-hook regression tests, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. Every Wine and Proton matrix row must initialize a clean compatibility prefix through the same pre-start hook used in production before a push run may publish its architecture tags. SteamCMD's network/self-update smoke runs only on the native row for each Debian/architecture pair because the compatibility rows reuse the same SteamCMD runtime; this avoids multiplying a network- and Box32-sensitive check across unrelated Wine/Proton cells.
 
 `tests/compat-prefix-smoke.sh IMAGE PLATFORM TYPE` runs that compatibility-prefix gate locally for a built image, where `TYPE` is `wine` or `proton`. `tests/containers.sh` derives its broader tag list from the same matrix generator.
 

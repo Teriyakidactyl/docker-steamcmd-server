@@ -7,15 +7,55 @@ fi
 
 PREFIX_TIMEOUT="${COMPAT_PREFIX_TIMEOUT:-300}"
 READY_MARKER="$WINEPREFIX/.steamcmd-server-wine-ready"
-# Headless Wine initialization can otherwise block indefinitely on the optional
-# Mono/Gecko installer dialogs. Derivatives can set this variable explicitly,
-# including to an empty string, when they intentionally want those prompts.
 BOOT_DLL_OVERRIDES="${WINE_BOOT_DLL_OVERRIDES-mscoree,mshtml=}"
 
 if ! [[ "$PREFIX_TIMEOUT" =~ ^[0-9]+$ ]] || [ "$PREFIX_TIMEOUT" -lt 1 ]; then
     log "ERROR: COMPAT_PREFIX_TIMEOUT must be a positive integer" "20_wine_prefix.sh"
     return 1
 fi
+
+run_logged() {
+    local source_name="$1"
+    shift
+    local output_file
+    local rc=0
+
+    output_file="$(mktemp)"
+    if "$@" >"$output_file" 2>&1; then
+        rc=0
+    else
+        rc=$?
+    fi
+    if [ -s "$output_file" ]; then
+        log_stdout "$source_name" < "$output_file"
+    fi
+    rm -f "$output_file"
+    return "$rc"
+}
+
+stop_wineserver() {
+    local action
+    local -a cmd
+    local -a arch_parts=()
+
+    if [ -n "${ARCH_COMMAND_PREFIX:-}" ]; then
+        read -r -a arch_parts <<< "$ARCH_COMMAND_PREFIX"
+    fi
+
+    for action in -k -w; do
+        cmd=(
+            timeout
+            --signal=TERM
+            --kill-after=5s
+            15s
+        )
+        if [ "${#arch_parts[@]}" -gt 0 ]; then
+            cmd+=("${arch_parts[@]}")
+        fi
+        cmd+=(wineserver "$action")
+        "${cmd[@]}" >/dev/null 2>&1 || true
+    done
+}
 
 mkdir -p "$WINEPREFIX"
 
@@ -40,10 +80,28 @@ if [ ! -f "$READY_MARKER" ]; then
         init_cmd+=("${arch_parts[@]}")
     fi
     init_cmd+=(wineboot -iuf)
+
+    init_rc=0
     if [ -n "$BOOT_DLL_OVERRIDES" ]; then
-        WINEDLLOVERRIDES="$BOOT_DLL_OVERRIDES" "${init_cmd[@]}" | log_stdout "20_wine_prefix.sh"
+        if WINEDLLOVERRIDES="$BOOT_DLL_OVERRIDES" run_logged "20_wine_prefix.sh" "${init_cmd[@]}"; then
+            init_rc=0
+        else
+            init_rc=$?
+        fi
+    elif run_logged "20_wine_prefix.sh" "${init_cmd[@]}"; then
+        init_rc=0
     else
-        "${init_cmd[@]}" | log_stdout "20_wine_prefix.sh"
+        init_rc=$?
+    fi
+
+    # Wineboot can finish the useful prefix work while a detached Wine process
+    # keeps its process tree or output descriptors alive. Always end that
+    # initialization server before verification so the next command proves the
+    # persisted prefix can start cleanly.
+    stop_wineserver
+
+    if [ "$init_rc" -ne 0 ]; then
+        log "Wine prefix initialization command exited $init_rc; validating the resulting prefix before failing" "20_wine_prefix.sh"
     fi
 
     declare -a verify_cmd=(
@@ -61,7 +119,14 @@ if [ ! -f "$READY_MARKER" ]; then
     fi
     read -r -a compat_parts <<< "${COMPAT_COMMAND:-wine}"
     verify_cmd+=("${compat_parts[@]}" cmd /c ver)
-    "${verify_cmd[@]}" | log_stdout "20_wine_prefix.sh"
+
+    if ! run_logged "20_wine_prefix.sh" "${verify_cmd[@]}"; then
+        verify_rc=$?
+        stop_wineserver
+        log "ERROR: Wine prefix operational verification failed with exit $verify_rc" "20_wine_prefix.sh"
+        return 1
+    fi
+    stop_wineserver
 
     if [ ! -s "$WINEPREFIX/system.reg" ]; then
         log "ERROR: Wine prefix initialization did not create system.reg" "20_wine_prefix.sh"

@@ -43,12 +43,20 @@ if [ "${MOCK_EXPECT_WINE_BOOT_OVERRIDES:-0}" = "1" ] && [ "${WINEDLLOVERRIDES:-}
     exit 18
 fi
 printf 'wineboot\n' >> "$MOCK_COUNTER"
+if [ "${MOCK_PREFIX_MODE:-success}" = "incomplete" ]; then
+    exit 17
+fi
 mkdir -p "$WINEPREFIX/drive_c/windows/syswow64"
 printf 'registry\n' > "$WINEPREFIX/system.reg"
 touch "$WINEPREFIX/drive_c/windows/syswow64/regedit.exe"
-if [ "${MOCK_FAIL_PREFIX:-0}" = "1" ]; then
-    exit 17
+if [ "${MOCK_PREFIX_MODE:-success}" = "late-failure" ]; then
+    exit 124
 fi
+EOF
+
+cat > "$MOCK_BIN/wineserver" <<'EOF'
+#!/usr/bin/env bash
+exit 0
 EOF
 
 cat > "$MOCK_BIN/wine" <<'EOF'
@@ -68,9 +76,16 @@ case "${1:-}" in
         printf 'proton-wineboot\n' >> "$MOCK_COUNTER"
         mkdir -p "$WINEPREFIX/pfx"
         printf 'registry\n' > "$WINEPREFIX/pfx/system.reg"
-        if [ "${MOCK_FAIL_PREFIX:-0}" = "1" ]; then
+        if [ "${MOCK_PREFIX_MODE:-success}" = "incomplete" ]; then
+            rm -f "$WINEPREFIX/pfx/system.reg"
             exit 17
         fi
+        if [ "${MOCK_PREFIX_MODE:-success}" = "late-failure" ]; then
+            exit 124
+        fi
+        ;;
+    wineserver)
+        exit 0
         ;;
     cmd)
         exit 0
@@ -81,13 +96,13 @@ case "${1:-}" in
 esac
 EOF
 
-chmod 0755 "$MOCK_BIN/xvfb-run" "$MOCK_BIN/wineboot" "$MOCK_BIN/wine" "$MOCK_BIN/proton"
+chmod 0755 "$MOCK_BIN/xvfb-run" "$MOCK_BIN/wineboot" "$MOCK_BIN/wine" "$MOCK_BIN/wineserver" "$MOCK_BIN/proton"
 
 run_hook() {
     local hook="$1"
     local prefix="$2"
     local counter="$3"
-    local fail_prefix="${4:-0}"
+    local prefix_mode="${4:-success}"
 
     PATH="$MOCK_BIN:$PATH" \
     WINEPREFIX="$prefix" \
@@ -96,7 +111,7 @@ run_hook() {
     ARCH_COMMAND_PREFIX="" \
     COMPAT_PREFIX_TIMEOUT=5 \
     MOCK_COUNTER="$counter" \
-    MOCK_FAIL_PREFIX="$fail_prefix" \
+    MOCK_PREFIX_MODE="$prefix_mode" \
     MOCK_EXPECT_WINE_BOOT_OVERRIDES="$([ "$hook" = "$WINE_HOOK" ] && printf 1 || printf 0)" \
     HOOK="$hook" \
     bash -c '
@@ -120,10 +135,16 @@ run_hook "$WINE_HOOK" "$wine_prefix" "$wine_counter"
 wine_failed="$TEST_ROOT/wine-failed"
 wine_failed_counter="$TEST_ROOT/wine-failed-counter"
 mkdir -p "$wine_failed"
-if run_hook "$WINE_HOOK" "$wine_failed" "$wine_failed_counter" 1; then
+if run_hook "$WINE_HOOK" "$wine_failed" "$wine_failed_counter" incomplete; then
     fail "Failed Wine initialization was reported as successful"
 fi
 [ ! -e "$wine_failed/.steamcmd-server-wine-ready" ] || fail "Failed Wine initialization wrote a readiness marker"
+
+wine_late="$TEST_ROOT/wine-late"
+wine_late_counter="$TEST_ROOT/wine-late-counter"
+mkdir -p "$wine_late"
+run_hook "$WINE_HOOK" "$wine_late" "$wine_late_counter" late-failure
+[ -f "$wine_late/.steamcmd-server-wine-ready" ] || fail "Operational Wine prefix was rejected after late wineboot failure"
 
 proton_prefix="$TEST_ROOT/proton-prefix"
 proton_counter="$TEST_ROOT/proton-counter"
@@ -138,9 +159,15 @@ run_hook "$PROTON_HOOK" "$proton_prefix" "$proton_counter"
 proton_failed="$TEST_ROOT/proton-failed"
 proton_failed_counter="$TEST_ROOT/proton-failed-counter"
 mkdir -p "$proton_failed"
-if run_hook "$PROTON_HOOK" "$proton_failed" "$proton_failed_counter" 1; then
+if run_hook "$PROTON_HOOK" "$proton_failed" "$proton_failed_counter" incomplete; then
     fail "Failed Proton initialization was reported as successful"
 fi
 [ ! -e "$proton_failed/.steamcmd-server-proton-ready" ] || fail "Failed Proton initialization wrote a readiness marker"
+
+proton_late="$TEST_ROOT/proton-late"
+proton_late_counter="$TEST_ROOT/proton-late-counter"
+mkdir -p "$proton_late"
+run_hook "$PROTON_HOOK" "$proton_late" "$proton_late_counter" late-failure
+[ -f "$proton_late/.steamcmd-server-proton-ready" ] || fail "Operational Proton prefix was rejected after late wineboot failure"
 
 echo "Compatibility prefix hook tests passed"

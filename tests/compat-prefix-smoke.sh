@@ -25,11 +25,12 @@ cleanup() {
 trap cleanup EXIT
 
 set +e
-timeout --signal=TERM --kill-after=15s 360s \
+timeout --signal=TERM --kill-after=15s 420s \
     docker run \
         --name "$CONTAINER_NAME" \
         --platform "$PLATFORM" \
         -e UPDATE_ON_START=false \
+        -e COMPAT_PREFIX_TIMEOUT=180 \
         -e STEAM_SERVER_APPID=0 \
         -e APP_NAME=compat-prefix-smoke \
         -e APP_COMMAND=/bin/true \

@@ -14,6 +14,7 @@ BASE_IMAGES = [
 COMPAT_LAYERS = [
     {"id": "native", "type": "native", "architectures": ["amd64", "arm64"]},
     {
+        # WineHQ discontinued Bookworm binaries after 11.10.
         "id": "wine-staging",
         "type": "wine",
         "wine_branch": "staging",

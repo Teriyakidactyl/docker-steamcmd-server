@@ -23,9 +23,25 @@ if [ ! -f "$READY_MARKER" ]; then
         log "Initializing Proton prefix at $WINEPREFIX" "20_proton_prefix.sh"
     fi
 
-    timeout         --signal=TERM         --kill-after=10s         "${PREFIX_TIMEOUT}s"         xvfb-run         --auto-servernum         "--server-args=-screen 0 640x480x24:32 -nolisten tcp"         proton runinprefix wineboot -iuf         | log_stdout "20_proton_prefix.sh"
+    timeout \
+        --signal=TERM \
+        --kill-after=10s \
+        "${PREFIX_TIMEOUT}s" \
+        xvfb-run \
+        --auto-servernum \
+        "--server-args=-screen 0 640x480x24:32 -nolisten tcp" \
+        proton runinprefix wineboot -iuf \
+        | log_stdout "20_proton_prefix.sh"
 
-    timeout         --signal=TERM         --kill-after=10s         "${PREFIX_TIMEOUT}s"         xvfb-run         --auto-servernum         "--server-args=-screen 0 640x480x24:32 -nolisten tcp"         proton runinprefix cmd /c ver         | log_stdout "20_proton_prefix.sh"
+    timeout \
+        --signal=TERM \
+        --kill-after=10s \
+        "${PREFIX_TIMEOUT}s" \
+        xvfb-run \
+        --auto-servernum \
+        "--server-args=-screen 0 640x480x24:32 -nolisten tcp" \
+        proton runinprefix cmd /c ver \
+        | log_stdout "20_proton_prefix.sh"
 
     if [ ! -s "$PROTON_PREFIX/system.reg" ]; then
         log "ERROR: Proton prefix initialization did not create pfx/system.reg" "20_proton_prefix.sh"

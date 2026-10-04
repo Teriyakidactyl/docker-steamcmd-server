@@ -85,7 +85,16 @@ run_hook() {
     local counter="$3"
     local fail_prefix="${4:-0}"
 
-    PATH="$MOCK_BIN:$PATH"     WINEPREFIX="$prefix"     WINEARCH=wow64     COMPAT_COMMAND=wine     ARCH_COMMAND_PREFIX=""     COMPAT_PREFIX_TIMEOUT=5     MOCK_COUNTER="$counter"     MOCK_FAIL_PREFIX="$fail_prefix"     HOOK="$hook"     bash -c '
+    PATH="$MOCK_BIN:$PATH" \
+    WINEPREFIX="$prefix" \
+    WINEARCH=wow64 \
+    COMPAT_COMMAND=wine \
+    ARCH_COMMAND_PREFIX="" \
+    COMPAT_PREFIX_TIMEOUT=5 \
+    MOCK_COUNTER="$counter" \
+    MOCK_FAIL_PREFIX="$fail_prefix" \
+    HOOK="$hook" \
+    bash -c '
         set -Eeuo pipefail
         log() { :; }
         log_stdout() { cat >/dev/null; }

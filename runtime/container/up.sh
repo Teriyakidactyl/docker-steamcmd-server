@@ -206,7 +206,7 @@ application_group_members() {
         comm=${stat#*(}
         comm=${comm%)*}
 
-        printf '%s|%s|%s|%s|%s\n' "$pid" "$ppid" "$pgrp" "$state" "$comm"
+        printf '%s %s %s %s %s\n' "$pid" "$ppid" "$pgrp" "$state" "$comm"
     done
 }
 
@@ -220,7 +220,7 @@ log_application_group_snapshot() {
 
     log "$label: pgid=$APP_PGID members=$APPLICATION_GROUP_SNAPSHOT_COUNT" "up.sh"
     for member in "${members[@]}"; do
-        IFS='|' read -r pid ppid pgrp state comm <<< "$member"
+        read -r pid ppid pgrp state comm <<< "$member"
         log "Process: pid=$pid ppid=$ppid pgid=$pgrp state=$state name=$comm" "up.sh"
     done
 }

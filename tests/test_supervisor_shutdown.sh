@@ -45,6 +45,17 @@ wait_for_file() {
     [ -s "$path" ] || fail "Timed out waiting for $path"
 }
 
+snapshot_member_count() {
+    local label="$1"
+    local log_file="$2"
+    local line count
+
+    line="$(grep -F "$label:" "$log_file" | tail -1 || true)"
+    count="${line##* members=}"
+    [[ "$count" =~ ^[0-9]+$ ]] || fail "Could not parse member count for $label"
+    printf '%s\n' "$count"
+}
+
 cat > "$SCRIPTS_ROOT/container/logging.sh" <<'EOF'
 #!/usr/bin/env bash
 
@@ -135,8 +146,47 @@ child_exit_line="$(grep -Fn 'child-exit' "$graceful_root/trace.log" | cut -d: -f
 supervisor_exit_line="$(grep -Fn 'supervisor-exit' "$graceful_root/trace.log" | cut -d: -f1)"
 [ -n "$child_exit_line" ] || fail "Application child did not finish graceful cleanup"
 [ "$child_exit_line" -lt "$supervisor_exit_line" ] || fail "Supervisor exited before the application process group finished"
-grep -Fq 'Application process group stopped gracefully' "$graceful_root/supervisor.log" ||
+grep -Fq 'Shutdown target: leader_pid=' "$graceful_root/supervisor.log" ||
+    fail "Shutdown target metadata was not logged"
+graceful_members="$(snapshot_member_count 'Shutdown members' "$graceful_root/supervisor.log")"
+[ "$graceful_members" -ge 2 ] ||
+    fail "Expected at least leader and child in graceful shutdown snapshot"
+grep -Eq '^Process: pid=[0-9]+ ppid=[0-9]+ pgid=[0-9]+ state=[A-Za-z] name=.+
+forced_root="$TEST_ROOT/forced"
+mkdir -p "$forced_root"
+cat > "$forced_root/app.sh" <<'EOF'
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+trap '' INT TERM
+while :; do
+    sleep 30
+done
+EOF
+chmod 0755 "$forced_root/app.sh"
+
+run_supervisor "$forced_root" "$forced_root/app.sh" INT 1
+kill -TERM "$SUPERVISOR_PID"
+wait "$SUPERVISOR_PID"
+SUPERVISOR_PID=""
+
+forced_start_members="$(snapshot_member_count 'Shutdown members' "$forced_root/supervisor.log")"
+[ "$forced_start_members" -ge 1 ] ||
+    fail "Forced shutdown snapshot did not contain an application process"
+forced_remaining="$(snapshot_member_count 'Processes remaining after 1s' "$forced_root/supervisor.log")"
+[ "$forced_remaining" -ge 1 ] ||
+    fail "Forced shutdown did not log surviving processes"
+grep -Fq 'Application process group did not stop within 1s; sending SIGKILL' "$forced_root/supervisor.log" ||
+    fail "Forced process-group shutdown was not logged"
+
+echo "Supervisor shutdown lifecycle tests passed"
+ "$graceful_root/supervisor.log" ||
+    fail "Per-process shutdown metadata was not logged"
+grep -Fq "Application process group stopped gracefully" "$graceful_root/supervisor.log" ||
     fail "Graceful process-group completion was not logged"
+grep -Fq "shutdown_start_process_count=$graceful_members" "$graceful_root/supervisor.log" ||
+    fail "Graceful completion did not report the starting process count"
 
 forced_root="$TEST_ROOT/forced"
 mkdir -p "$forced_root"

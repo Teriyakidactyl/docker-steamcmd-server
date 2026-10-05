@@ -151,37 +151,7 @@ grep -Fq 'Shutdown target: leader_pid=' "$graceful_root/supervisor.log" ||
 graceful_members="$(snapshot_member_count 'Shutdown members' "$graceful_root/supervisor.log")"
 [ "$graceful_members" -ge 2 ] ||
     fail "Expected at least leader and child in graceful shutdown snapshot"
-grep -Eq '^Process: pid=[0-9]+ ppid=[0-9]+ pgid=[0-9]+ state=[A-Za-z] name=.+
-forced_root="$TEST_ROOT/forced"
-mkdir -p "$forced_root"
-cat > "$forced_root/app.sh" <<'EOF'
-#!/usr/bin/env bash
-
-set -Eeuo pipefail
-
-trap '' INT TERM
-while :; do
-    sleep 30
-done
-EOF
-chmod 0755 "$forced_root/app.sh"
-
-run_supervisor "$forced_root" "$forced_root/app.sh" INT 1
-kill -TERM "$SUPERVISOR_PID"
-wait "$SUPERVISOR_PID"
-SUPERVISOR_PID=""
-
-forced_start_members="$(snapshot_member_count 'Shutdown members' "$forced_root/supervisor.log")"
-[ "$forced_start_members" -ge 1 ] ||
-    fail "Forced shutdown snapshot did not contain an application process"
-forced_remaining="$(snapshot_member_count 'Processes remaining after 1s' "$forced_root/supervisor.log")"
-[ "$forced_remaining" -ge 1 ] ||
-    fail "Forced shutdown did not log surviving processes"
-grep -Fq 'Application process group did not stop within 1s; sending SIGKILL' "$forced_root/supervisor.log" ||
-    fail "Forced process-group shutdown was not logged"
-
-echo "Supervisor shutdown lifecycle tests passed"
- "$graceful_root/supervisor.log" ||
+grep -Eq "^Process: pid=[0-9]+ ppid=[0-9]+ pgid=[0-9]+ state=[A-Za-z] name=.+" "$graceful_root/supervisor.log" ||
     fail "Per-process shutdown metadata was not logged"
 grep -Fq 'Application process group stopped gracefully' "$graceful_root/supervisor.log" ||
     fail "Graceful process-group completion was not logged"
@@ -207,6 +177,12 @@ kill -TERM "$SUPERVISOR_PID"
 wait "$SUPERVISOR_PID"
 SUPERVISOR_PID=""
 
+forced_start_members="$(snapshot_member_count 'Shutdown members' "$forced_root/supervisor.log")"
+[ "$forced_start_members" -ge 1 ] ||
+    fail "Forced shutdown snapshot did not contain an application process"
+forced_remaining="$(snapshot_member_count 'Processes remaining after 1s' "$forced_root/supervisor.log")"
+[ "$forced_remaining" -ge 1 ] ||
+    fail "Forced shutdown did not log surviving processes"
 grep -Fq 'Application process group did not stop within 1s; sending SIGKILL' "$forced_root/supervisor.log" ||
     fail "Forced process-group shutdown was not logged"
 

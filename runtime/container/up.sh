@@ -237,7 +237,10 @@ main() {
     mkdir -p "$(dirname "$APP_PID_FILE")" "$LOGS"
     rm -f "$APP_PID_FILE"
 
-    setsid "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
+    # Bash starts asynchronous commands with SIGINT and SIGQUIT ignored when
+    # job control is disabled. Reset those inherited dispositions before exec
+    # so child images can use APP_STOP_SIGNAL=INT or QUIT reliably.
+    setsid env --default-signal=INT --default-signal=QUIT -- "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
     APP_PID=$!
     APP_PGID=$APP_PID
     printf '%s\n' "$APP_PID" > "$APP_PID_FILE"

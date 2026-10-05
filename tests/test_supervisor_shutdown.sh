@@ -75,6 +75,7 @@ run_supervisor() {
     HOOK_DIRECTORIES="$HOOK_ROOT" \
     LOGS="$case_root/logs" \
     APP_NAME="shutdown-test" \
+    APP_EXE="" \
     APP_EXECUTABLE="$executable" \
     APP_PID_FILE="$case_root/app.pid" \
     APP_STOP_SIGNAL="$stop_signal" \

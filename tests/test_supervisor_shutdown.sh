@@ -183,7 +183,7 @@ grep -Fq 'Application process group did not stop within 1s; sending SIGKILL' "$f
 echo "Supervisor shutdown lifecycle tests passed"
  "$graceful_root/supervisor.log" ||
     fail "Per-process shutdown metadata was not logged"
-grep -Fq "Application process group stopped gracefully" "$graceful_root/supervisor.log" ||
+grep -Fq 'Application process group stopped gracefully' "$graceful_root/supervisor.log" ||
     fail "Graceful process-group completion was not logged"
 grep -Fq "shutdown_start_process_count=$graceful_members" "$graceful_root/supervisor.log" ||
     fail "Graceful completion did not report the starting process count"

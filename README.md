@@ -49,6 +49,8 @@ A Windows server should use a Wine base tag such as `trixie_wine-staging` and se
 
 New images should use `APP_ARGS_FILE`. Each non-comment line is one argument, so an expanded value such as a server name containing spaces remains one argument.
 
+During container shutdown, the supervisor sends `APP_STOP_SIGNAL` to the launched application's process group and waits for that complete group to exit before `SHUTDOWN_TIMEOUT` expires. Normal runtime exit detection remains tied to the launched application PID so a leftover helper process cannot keep a failed server container running.
+
 Example:
 
 ```text

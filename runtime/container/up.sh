@@ -13,6 +13,7 @@ CONTAINER_START_TIME=${CONTAINER_START_TIME:-$(date -u +%s)}
 APP_PID=""
 APP_PGID=""
 SHUTDOWN_REQUESTED=0
+APPLICATION_GROUP_SNAPSHOT_COUNT=0
 declare -a APP_COMMAND_ARRAY=()
 
 run_hooks() {
@@ -179,6 +180,354 @@ application_group_alive() {
     kill -0 -- "-$APP_PGID" 2>/dev/null
 }
 
+application_group_members() {
+    [ -n "${APP_PGID:-}" ] || return 0
+
+    local proc pid stat rest state ppid pgrp comm
+    for proc in /proc/[0-9]*; do
+        [ -r "$proc/stat" ] || continue
+        if ! IFS= read -r stat < "$proc/stat"; then
+            continue
+        fi
+
+        # /proc/<pid>/stat wraps the process name in parentheses. Strip through
+        # the final ") " delimiter so names containing spaces remain intact.
+        rest=${stat##*) }
+        [ "$rest" != "$stat" ] || continue
+
+        state=${rest%% *}
+        rest=${rest#* }
+        ppid=${rest%% *}
+        rest=${rest#* }
+        pgrp=${rest%% *}
+        [ "$pgrp" = "$APP_PGID" ] || continue
+
+        pid=${proc#/proc/}
+        comm=${stat#*(}
+        comm=${comm%)*}
+        comm=${comm//
+handle_signal() {
+    local signal="$1"
+    SHUTDOWN_REQUESTED=1
+    log "Received $signal; beginning shutdown" "up.sh"
+    stop_application
+    exit 0
+}
+
+on_exit() {
+    local rc=$?
+    trap - EXIT
+    stop_tailers
+    if [ -n "${APP_PID_FILE:-}" ]; then
+        rm -f "$APP_PID_FILE"
+    fi
+    exit "$rc"
+}
+
+main() {
+    initialize_cron
+    log_clean
+    run_hooks "pre-startup"
+    run_hooks "startup"
+    build_command
+    log_command
+
+    local log_name="${APP_LOG_NAME:-${APP_EXE##*/}}"
+    log_name="${log_name//\//_}"
+    [ -n "$log_name" ] || log_name="application"
+
+    mkdir -p "$(dirname "$APP_PID_FILE")" "$LOGS"
+    rm -f "$APP_PID_FILE"
+
+    # Bash starts asynchronous commands with SIGINT and SIGQUIT ignored when
+    # job control is disabled. Reset those inherited dispositions before exec
+    # so child images can use APP_STOP_SIGNAL=INT or QUIT reliably.
+    setsid env --default-signal=INT --default-signal=QUIT -- "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
+    APP_PID=$!
+    APP_PGID=$APP_PID
+    printf '%s\n' "$APP_PID" > "$APP_PID_FILE"
+
+    sleep 1
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+        local early_rc=0
+        wait "$APP_PID" || early_rc=$?
+        log "Application exited during startup verification with status $early_rc" "up.sh"
+        return "$early_rc"
+    fi
+
+    log_tails
+
+    while kill -0 "$APP_PID" 2>/dev/null; do
+        sleep 60 &
+        wait $! || true
+        [ "$SHUTDOWN_REQUESTED" -eq 0 ] || break
+        run_cron_hooks
+    done
+
+    if [ "$SHUTDOWN_REQUESTED" -ne 0 ]; then
+        return 0
+    fi
+
+    local app_rc=0
+    wait "$APP_PID" || app_rc=$?
+    log "Application exited with status $app_rc. $(uptime_text)" "up.sh"
+    return "$app_rc"
+}
+
+trap 'handle_signal SIGTERM' SIGTERM
+trap 'handle_signal SIGINT' SIGINT
+trap 'handle_signal SIGQUIT' SIGQUIT
+trap on_exit EXIT
+
+main
+\t'/ }
+        comm=${comm//
+handle_signal() {
+    local signal="$1"
+    SHUTDOWN_REQUESTED=1
+    log "Received $signal; beginning shutdown" "up.sh"
+    stop_application
+    exit 0
+}
+
+on_exit() {
+    local rc=$?
+    trap - EXIT
+    stop_tailers
+    if [ -n "${APP_PID_FILE:-}" ]; then
+        rm -f "$APP_PID_FILE"
+    fi
+    exit "$rc"
+}
+
+main() {
+    initialize_cron
+    log_clean
+    run_hooks "pre-startup"
+    run_hooks "startup"
+    build_command
+    log_command
+
+    local log_name="${APP_LOG_NAME:-${APP_EXE##*/}}"
+    log_name="${log_name//\//_}"
+    [ -n "$log_name" ] || log_name="application"
+
+    mkdir -p "$(dirname "$APP_PID_FILE")" "$LOGS"
+    rm -f "$APP_PID_FILE"
+
+    # Bash starts asynchronous commands with SIGINT and SIGQUIT ignored when
+    # job control is disabled. Reset those inherited dispositions before exec
+    # so child images can use APP_STOP_SIGNAL=INT or QUIT reliably.
+    setsid env --default-signal=INT --default-signal=QUIT -- "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
+    APP_PID=$!
+    APP_PGID=$APP_PID
+    printf '%s\n' "$APP_PID" > "$APP_PID_FILE"
+
+    sleep 1
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+        local early_rc=0
+        wait "$APP_PID" || early_rc=$?
+        log "Application exited during startup verification with status $early_rc" "up.sh"
+        return "$early_rc"
+    fi
+
+    log_tails
+
+    while kill -0 "$APP_PID" 2>/dev/null; do
+        sleep 60 &
+        wait $! || true
+        [ "$SHUTDOWN_REQUESTED" -eq 0 ] || break
+        run_cron_hooks
+    done
+
+    if [ "$SHUTDOWN_REQUESTED" -ne 0 ]; then
+        return 0
+    fi
+
+    local app_rc=0
+    wait "$APP_PID" || app_rc=$?
+    log "Application exited with status $app_rc. $(uptime_text)" "up.sh"
+    return "$app_rc"
+}
+
+trap 'handle_signal SIGTERM' SIGTERM
+trap 'handle_signal SIGINT' SIGINT
+trap 'handle_signal SIGQUIT' SIGQUIT
+trap on_exit EXIT
+
+main
+\n'/ }
+        comm=${comm//
+handle_signal() {
+    local signal="$1"
+    SHUTDOWN_REQUESTED=1
+    log "Received $signal; beginning shutdown" "up.sh"
+    stop_application
+    exit 0
+}
+
+on_exit() {
+    local rc=$?
+    trap - EXIT
+    stop_tailers
+    if [ -n "${APP_PID_FILE:-}" ]; then
+        rm -f "$APP_PID_FILE"
+    fi
+    exit "$rc"
+}
+
+main() {
+    initialize_cron
+    log_clean
+    run_hooks "pre-startup"
+    run_hooks "startup"
+    build_command
+    log_command
+
+    local log_name="${APP_LOG_NAME:-${APP_EXE##*/}}"
+    log_name="${log_name//\//_}"
+    [ -n "$log_name" ] || log_name="application"
+
+    mkdir -p "$(dirname "$APP_PID_FILE")" "$LOGS"
+    rm -f "$APP_PID_FILE"
+
+    # Bash starts asynchronous commands with SIGINT and SIGQUIT ignored when
+    # job control is disabled. Reset those inherited dispositions before exec
+    # so child images can use APP_STOP_SIGNAL=INT or QUIT reliably.
+    setsid env --default-signal=INT --default-signal=QUIT -- "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
+    APP_PID=$!
+    APP_PGID=$APP_PID
+    printf '%s\n' "$APP_PID" > "$APP_PID_FILE"
+
+    sleep 1
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+        local early_rc=0
+        wait "$APP_PID" || early_rc=$?
+        log "Application exited during startup verification with status $early_rc" "up.sh"
+        return "$early_rc"
+    fi
+
+    log_tails
+
+    while kill -0 "$APP_PID" 2>/dev/null; do
+        sleep 60 &
+        wait $! || true
+        [ "$SHUTDOWN_REQUESTED" -eq 0 ] || break
+        run_cron_hooks
+    done
+
+    if [ "$SHUTDOWN_REQUESTED" -ne 0 ]; then
+        return 0
+    fi
+
+    local app_rc=0
+    wait "$APP_PID" || app_rc=$?
+    log "Application exited with status $app_rc. $(uptime_text)" "up.sh"
+    return "$app_rc"
+}
+
+trap 'handle_signal SIGTERM' SIGTERM
+trap 'handle_signal SIGINT' SIGINT
+trap 'handle_signal SIGQUIT' SIGQUIT
+trap on_exit EXIT
+
+main
+\r'/ }
+
+        printf '%s\t%s\t%s\t%s\t%s\n' "$pid" "$ppid" "$pgrp" "$state" "$comm"
+    done
+}
+
+log_application_group_snapshot() {
+    local label="$1"
+    local -a members=()
+    local member pid ppid pgrp state comm
+
+    mapfile -t members < <(application_group_members)
+    APPLICATION_GROUP_SNAPSHOT_COUNT=${#members[@]}
+
+    log "$label: pgid=$APP_PGID members=$APPLICATION_GROUP_SNAPSHOT_COUNT" "up.sh"
+    for member in "${members[@]}"; do
+        IFS=
+handle_signal() {
+    local signal="$1"
+    SHUTDOWN_REQUESTED=1
+    log "Received $signal; beginning shutdown" "up.sh"
+    stop_application
+    exit 0
+}
+
+on_exit() {
+    local rc=$?
+    trap - EXIT
+    stop_tailers
+    if [ -n "${APP_PID_FILE:-}" ]; then
+        rm -f "$APP_PID_FILE"
+    fi
+    exit "$rc"
+}
+
+main() {
+    initialize_cron
+    log_clean
+    run_hooks "pre-startup"
+    run_hooks "startup"
+    build_command
+    log_command
+
+    local log_name="${APP_LOG_NAME:-${APP_EXE##*/}}"
+    log_name="${log_name//\//_}"
+    [ -n "$log_name" ] || log_name="application"
+
+    mkdir -p "$(dirname "$APP_PID_FILE")" "$LOGS"
+    rm -f "$APP_PID_FILE"
+
+    # Bash starts asynchronous commands with SIGINT and SIGQUIT ignored when
+    # job control is disabled. Reset those inherited dispositions before exec
+    # so child images can use APP_STOP_SIGNAL=INT or QUIT reliably.
+    setsid env --default-signal=INT --default-signal=QUIT -- "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
+    APP_PID=$!
+    APP_PGID=$APP_PID
+    printf '%s\n' "$APP_PID" > "$APP_PID_FILE"
+
+    sleep 1
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+        local early_rc=0
+        wait "$APP_PID" || early_rc=$?
+        log "Application exited during startup verification with status $early_rc" "up.sh"
+        return "$early_rc"
+    fi
+
+    log_tails
+
+    while kill -0 "$APP_PID" 2>/dev/null; do
+        sleep 60 &
+        wait $! || true
+        [ "$SHUTDOWN_REQUESTED" -eq 0 ] || break
+        run_cron_hooks
+    done
+
+    if [ "$SHUTDOWN_REQUESTED" -ne 0 ]; then
+        return 0
+    fi
+
+    local app_rc=0
+    wait "$APP_PID" || app_rc=$?
+    log "Application exited with status $app_rc. $(uptime_text)" "up.sh"
+    return "$app_rc"
+}
+
+trap 'handle_signal SIGTERM' SIGTERM
+trap 'handle_signal SIGINT' SIGINT
+trap 'handle_signal SIGQUIT' SIGQUIT
+trap on_exit EXIT
+
+main
+\t' read -r pid ppid pgrp state comm <<< "$member"
+        log "Process: pid=$pid ppid=$ppid pgid=$pgrp state=$state name=$comm" "up.sh"
+    done
+}
+
 stop_application() {
     [ -n "${APP_PID:-}" ] || return 0
     application_group_alive || return 0
@@ -186,21 +535,27 @@ stop_application() {
     run_hooks "shutdown" nonfatal
 
     local stop_signal=${APP_STOP_SIGNAL:-TERM}
+    local timeout=${SHUTDOWN_TIMEOUT:-10}
+    local waited=0
+
+    log "Shutdown target: leader_pid=$APP_PID pgid=$APP_PGID signal=SIG$stop_signal timeout=${timeout}s" "up.sh"
+    log_application_group_snapshot "Shutdown members"
+    local initial_member_count=$APPLICATION_GROUP_SNAPSHOT_COUNT
+
     log "Stopping application process group $APP_PGID with SIG$stop_signal" "up.sh"
     kill -s "$stop_signal" -- "-$APP_PGID" 2>/dev/null || kill -s "$stop_signal" "$APP_PID" 2>/dev/null || true
 
-    local timeout=${SHUTDOWN_TIMEOUT:-10}
-    local waited=0
     while application_group_alive && (( waited < timeout )); do
         sleep 1
         waited=$((waited + 1))
     done
 
     if application_group_alive; then
+        log_application_group_snapshot "Processes remaining after ${timeout}s"
         log "Application process group did not stop within ${timeout}s; sending SIGKILL" "up.sh"
         kill -KILL -- "-$APP_PGID" 2>/dev/null || kill -KILL "$APP_PID" 2>/dev/null || true
     else
-        log "Application process group stopped gracefully after ${waited}s" "up.sh"
+        log "Application process group stopped gracefully after ${waited}s; shutdown_start_process_count=$initial_member_count" "up.sh"
     fi
 }
 

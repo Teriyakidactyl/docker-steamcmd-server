@@ -13,6 +13,7 @@ CONTAINER_START_TIME=${CONTAINER_START_TIME:-$(date -u +%s)}
 APP_PID=""
 APP_PGID=""
 SHUTDOWN_REQUESTED=0
+APPLICATION_GROUP_SNAPSHOT_COUNT=0
 declare -a APP_COMMAND_ARRAY=()
 
 run_hooks() {
@@ -179,6 +180,51 @@ application_group_alive() {
     kill -0 -- "-$APP_PGID" 2>/dev/null
 }
 
+application_group_members() {
+    [ -n "${APP_PGID:-}" ] || return 0
+
+    local proc pid stat rest state ppid pgrp comm
+    for proc in /proc/[0-9]*; do
+        [ -r "$proc/stat" ] || continue
+        if ! IFS= read -r stat < "$proc/stat"; then
+            continue
+        fi
+
+        # /proc/<pid>/stat wraps the process name in parentheses. Strip through
+        # the final ") " delimiter so names containing spaces remain intact.
+        rest=${stat##*) }
+        [ "$rest" != "$stat" ] || continue
+
+        state=${rest%% *}
+        rest=${rest#* }
+        ppid=${rest%% *}
+        rest=${rest#* }
+        pgrp=${rest%% *}
+        [ "$pgrp" = "$APP_PGID" ] || continue
+
+        pid=${proc#/proc/}
+        comm=${stat#*(}
+        comm=${comm%)*}
+
+        printf '%s %s %s %s %s\n' "$pid" "$ppid" "$pgrp" "$state" "$comm"
+    done
+}
+
+log_application_group_snapshot() {
+    local label="$1"
+    local -a members=()
+    local member pid ppid pgrp state comm
+
+    mapfile -t members < <(application_group_members)
+    APPLICATION_GROUP_SNAPSHOT_COUNT=${#members[@]}
+
+    log "$label: pgid=$APP_PGID members=$APPLICATION_GROUP_SNAPSHOT_COUNT" "up.sh"
+    for member in "${members[@]}"; do
+        read -r pid ppid pgrp state comm <<< "$member"
+        log "Process: pid=$pid ppid=$ppid pgid=$pgrp state=$state name=$comm" "up.sh"
+    done
+}
+
 stop_application() {
     [ -n "${APP_PID:-}" ] || return 0
     application_group_alive || return 0
@@ -186,21 +232,27 @@ stop_application() {
     run_hooks "shutdown" nonfatal
 
     local stop_signal=${APP_STOP_SIGNAL:-TERM}
+    local timeout=${SHUTDOWN_TIMEOUT:-10}
+    local waited=0
+
+    log "Shutdown target: leader_pid=$APP_PID pgid=$APP_PGID signal=SIG$stop_signal timeout=${timeout}s" "up.sh"
+    log_application_group_snapshot "Shutdown members"
+    local initial_member_count=$APPLICATION_GROUP_SNAPSHOT_COUNT
+
     log "Stopping application process group $APP_PGID with SIG$stop_signal" "up.sh"
     kill -s "$stop_signal" -- "-$APP_PGID" 2>/dev/null || kill -s "$stop_signal" "$APP_PID" 2>/dev/null || true
 
-    local timeout=${SHUTDOWN_TIMEOUT:-10}
-    local waited=0
     while application_group_alive && (( waited < timeout )); do
         sleep 1
         waited=$((waited + 1))
     done
 
     if application_group_alive; then
+        log_application_group_snapshot "Processes remaining after ${timeout}s"
         log "Application process group did not stop within ${timeout}s; sending SIGKILL" "up.sh"
         kill -KILL -- "-$APP_PGID" 2>/dev/null || kill -KILL "$APP_PID" 2>/dev/null || true
     else
-        log "Application process group stopped gracefully after ${waited}s" "up.sh"
+        log "Application process group stopped gracefully after ${waited}s; shutdown_start_process_count=$initial_member_count" "up.sh"
     fi
 }
 

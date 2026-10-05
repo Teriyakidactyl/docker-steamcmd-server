@@ -174,9 +174,14 @@ stop_tailers() {
     fi
 }
 
+application_group_alive() {
+    [ -n "${APP_PGID:-}" ] || return 1
+    kill -0 -- "-$APP_PGID" 2>/dev/null
+}
+
 stop_application() {
     [ -n "${APP_PID:-}" ] || return 0
-    kill -0 "$APP_PID" 2>/dev/null || return 0
+    application_group_alive || return 0
 
     run_hooks "shutdown" nonfatal
 
@@ -186,14 +191,16 @@ stop_application() {
 
     local timeout=${SHUTDOWN_TIMEOUT:-10}
     local waited=0
-    while kill -0 "$APP_PID" 2>/dev/null && (( waited < timeout )); do
+    while application_group_alive && (( waited < timeout )); do
         sleep 1
         waited=$((waited + 1))
     done
 
-    if kill -0 "$APP_PID" 2>/dev/null; then
-        log "Application did not stop within ${timeout}s; sending SIGKILL" "up.sh"
+    if application_group_alive; then
+        log "Application process group did not stop within ${timeout}s; sending SIGKILL" "up.sh"
         kill -KILL -- "-$APP_PGID" 2>/dev/null || kill -KILL "$APP_PID" 2>/dev/null || true
+    else
+        log "Application process group stopped gracefully after ${waited}s" "up.sh"
     fi
 }
 
@@ -230,7 +237,10 @@ main() {
     mkdir -p "$(dirname "$APP_PID_FILE")" "$LOGS"
     rm -f "$APP_PID_FILE"
 
-    setsid "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
+    # Bash starts asynchronous commands with SIGINT and SIGQUIT ignored when
+    # job control is disabled. Reset those inherited dispositions before exec
+    # so child images can use APP_STOP_SIGNAL=INT or QUIT reliably.
+    setsid env --default-signal=INT --default-signal=QUIT -- "${APP_COMMAND_ARRAY[@]}" >> "$LOGS/$log_name.log" 2>&1 &
     APP_PID=$!
     APP_PGID=$APP_PID
     printf '%s\n' "$APP_PID" > "$APP_PID_FILE"

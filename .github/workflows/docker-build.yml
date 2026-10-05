@@ -52,6 +52,7 @@ jobs:
             runtime/container/*.sh \
             tests/test_prefix_hooks.sh \
             tests/test_steamcmd_profile.sh \
+            tests/test_supervisor_shutdown.sh \
             tests/compat-prefix-smoke.sh
 
       - name: Test compatibility prefix hooks
@@ -59,6 +60,9 @@ jobs:
 
       - name: Test SteamCMD profile contract
         run: bash tests/test_steamcmd_profile.sh
+
+      - name: Test supervisor shutdown lifecycle
+        run: bash tests/test_supervisor_shutdown.sh
 
       - name: Test matrix generator
         run: python .github/scripts/test_generate_matrix.py

@@ -1,0 +1,33 @@
+name: Isolated GitHub Actions cancellation probe
+
+# Temporary test-only workflow, active only on the disposable test branch.
+on:
+  push:
+    branches: [test/actions-policy-probe-261010]
+    paths:
+      - '.github/workflows/actions-policy-probe.yml'
+  pull_request:
+    branches: [test/actions-policy-probe-261010]
+    paths:
+      - 'tests/actions-policy-probe-marker.txt'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Record event and wait for overlapping run
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVENT=${GITHUB_EVENT_NAME} REF=${GITHUB_REF} SHA=${GITHUB_SHA}"
+          echo "This workflow never builds or publishes any image"
+          sleep 55
+          echo "COMPLETED_EVENT=${GITHUB_EVENT_NAME}"

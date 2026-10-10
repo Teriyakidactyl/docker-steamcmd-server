@@ -23,13 +23,15 @@ on:
       - 'tests/**'
   workflow_dispatch:
 
+# Builds use a read-only GITHUB_TOKEN. GHCR publication uses the
+# existing dedicated GHCR_PAT credential on approved push events only.
 permissions:
   contents: read
-  packages: write
 
+# Superseded PR checks can be cancelled; production publishing must finish.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   REGISTRY_IMAGE: ghcr.io/teriyakidactyl/docker-steamcmd-server

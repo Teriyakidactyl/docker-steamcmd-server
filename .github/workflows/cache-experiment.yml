@@ -1,0 +1,116 @@
+name: Isolated SteamCMD cache comparison
+
+# Temporary experiment scoped exclusively to this disposable feature branch.
+# The production build workflow is intentionally untouched.
+on:
+  push:
+    branches: [test/build-cache-optimization]
+    paths:
+      - '.github/workflows/cache-experiment.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: steamcmd-cache-experiment-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compare-native-amd64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compare native amd64 metadata-only rebuilds
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_REF" = "refs/heads/test/build-cache-optimization"
+          test "$GITHUB_EVENT_NAME" = "push"
+          mkdir -p "$RUNNER_TEMP/cache-experiment"
+
+          # Build each Dockerfile twice on the same isolated runner/BuildKit.
+          # Deliberately vary only build identity. Do not push or export cache.
+          for flavor in original candidate; do
+            if [ "$flavor" = original ]; then
+              dockerfile=Dockerfile
+            else
+              dockerfile=Dockerfile.cache-experiment
+            fi
+            for phase in first second; do
+              if [ "$phase" = first ]; then
+                revision=1111111111111111111111111111111111111111
+                build_date=2026-10-01T00:00:00Z
+              else
+                revision=2222222222222222222222222222222222222222
+                build_date=2026-10-02T00:00:00Z
+              fi
+              tag="steamcmd-cache-experiment:${flavor}-${phase}"
+              log="$RUNNER_TEMP/cache-experiment/${flavor}-${phase}.log"
+              echo "::group::Build $flavor $phase"
+              start=$SECONDS
+              if docker buildx build --platform linux/amd64 --load --progress=plain \
+                  --file "$dockerfile" \
+                  --tag "$tag" \
+                  --build-arg SOURCE_COMMIT="$revision" \
+                  --build-arg BUILD_DATE="$build_date" \
+                  --build-arg BUILD_VERSION=trixie-20260421-slim_amd64 \
+                  --build-arg DEBIAN_TAG=trixie-20260421-slim \
+                  --build-arg DEBIAN_VERSION_CODENAME=trixie \
+                  --build-arg COMPAT_LAYER= \
+                  . > "$log" 2>&1; then
+                echo "BUILD_SUCCESS $flavor $phase elapsed_seconds=$((SECONDS-start))"
+              else
+                echo "::error::Build failed: $flavor $phase"
+                tail -n 130 "$log"
+                exit 1
+              fi
+              grep -E '^#[0-9]+ (CACHED|DONE|\\[[0-9]+/[0-9]+\\] RUN set -eux)' "$log" | tail -n 14 || true
+              echo "::endgroup::"
+            done
+          done
+
+          # Assert that the expensive install RUN was reused only in candidate B.
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import os
+          base = pathlib.Path(os.environ["RUNNER_TEMP"]) / "cache-experiment"
+          for flavor, expected_cached in (("original", False), ("candidate", True)):
+              content = (base / f"{flavor}-second.log").read_text()
+              ids = re.findall(r'^#(\d+) \[\d+/\d+\] RUN set -eux;.*useradd -m', content, re.M)
+              if not ids:
+                  raise SystemExit(f"FAIL: {flavor}: install RUN step not identified")
+              cached = any(re.search(rf'^#{i} CACHED\s*$', content, re.M) for i in ids)
+              print(f"INSTALL_CACHE_RESULT flavor={flavor} cached={cached}")
+              if cached != expected_cached:
+                  raise SystemExit(f"FAIL: {flavor}: expected install cached={expected_cached}")
+          PY
+
+      - name: Check runtime, identity, size and permissions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for flavor in original candidate; do
+            tag="steamcmd-cache-experiment:${flavor}-second"
+            echo "::group::Runtime contract $flavor"
+            echo "IMAGE_SIZE_BYTES $flavor $(docker image inspect --format '{{.Size}}' "$tag")"
+            docker run --rm --platform linux/amd64 --entrypoint /bin/bash "$tag" -ec '
+              source /etc/environment
+              test "$BUILD_ID" = "2222222-2026-10-02T00:00:00Z-trixie-amd64"
+              test "$(id -un)" = container
+              test "$(stat -c "%U:%G" /usr/local/bin/container/up.sh)" = root:root
+              test "$(stat -c "%a" /usr/local/bin/container/up.sh)" = 755
+              test -x /usr/local/bin/steamcmd
+              test -d /app
+              test -d /world
+            '
+            docker run --rm --platform linux/amd64 \
+              -e UPDATE_ON_START=false -e STEAM_SERVER_APPID=0 \
+              -e APP_NAME=cache-experiment -e APP_EXECUTABLE=/bin/true "$tag"
+            echo "RUNTIME_CONTRACT_RESULT $flavor PASS"
+            echo "::endgroup::"
+          done

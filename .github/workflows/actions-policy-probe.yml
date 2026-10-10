@@ -1,6 +1,7 @@
 name: Isolated GitHub Actions cancellation probe
 
 # Temporary test-only workflow, active only on the disposable test branch.
+# Follow-up push proves an in-progress push run is not cancelled.
 on:
   push:
     branches: [test/actions-policy-probe-261010]

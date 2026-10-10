@@ -146,6 +146,8 @@ The base pins the `docker-up` helper checkout with `DOCKER_UP_REF`, while the pr
 
 Binary downloads use fail-fast/retry behavior and validate archive/package structure before extraction. Box86/Box64 sources are commit-pinned.
 
+`DEPENDENCY_REFRESH` is a build-only cache invalidation input. CI sets it to the current UTC ISO week: metadata-only and supervisor-only changes can reuse installed dependencies, while a new week forces a fresh installation on the next build. No independent scheduled rebuild is implied.
+
 ## Development
 
 GitHub Actions runs Bash syntax checks, ShellCheck, prefix-hook regression tests, matrix-generator unit tests, Hadolint, the full architecture/compatibility build matrix, and manifest creation. Every Wine and Proton matrix row must initialize a clean compatibility prefix through the same pre-start hook used in production before a push run may publish its architecture tags. SteamCMD's network/self-update smoke runs only on the native row for each Debian/architecture pair because the compatibility rows reuse the same SteamCMD runtime; this avoids multiplying a network- and Box32-sensitive check across unrelated Wine/Proton cells.

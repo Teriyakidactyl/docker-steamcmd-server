@@ -138,6 +138,8 @@ Development tags use `_dev` before the architecture suffix.
 
 ## Build-time settings and reproducibility
 
+Image construction design constraints are described in the [Image Construction Architecture](%F0%9F%93%90%20Architecture/Image%20Construction%20Architecture.md).
+
 `CONTAINER_UID` defaults to `1000`. It is a build argument; this image does not pretend to provide runtime UID remapping.
 
 The base pins the `docker-up` helper checkout with `DOCKER_UP_REF`, while the process supervisor itself is maintained in this repository. Runtime scripts are root-owned and not writable by the game account.

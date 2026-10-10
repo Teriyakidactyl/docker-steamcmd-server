@@ -1,0 +1,144 @@
+name: Isolated SteamCMD cross-run cache validation
+
+# Disposable branch-only comparison. No GHCR login, push, or production aliases.
+on:
+  push:
+    branches: [test/build-cache-optimization]
+    paths:
+      - '.github/workflows/cache-validation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: steamcmd-cache-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CACHE_EXPECTATION: cold
+  REFRESH_EPOCH: 2026-W41
+
+jobs:
+  selection:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      build_date: ${{ steps.matrix.outputs.build_date }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select representative supported variants
+        id: matrix
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$GITHUB_REF" = "refs/heads/test/build-cache-optimization"
+          all="$(python3 .github/scripts/generate_matrix.py --job build --github-ref refs/heads/main --registry-image-base placeholder)"
+          selected="$(jq -c '{
+            include: [.include[] | select(
+              .debian_codename == "trixie" and (
+                (.compat_layer_type == "native" and .architecture == "amd64") or
+                (.compat_layer_type == "wine" and .wine_branch_arg == "staging") or
+                (.compat_layer_type == "proton" and .proton_version_arg == "11.7")
+              )
+            )]
+          }' <<< "$all")"
+          test "$(jq -r '.include | length' <<< "$selected")" -eq 4
+          echo "matrix=$selected" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: selection
+    name: cache-check (${{ matrix.compat_layer_id }}, ${{ matrix.architecture }})
+    runs-on: ${{ matrix.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.selection.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build candidate with isolated GitHub Actions cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.cache-experiment
+          push: false
+          load: true
+          platforms: ${{ matrix.platform_name }}
+          tags: cacheprobe:${{ matrix.compat_layer_id }}-${{ matrix.architecture }}
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ needs.selection.outputs.build_date }}
+            DEPENDENCY_REFRESH=${{ env.REFRESH_EPOCH }}
+            BUILD_VERSION=${{ matrix.tag_versioned_arch }}
+            DEBIAN_TAG=${{ matrix.base_image_name }}
+            DEBIAN_VERSION_CODENAME=${{ matrix.debian_codename }}
+            COMPAT_LAYER=${{ matrix.compat_layer_build_arg }}
+            WINE_VERSION=${{ matrix.wine_version_arg }}
+            WINE_DIST=${{ matrix.debian_codename }}
+            WINE_BRANCH=${{ matrix.wine_branch_arg }}
+            WINE_ID=${{ matrix.wine_id_arg }}
+            WINE_TAG=${{ matrix.wine_tag_suffix_arg }}
+            WINE_INSTALL_I386=${{ matrix.wine_install_i386_arg }}
+            PROTON_VERSION=${{ matrix.proton_version_arg }}
+            PROTON_INSTALL_I386=${{ matrix.proton_install_i386_arg }}
+            BOX86_VERSION=${{ matrix.box86_version_arg }}
+            BOX64_VERSION=${{ matrix.box64_version_arg }}
+            BOX86_DEB_URL=${{ matrix.box86_deb_url_arg }}
+            BOX64_DEB_URL=${{ matrix.box64_deb_url_arg }}
+          cache-from: type=gha,scope=validation-${{ matrix.compat_layer_id }}-${{ matrix.architecture }}
+          cache-to: type=gha,scope=validation-${{ matrix.compat_layer_id }}-${{ matrix.architecture }},mode=max
+
+      - name: Verify image identity, ownership, and runtime
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform_name }}
+          ARCH: ${{ matrix.architecture }}
+          COMPAT: ${{ matrix.compat_layer_type }}
+          CODE: ${{ matrix.debian_codename }}
+          BUILD_DATE: ${{ needs.selection.outputs.build_date }}
+          IMAGE: cacheprobe:${{ matrix.compat_layer_id }}-${{ matrix.architecture }}
+        run: |
+          set -Eeuo pipefail
+          compat_suffix=""
+          if [ "$COMPAT" != native ]; then compat_suffix="-$COMPAT"; fi
+          expected="${GITHUB_SHA:0:7}-$BUILD_DATE-$CODE$compat_suffix-$ARCH"
+          docker run --rm --platform "$PLATFORM" --entrypoint /bin/bash -e EXPECTED_BUILD_ID="$expected" "$IMAGE" -ec '
+            source /etc/environment
+            test "$BUILD_ID" = "$EXPECTED_BUILD_ID"
+            test "$(id -un)" = container
+            test "$(stat -c "%U:%G" /usr/local/bin/container/up.sh)" = root:root
+            test "$(stat -c "%a" /usr/local/bin/container/up.sh)" = 755
+            test -x /usr/local/bin/steamcmd
+            test -d /app && test -d /world
+          '
+          echo "IMAGE_SIZE_BYTES $COMPAT $ARCH $(docker image inspect --format '{{.Size}}' "$IMAGE")"
+          if [ "$COMPAT" = native ]; then
+            docker run --rm --platform "$PLATFORM" \
+              -e UPDATE_ON_START=false -e STEAM_SERVER_APPID=0 \
+              -e APP_NAME=cache-validation -e APP_EXECUTABLE=/bin/true "$IMAGE"
+          else
+            bash tests/compat-prefix-smoke.sh "$IMAGE" "$PLATFORM" "$COMPAT"
+          fi
+          echo "VARIANT_GATE_SUCCESS $COMPAT $ARCH"
+
+      - name: Verify dependency refresh actually forces reinstallation
+        if: env.CACHE_EXPECTATION == 'warm' && matrix.compat_layer_type == 'native'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.cache-experiment
+          push: false
+          load: false
+          platforms: linux/amd64
+          tags: cacheprobe:refresh-invalidated
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ needs.selection.outputs.build_date }}
+            DEPENDENCY_REFRESH=2026-W42
+            BUILD_VERSION=${{ matrix.tag_versioned_arch }}
+            DEBIAN_TAG=${{ matrix.base_image_name }}
+            DEBIAN_VERSION_CODENAME=${{ matrix.debian_codename }}
+            COMPAT_LAYER=
+          cache-from: type=gha,scope=validation-${{ matrix.compat_layer_id }}-${{ matrix.architecture }}

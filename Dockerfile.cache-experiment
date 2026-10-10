@@ -24,6 +24,7 @@ ARG WINE_INSTALL_I386=false
 ARG PROTON_VERSION=""
 ARG PROTON_INSTALL_I386=false
 ARG DEBIAN_FRONTEND=noninteractive
+ARG DEPENDENCY_REFRESH=manual
 
 ENV CONTAINER_USER="container" \
     LOGS="/var/log/container" \
@@ -77,6 +78,7 @@ ENV WORLD_DIRECTORIES="$WORLD_FILES" \
 COPY installers /tmp/installers
 
 RUN set -eux; \
+    : "$DEPENDENCY_REFRESH"; \
     useradd -m -u "$CONTAINER_UID" -d "/home/$CONTAINER_USER" -s /bin/bash "$CONTAINER_USER"; \
     printf 'DOCKER_UP_REF=%s\n' "$DOCKER_UP_REF" >> /etc/environment; \
     apt-get update; \

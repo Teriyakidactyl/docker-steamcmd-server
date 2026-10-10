@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  CACHE_EXPECTATION: cold
+  CACHE_EXPECTATION: warm
   REFRESH_EPOCH: 2026-W41
 
 jobs:

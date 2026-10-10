@@ -81,6 +81,7 @@ jobs:
     outputs:
       build_matrix_json: ${{ steps.generate.outputs.build_matrix }}
       manifest_matrix_json: ${{ steps.generate.outputs.manifest_matrix }}
+      dependency_refresh: ${{ steps.generate.outputs.dependency_refresh }}
     steps:
       - uses: actions/checkout@v4
 
@@ -104,6 +105,8 @@ jobs:
             echo 'manifest_matrix<<EOF'
             echo "$manifest_matrix"
             echo 'EOF'
+            # Weekly refresh input is independent of source build identity.
+            echo "dependency_refresh=$(date -u +%G-W%V)"
           } >> "$GITHUB_OUTPUT"
 
   build:
@@ -154,6 +157,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            DEPENDENCY_REFRESH=${{ needs.setup.outputs.dependency_refresh }}
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ matrix.build_date }}
             BUILD_VERSION=${{ matrix.tag_versioned_arch }}
@@ -389,6 +393,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            DEPENDENCY_REFRESH=${{ needs.setup.outputs.dependency_refresh }}
             SOURCE_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ matrix.build_date }}
             BUILD_VERSION=${{ matrix.tag_versioned_arch }}

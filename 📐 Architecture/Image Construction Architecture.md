@@ -60,9 +60,9 @@ Image-owned tools remain separate from persistent application state under `/app`
 
 ### 3.4 Build identity
 
-Build identity records source revision, build time, platform, and compatibility variant.
+Build identity records source revision, build time, platform, and compatibility variant. The identity stamp and root-owned supervisor overlay are applied after dependency installation; changes to these inputs do not invalidate installed dependencies.
 
-Changing metadata alone does not semantically require reinstalling unchanged dependencies. Cache optimization may exploit this distinction while preserving correct invalidation when functional inputs change.
+A separate `DEPENDENCY_REFRESH` input intentionally invalidates dependency installation. CI supplies its UTC ISO-week value; the next build in a new week refreshes dependencies without making source metadata a functional installation input.
 
 ## 4. Realization
 
@@ -76,7 +76,7 @@ Changing metadata alone does not semantically require reinstalling unchanged dep
 
 Changes must preserve supported builds, native and compatibility smoke tests, ARM64 execution, runtime ownership, hooks, and persistent-state behavior.
 
-Construction changes must additionally verify runtime dependencies, image size, and applicable cache invalidation. Existing tests do not establish all these properties automatically.
+Construction changes must additionally verify runtime dependencies, image size, and applicable cache invalidation, including explicit refresh and metadata-only reuse. Existing CI smoke tests do not establish all cache properties automatically.
 
 ## 6. Evolution
 

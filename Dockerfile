@@ -7,8 +7,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 ARG TARGETPLATFORM
 ARG DEBIAN_VERSION_CODENAME
-ARG SOURCE_COMMIT
-ARG BUILD_DATE
 ARG BUILD_VERSION
 ARG CONTAINER_UID=1000
 ARG DOCKER_UP_REF=1e44675134a030531fb4744dc835fac5f53b4925
@@ -26,6 +24,7 @@ ARG WINE_INSTALL_I386=false
 ARG PROTON_VERSION=""
 ARG PROTON_INSTALL_I386=false
 ARG DEBIAN_FRONTEND=noninteractive
+ARG DEPENDENCY_REFRESH=manual
 
 ENV CONTAINER_USER="container" \
     LOGS="/var/log/container" \
@@ -77,15 +76,10 @@ ENV WORLD_DIRECTORIES="$WORLD_FILES" \
     WINEPREFIX="$APP_FILES/.compat/wine"
 
 COPY installers /tmp/installers
-COPY runtime /tmp/runtime
 
 RUN set -eux; \
+    : "$DEPENDENCY_REFRESH"; \
     useradd -m -u "$CONTAINER_UID" -d "/home/$CONTAINER_USER" -s /bin/bash "$CONTAINER_USER"; \
-    COMMIT_SHORT="$(printf '%s' "$SOURCE_COMMIT" | cut -c1-7)"; \
-    COMPAT_LAYER_STR=""; \
-    if [ -n "$COMPAT_LAYER" ]; then COMPAT_LAYER_STR="-$COMPAT_LAYER"; fi; \
-    printf '# Build: %s-%s-%s%s-%s\n' "$COMMIT_SHORT" "$BUILD_DATE" "$DEBIAN_VERSION_CODENAME" "$COMPAT_LAYER_STR" "$TARGETARCH" >> /etc/environment; \
-    printf 'BUILD_ID=%s-%s-%s%s-%s\n' "$COMMIT_SHORT" "$BUILD_DATE" "$DEBIAN_VERSION_CODENAME" "$COMPAT_LAYER_STR" "$TARGETARCH" >> /etc/environment; \
     printf 'DOCKER_UP_REF=%s\n' "$DOCKER_UP_REF" >> /etc/environment; \
     apt-get update; \
     apt-get install -y --no-install-recommends $PACKAGES_BASE $PACKAGES_BUILD; \
@@ -93,7 +87,6 @@ RUN set -eux; \
     git clone --filter=blob:none --no-checkout https://github.com/Teriyakidactyl/docker-up.git "$SCRIPTS/$CONTAINER_USER"; \
     git -C "$SCRIPTS/$CONTAINER_USER" checkout --detach "$DOCKER_UP_REF"; \
     rm -rf "$SCRIPTS/$CONTAINER_USER/.git"; \
-    install -m 0755 /tmp/runtime/container/up.sh "$SCRIPTS/$CONTAINER_USER/up.sh"; \
     chown -R root:root "$SCRIPTS/$CONTAINER_USER"; \
     sed -i "/$LANG/s/^# //g" /etc/locale.gen; \
     locale-gen; \
@@ -122,8 +115,20 @@ RUN set -eux; \
     find "$SCRIPTS/$CONTAINER_USER" -type f -name '*.sh' -exec chmod 0755 {} +; \
     apt-get autoremove --purge -y $PACKAGES_BUILD; \
     apt-get clean; \
-    rm -rf /var/lib/apt/lists/* /tmp/installers /tmp/runtime; \
+    rm -rf /var/lib/apt/lists/* /tmp/installers; \
     rm -rf "$LOGS"/*
+
+COPY --chown=0:0 --chmod=0755 runtime/container/up.sh /usr/local/bin/container/up.sh
+
+ARG SOURCE_COMMIT
+ARG BUILD_DATE
+
+RUN set -eux; \
+    COMMIT_SHORT="$(printf '%s' "$SOURCE_COMMIT" | cut -c1-7)"; \
+    COMPAT_LAYER_STR=""; \
+    if [ -n "$COMPAT_LAYER" ]; then COMPAT_LAYER_STR="-$COMPAT_LAYER"; fi; \
+    printf '# Build: %s-%s-%s%s-%s\n' "$COMMIT_SHORT" "$BUILD_DATE" "$DEBIAN_VERSION_CODENAME" "$COMPAT_LAYER_STR" "$TARGETARCH" >> /etc/environment; \
+    printf 'BUILD_ID=%s-%s-%s%s-%s\n' "$COMMIT_SHORT" "$BUILD_DATE" "$DEBIAN_VERSION_CODENAME" "$COMPAT_LAYER_STR" "$TARGETARCH" >> /etc/environment
 
 USER ${CONTAINER_USER}
 
